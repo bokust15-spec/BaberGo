@@ -1,0 +1,8 @@
+{
+  "name": "BarberGo",
+  "description": "Le coiffeur vient à vous - Marketplace de coiffure à domicile et en salon au Maroc.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": []
+}

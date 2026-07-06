@@ -1,0 +1,89 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Information about a client or a coiffeur.",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string", "description": "First name" },
+        "lastName": { "type": "string", "description": "Last name" },
+        "gender": { "type": "string", "enum": ["homme", "femme", "autre"] },
+        "phone": { "type": "string", "description": "Phone number" },
+        "email": { "type": "string", "format": "email", "description": "Email address" },
+        "role": { "type": "string", "enum": ["client", "barber"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "kycStatus": { "type": "string", "enum": ["unverified", "pending", "verified"] },
+        "kycCinUrl": { "type": "string" },
+        "kycSelfieUrl": { "type": "string" },
+        "unpaidCommissionsCount": { "type": "number" },
+        "totalCommissionsOwed": { "type": "number" }
+      },
+      "required": ["firstName", "lastName", "gender", "phone", "email", "role", "createdAt"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "A service offered by a barber (cut, shave, etc.)",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "duration": { "type": "number", "description": "Duration in minutes" },
+        "category": { "type": "string" }
+      },
+      "required": ["name", "price", "duration", "category"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "A booking between a client and a barber.",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string" },
+        "barberId": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "dateTime": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled", "completed"] },
+        "totalPrice": { "type": "number" },
+        "clientName": { "type": "string", "description": "Full name of the client" },
+        "serviceName": { "type": "string", "description": "Name of the requested service" },
+        "proposedPrice": { "type": "number", "description": "Price proposed by the client (InDrive model)" },
+        "counterPriceByBarber": { "type": "number", "description": "Alternative price proposed by coiffeur" },
+        "negotiationStatus": { "type": "string", "enum": ["client_proposed", "barber_countered", "accepted", "declined"] },
+        "clientLocationShared": { "type": "boolean", "description": "True if precise location sharing is active" },
+        "clientNotes": { "type": "string", "description": "Instructions / specific requests for the visit" }
+      },
+      "required": ["clientId", "barberId", "serviceId", "dateTime", "status", "totalPrice"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "A review left by a client for a barber after an appointment.",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string" },
+        "barberId": { "type": "string" },
+        "appointmentId": { "type": "string" },
+        "rating": { "type": "number", "minimum": 1, "maximum": 5 },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["clientId", "barberId", "appointmentId", "rating", "comment", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user profiles."
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "All bookings in the system."
+    },
+    "/services/{serviceId}": {
+      "schema": "Service",
+      "description": "Available services (static or managed)."
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Public reviews for barbers."
+    }
+  }
+}

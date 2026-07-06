@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gold: #c9a84c;
+  --color-gold-light: #e8c97e;
+  --color-cream: #f5f0e8;
+  --color-dark-brown: #1a1208;
+  --color-mid-brown: #2d2416;
+  --color-warm-gray: #8a8278;
+  
+  --font-bebas: "Bebas Neue", sans-serif;
+  --font-bricolage: "Bricolage Grotesque", sans-serif;
+  --font-dm-sans: "DM Sans", sans-serif;
+  --font-dm-serif: "DM Serif Display", serif;
+}
+
+@layer base {
+  body {
+    @apply transition-colors duration-300 font-dm-sans selection:bg-gold/30;
+    overflow-x: hidden;
+  }
+
+  /* Noise Overlay */
+  body::before {
+    content: '';
+    @apply fixed inset-0 z-0 pointer-events-none opacity-5;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  }
+
+  h1, h2, h3, .logo {
+    @apply font-bebas tracking-wider;
+  }
+}
+
+.dark {
+  @apply bg-[#0a0a0a] text-cream;
+}
+
+.light {
+  @apply bg-white text-gray-900;
+}
+
+.gold-gradient-text {
+  @apply bg-linear-to-r from-gold to-gold-light bg-clip-text text-transparent;
+}
+
+.glass-nav {
+  @apply transition-all duration-300 border-b;
+}
+.dark .glass-nav { @apply bg-[#0a0a0a]/85 backdrop-blur-xl border-gold/15; }
+.light .glass-nav { @apply bg-white/85 backdrop-blur-xl border-gray-200; }
+
+.luxury-card {
+  @apply transition-all duration-300 rounded-sm border;
+}
+.dark .luxury-card { @apply bg-mid-brown border-gold/15 hover:border-gold/40; }
+.light .luxury-card { @apply bg-gray-50 border-gray-200 hover:border-gold/40; }
+
+.btn-primary {
+  @apply bg-gold text-[#0a0a0a] px-8 py-3 font-bold uppercase tracking-wider rounded-sm hover:bg-gold-light transition-all active:scale-95;
+}
+
+.btn-outline {
+  @apply bg-transparent border px-8 py-3 font-medium uppercase tracking-wider rounded-sm transition-all active:scale-95;
+}
+.dark .btn-outline { @apply text-cream border-cream/20 hover:border-gold hover:text-gold; }
+.light .btn-outline { @apply text-gray-800 border-gray-300 hover:border-gold hover:text-gold; }
+
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

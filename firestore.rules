@@ -1,0 +1,103 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isNum(val) {
+      return val is int || val is float;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['firstName', 'lastName', 'gender', 'phone', 'email', 'role', 'createdAt'])
+        && data.keys().size() >= 7 && data.keys().size() <= 12
+        && data.firstName is string && data.firstName.size() >= 1 && data.firstName.size() <= 100
+        && data.lastName is string && data.lastName.size() >= 1 && data.lastName.size() <= 100
+        && data.gender in ['homme', 'femme', 'autre']
+        && data.phone is string && data.phone.size() >= 8 && data.phone.size() <= 20
+        && data.email is string && data.email.size() <= 200
+        && data.role in ['client', 'barber']
+        && data.createdAt == request.time;
+    }
+
+    function isValidService(data) {
+      return data.keys().hasAll(['name', 'price', 'duration', 'category'])
+        && data.keys().size() == 4
+        && data.name is string && data.name.size() > 0
+        && isNum(data.price) && data.price >= 0
+        && isNum(data.duration) && data.duration > 0
+        && data.category is string;
+    }
+
+    function isValidAppointment(data) {
+      return data.keys().hasAll(['clientId', 'barberId', 'serviceId', 'dateTime', 'status', 'totalPrice'])
+        && data.keys().size() >= 6 && data.keys().size() <= 12
+        && data.clientId == request.auth.uid
+        && data.barberId is string
+        && data.serviceId is string
+        && data.status in ['pending', 'confirmed', 'cancelled', 'completed']
+        && isNum(data.totalPrice);
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll(['clientId', 'barberId', 'appointmentId', 'rating', 'comment', 'createdAt'])
+        && data.keys().size() == 6
+        && data.clientId == request.auth.uid
+        && isNum(data.rating) && data.rating >= 1 && data.rating <= 5
+        && data.comment is string && data.comment.size() <= 1000
+        && data.createdAt == request.time;
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn(); 
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) 
+        && isValidUser(request.resource.data)
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    // Services (Menu)
+    match /services/{serviceId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn(); // For now allow write to seed, should be restricted later
+    }
+
+    // Appointments
+    match /appointments/{appointmentId} {
+      allow read: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber');
+      allow list: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber');
+      allow create: if isSignedIn() && isValidAppointment(request.resource.data);
+      allow update: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'totalPrice', 'proposedPrice', 'counterPriceByBarber', 'negotiationStatus', 'clientLocationShared', 'clientNotes', 'barberId'])
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['barberId'])
+          || (resource.data.barberId == 'dummy_barber' && request.resource.data.barberId == request.auth.uid)
+        );
+    }
+
+    // Reviews
+    match /reviews/{reviewId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidReview(request.resource.data);
+      allow delete: if isSignedIn() && resource.data.clientId == request.auth.uid;
+    }
+  }
+}
