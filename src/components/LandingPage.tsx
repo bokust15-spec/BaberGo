@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import { motion } from 'motion/react';
-import { Star, MapPin, Calendar, Scissors, Apple, Play, ShieldCheck, Wallet, Quote } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Star, MapPin, Calendar, Scissors, Apple, Play, ShieldCheck, Wallet, Quote, Menu, X } from 'lucide-react';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -57,6 +57,7 @@ const TESTIMONIALS = [
 ];
 
 export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNearby }: LandingPageProps) {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const galleryRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const dragStartRef = useRef({ x: 0, scrollLeft: 0 });
@@ -146,11 +147,40 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
           <a href="#how" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Comment ça marche</a>
           <a href="#avis" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Avis</a>
         </div>
-        <div className="justify-self-end" />
+        <div className="justify-self-end flex items-center">
+          <button
+            onClick={() => setIsMobileMenuOpen(prev => !prev)}
+            aria-label="Ouvrir le menu"
+            aria-expanded={isMobileMenuOpen}
+            className={`md:hidden mr-14 p-2 rounded-full transition-colors ${theme === 'dark' ? 'text-gold hover:bg-white/10' : 'text-gold hover:bg-black/5'}`}
+          >
+            {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        </div>
       </nav>
 
+      {/* MOBILE NAV PANEL */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.2 }}
+            className={`md:hidden fixed top-[64px] left-0 right-0 z-40 glass-nav border-t-0 flex flex-col px-6 py-4 gap-1`}
+          >
+            <a onClick={() => setIsMobileMenuOpen(false)} href="#hero" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Accueil</a>
+            <a onClick={() => setIsMobileMenuOpen(false)} href="#services" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Services</a>
+            <button onClick={() => { setIsMobileMenuOpen(false); onRegisterOpen('barber'); }} className="py-3 text-left text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Je suis coiffeur</button>
+            <button onClick={() => { setIsMobileMenuOpen(false); onLogin(); }} className="py-3 text-left text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Se connecter</button>
+            <a onClick={() => setIsMobileMenuOpen(false)} href="#how" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Comment ça marche</a>
+            <a onClick={() => setIsMobileMenuOpen(false)} href="#avis" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors">Avis</a>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* HERO */}
-      <section id="hero" className="min-h-screen pt-24 pb-16 flex flex-col relative overflow-hidden">
+      <section id="hero" className="min-h-screen pt-20 md:pt-24 pb-10 md:pb-16 flex flex-col relative overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.03] pointer-events-none select-none text-[20vw] font-bebas text-gold tracking-widest whitespace-nowrap z-0">
           BARBERGO
         </div>
@@ -184,7 +214,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className={`font-bricolage tracking-normal text-6xl md:text-8xl lg:text-9xl leading-[0.9] mb-6 ${theme === 'dark' ? 'text-white' : 'text-black'}`}
+            className={`font-bricolage tracking-normal text-4xl sm:text-5xl md:text-8xl lg:text-9xl leading-[0.95] md:leading-[0.9] mb-3 md:mb-6 ${theme === 'dark' ? 'text-white' : 'text-black'}`}
           >
             Votre coiffeur<br />
             <span className="gold-gradient-text italic">vient vers vous.</span>
@@ -194,7 +224,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-warm-gray text-lg max-w-lg mb-10 leading-relaxed font-light"
+            className="text-warm-gray text-sm md:text-lg max-w-lg mb-6 md:mb-10 leading-relaxed font-light"
           >
             BarberGo met en relation les meilleurs talents de la coiffure avec les clients les plus exigeants.
             À domicile ou en salon — contrôlez votre style en un clic, partout dans le monde.
@@ -206,16 +236,16 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
             transition={{ delay: 0.3 }}
             className="flex flex-col gap-4 w-fit"
           >
-            <div className="flex flex-wrap gap-4">
-              <button onClick={onFindNearby} className="btn-primary flex items-center gap-3">
-                <MapPin size={18} />
+            <div className="flex flex-wrap gap-3 md:gap-4">
+              <button onClick={onFindNearby} className="btn-primary flex items-center gap-2 md:gap-3 !px-5 !py-3 md:!px-8 md:!py-3 text-[11px] md:text-sm">
+                <MapPin size={16} className="shrink-0" />
                 Trouver un coiffeur autour de moi
               </button>
               <button
                 onClick={() => onRegisterOpen('barber')}
-                className={`flex items-center gap-3 px-8 py-4 text-xs font-bold uppercase tracking-widest border transition-all ${theme === 'dark' ? 'border-gold/30 text-warm-gray hover:text-gold hover:border-gold' : 'border-gold/30 text-warm-gray hover:text-gold hover:border-gold'}`}
+                className={`flex items-center gap-2 md:gap-3 px-5 py-3 md:px-8 md:py-4 text-[11px] md:text-xs font-bold uppercase tracking-widest border transition-all ${theme === 'dark' ? 'border-gold/30 text-warm-gray hover:text-gold hover:border-gold' : 'border-gold/30 text-warm-gray hover:text-gold hover:border-gold'}`}
               >
-                <Scissors size={16} />
+                <Scissors size={14} className="shrink-0" />
                 Je suis coiffeur
               </button>
             </div>
@@ -225,35 +255,35 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="flex gap-12 mt-16"
+            className="flex gap-6 sm:gap-8 md:gap-12 mt-8 md:mt-16"
           >
             <div className="text-center md:text-left">
-              <div className="text-3xl font-bebas text-gold mb-1">5,000+</div>
-              <div className="text-[10px] text-warm-gray uppercase tracking-widest font-bold">Experts</div>
+              <div className="text-xl md:text-3xl font-bebas text-gold mb-1">5,000+</div>
+              <div className="text-[9px] md:text-[10px] text-warm-gray uppercase tracking-widest font-bold">Experts</div>
             </div>
             <div className="text-center md:text-left">
-              <div className="text-3xl font-bebas text-gold mb-1">50K+</div>
-              <div className="text-[10px] text-warm-gray uppercase tracking-widest font-bold">utilisateurs</div>
+              <div className="text-xl md:text-3xl font-bebas text-gold mb-1">50K+</div>
+              <div className="text-[9px] md:text-[10px] text-warm-gray uppercase tracking-widest font-bold">utilisateurs</div>
             </div>
             <div className="text-center md:text-left">
-              <div className="text-3xl font-bebas text-gold mb-1">4.9/5</div>
-              <div className="text-[10px] text-warm-gray uppercase tracking-widest font-bold">Score</div>
+              <div className="text-xl md:text-3xl font-bebas text-gold mb-1">4.9/5</div>
+              <div className="text-[9px] md:text-[10px] text-warm-gray uppercase tracking-widest font-bold">Score</div>
             </div>
           </motion.div>
         </div>
 
         {/* HERO PHOTO */}
-        <div className="flex-1 w-full flex justify-center items-center mt-24 md:mt-0 relative z-10">
+        <div className="flex-1 w-full flex justify-center items-center mt-8 md:mt-0 relative z-10">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className="relative w-[320px] sm:w-[400px] md:w-[460px]"
+            className="relative w-[240px] sm:w-[320px] md:w-[460px]"
           >
             <img
               src={WORK_PHOTOS.heroBeardTrim}
               alt="Coiffeur BarberGo réalisant une taille de barbe pour un client"
-              className="w-full h-[540px] md:h-[620px] object-cover rounded-2xl border-2 border-gold/25 shadow-2xl"
+              className="w-full h-[340px] sm:h-[440px] md:h-[620px] object-cover rounded-2xl border-2 border-gold/25 shadow-2xl"
             />
           </motion.div>
         </div>
