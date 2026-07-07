@@ -6,19 +6,22 @@ import {
   signOut,
   User as FirebaseUser
 } from 'firebase/auth';
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  serverTimestamp, 
-  collection, 
-  getDocs, 
-  addDoc, 
-  query, 
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+  collection,
+  getDocs,
+  addDoc,
+  query,
   where,
-  updateDoc
+  updateDoc,
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore';
-import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { auth, db, storage, handleFirestoreError, OperationType } from '../lib/firebase';
 
 export interface UserProfile {
   uid: string;
@@ -34,6 +37,8 @@ export interface UserProfile {
   kycSelfieUrl?: string;
   unpaidCommissionsCount?: number;
   totalCommissionsOwed?: number;
+  bio?: string;
+  portfolioPhotos?: string[];
 }
 
 export interface Service {
@@ -285,20 +290,58 @@ export function useFirebase() {
     }
   };
 
-  return { 
-    user, 
-    profile, 
-    loading, 
-    services, 
+  const updateBio = async (bio: string) => {
+    if (!user) return;
+    try {
+      const docRef = doc(db, 'users', user.uid);
+      await updateDoc(docRef, { bio });
+      setProfile(prev => prev ? { ...prev, bio } : prev);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+    }
+  };
+
+  const uploadPortfolioPhoto = async (file: File) => {
+    if (!user) return;
+    const path = `portfolios/${user.uid}/${Date.now()}-${file.name}`;
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(storageRef);
+    const docRef = doc(db, 'users', user.uid);
+    await updateDoc(docRef, { portfolioPhotos: arrayUnion(url) });
+    setProfile(prev => prev ? { ...prev, portfolioPhotos: [...(prev.portfolioPhotos || []), url] } : prev);
+    return url;
+  };
+
+  const deletePortfolioPhoto = async (url: string) => {
+    if (!user) return;
+    const docRef = doc(db, 'users', user.uid);
+    await updateDoc(docRef, { portfolioPhotos: arrayRemove(url) });
+    setProfile(prev => prev ? { ...prev, portfolioPhotos: (prev.portfolioPhotos || []).filter(p => p !== url) } : prev);
+    try {
+      await deleteObject(ref(storage, url));
+    } catch {
+      // Photo may already be gone from storage; the Firestore reference removal above is what matters.
+    }
+  };
+
+  return {
+    user,
+    profile,
+    loading,
+    services,
     barbers,
-    loginWithGoogle, 
-    logout, 
+    loginWithGoogle,
+    logout,
     registerProfile,
     createAppointment,
     getAppointments,
     updateAppointment,
     updateAppointmentStatus,
     addReview,
+    updateBio,
+    uploadPortfolioPhoto,
+    deletePortfolioPhoto,
     getBarberReviews
   };
 }

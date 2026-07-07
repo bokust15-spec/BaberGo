@@ -273,7 +273,8 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
         </div>
 
         {/* HERO PHOTO */}
-        <div className="flex-1 w-full flex justify-center items-center mt-8 md:mt-0 relative z-10">
+        <div className="flex-1 w-full flex flex-col items-center justify-center mt-8 md:mt-0 relative z-10">
+          <p className={`font-bold uppercase tracking-widest text-2xl md:text-3xl mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Coiffure à domicile</p>
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -285,6 +286,9 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
               alt="Coiffeur BarberGo réalisant une taille de barbe pour un client"
               className="w-full h-[340px] sm:h-[440px] md:h-[620px] object-cover rounded-2xl border-2 border-gold/25 shadow-2xl"
             />
+            <div className="absolute bottom-0 left-0 right-0 p-4 rounded-b-2xl bg-gradient-to-t from-black/85 via-black/40 to-transparent">
+              <p className="text-white font-bold text-center text-sm md:text-base">BarberGo vous fait gagner du temps !</p>
+            </div>
           </motion.div>
         </div>
         </div>

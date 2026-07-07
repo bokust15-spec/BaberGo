@@ -23,16 +23,23 @@ service cloud.firestore {
       return val is int || val is float;
     }
 
-    function isValidUser(data) {
+    // Structural checks shared by create and update (does not constrain createdAt,
+    // since on update createdAt must stay equal to its original value, not "now").
+    function isValidUserFields(data) {
       return data.keys().hasAll(['firstName', 'lastName', 'gender', 'phone', 'email', 'role', 'createdAt'])
-        && data.keys().size() >= 7 && data.keys().size() <= 12
+        && data.keys().size() >= 7 && data.keys().size() <= 14
         && data.firstName is string && data.firstName.size() >= 1 && data.firstName.size() <= 100
         && data.lastName is string && data.lastName.size() >= 1 && data.lastName.size() <= 100
         && data.gender in ['homme', 'femme', 'autre']
         && data.phone is string && data.phone.size() >= 8 && data.phone.size() <= 20
         && data.email is string && data.email.size() <= 200
         && data.role in ['client', 'barber']
-        && data.createdAt == request.time;
+        && (!('bio' in data) || (data.bio is string && data.bio.size() <= 500))
+        && (!('portfolioPhotos' in data) || (data.portfolioPhotos is list && data.portfolioPhotos.size() <= 30));
+    }
+
+    function isValidNewUser(data) {
+      return isValidUserFields(data) && data.createdAt == request.time;
     }
 
     function isValidService(data) {
@@ -67,9 +74,9 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isSignedIn();
       allow list: if isSignedIn(); 
-      allow create: if isOwner(userId) && isValidUser(request.resource.data);
-      allow update: if isOwner(userId) 
-        && isValidUser(request.resource.data)
+      allow create: if isOwner(userId) && isValidNewUser(request.resource.data);
+      allow update: if isOwner(userId)
+        && isValidUserFields(request.resource.data)
         && request.resource.data.role == resource.data.role
         && request.resource.data.createdAt == resource.data.createdAt;
     }

@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  BarChart3, 
-  Calendar, 
-  Users, 
-  Settings, 
-  Bell, 
-  ChevronRight, 
-  CheckCircle2, 
-  XCircle, 
-  Clock, 
-  Scissors, 
+import {
+  BarChart3,
+  Calendar,
+  Users,
+  Settings,
+  Bell,
+  ChevronRight,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Scissors,
   LogOut,
   MapPin,
   Shield,
@@ -21,7 +21,11 @@ import {
   Flag,
   Phone,
   HelpCircle,
-  TrendingUp
+  TrendingUp,
+  X,
+  Upload,
+  Trash2,
+  Compass
 } from 'lucide-react';
 import { Appointment, UserProfile, Service } from '../hooks/useFirebase';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -29,24 +33,32 @@ import { db } from '../lib/firebase';
 
 interface BarberDashboardProps {
   profile: UserProfile;
+  barbers: UserProfile[];
   appointments: Appointment[];
   services: Service[];
   onUpdateStatus: (id: string, status: Appointment['status']) => Promise<void>;
   onUpdateAppointment?: (id: string, updates: Partial<Appointment>) => Promise<void>;
   onLogout: () => void;
   theme: 'dark' | 'light';
+  onUpdateBio: (bio: string) => Promise<void>;
+  onUploadPhoto: (file: File) => Promise<string | undefined>;
+  onDeletePhoto: (url: string) => Promise<void>;
 }
 
-export default function BarberDashboard({ 
-  profile, 
-  appointments, 
-  services, 
-  onUpdateStatus, 
-  onUpdateAppointment, 
-  onLogout, 
-  theme 
+export default function BarberDashboard({
+  profile,
+  barbers,
+  appointments,
+  services,
+  onUpdateStatus,
+  onUpdateAppointment,
+  onLogout,
+  theme,
+  onUpdateBio,
+  onUploadPhoto,
+  onDeletePhoto
 }: BarberDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'map' | 'schedule' | 'clients'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'map' | 'schedule' | 'clients' | 'discover'>('overview');
   const [selectedPin, setSelectedPin] = useState<string | null>(null);
   const [showPayModal, setShowPayModal] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
@@ -56,6 +68,8 @@ export default function BarberDashboard({
   const [reportingAppId, setReportingAppId] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('');
   const [reportedApps, setReportedApps] = useState<Record<string, boolean>>({});
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [viewingBarber, setViewingBarber] = useState<UserProfile | null>(null);
 
   // Stats
   const pendingCount = appointments.filter(a => a.status === 'pending').length;
@@ -155,13 +169,13 @@ export default function BarberDashboard({
         <div className="flex items-center gap-6">
           <div className="logo text-2xl text-gold font-bebas tracking-widest leading-none">Partners<span className="text-white">Pro</span></div>
           <div className="hidden md:flex gap-4">
-            {(['overview', 'map', 'schedule', 'clients'] as const).map(tab => (
+            {(['overview', 'map', 'schedule', 'clients', 'discover'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`text-[10px] uppercase font-bold tracking-widest px-3 py-1.5 transition-all relative ${activeTab === tab ? 'text-gold font-bold' : 'text-warm-gray hover:text-white'}`}
               >
-                {tab === 'overview' ? 'Tableau de bord' : tab === 'map' ? 'Carte des Annonces' : tab === 'schedule' ? 'Agenda' : 'Base Clients'}
+                {tab === 'overview' ? 'Tableau de bord' : tab === 'map' ? 'Carte des Annonces' : tab === 'schedule' ? 'Agenda' : tab === 'clients' ? 'Base Clients' : 'Découvrir'}
                 {tab === 'map' && appointments.filter(a => a.barberId === 'dummy_barber' && a.status === 'pending').length > 0 && (
                   <span className="absolute -top-1 -right-1 flex h-1.5 w-1.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75 animate-pulse"></span>
@@ -456,6 +470,9 @@ export default function BarberDashboard({
                         </div>
                     </div>
                   </div>
+                  {profile.bio && (
+                    <p className="text-xs text-warm-gray italic leading-relaxed mb-4 pb-4 border-b border-white/5">"{profile.bio}"</p>
+                  )}
                   <div className="space-y-3">
                     <div className="flex justify-between text-xs border-b border-white/5 pb-2">
                       <span className="text-warm-gray uppercase tracking-widest">Statut d'activité</span>
@@ -472,7 +489,21 @@ export default function BarberDashboard({
                       <span className="text-gold font-bold uppercase tracking-widest">4.9/5 stars</span>
                     </div>
                   </div>
-                  <button className="w-full mt-6 py-3 border border-gold/30 text-gold text-[10px] font-bold uppercase tracking-widest hover:bg-gold hover:text-black transition-all">
+
+                  {profile.portfolioPhotos && profile.portfolioPhotos.length > 0 && (
+                    <div className="grid grid-cols-4 gap-1.5 mt-4">
+                      {profile.portfolioPhotos.slice(0, 4).map((url, i) => (
+                        <div key={i} className="aspect-square rounded-sm overflow-hidden border border-gold/15">
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => setShowEditProfile(true)}
+                    className="w-full mt-6 py-3 border border-gold/30 text-gold text-[10px] font-bold uppercase tracking-widest hover:bg-gold hover:text-black transition-all"
+                  >
                     Modifier mes informations
                   </button>
                 </div>
@@ -824,6 +855,54 @@ export default function BarberDashboard({
             </div>
           </div>
         )}
+
+        {/* DISCOVER TAB: OTHER BARBERS' PROFILES & PHOTOS */}
+        {activeTab === 'discover' && (
+          <div className="space-y-6 text-left">
+            <h2 className="font-bebas text-3xl tracking-widest text-gold uppercase flex items-center gap-3">
+              <Compass size={26} /> Découvrir les autres coiffeurs
+            </h2>
+            <p className="text-xs text-warm-gray">Parcourez les profils et les réalisations des autres membres BarberGo.</p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {barbers.filter(b => b.uid !== profile.uid).map(b => (
+                <button
+                  key={b.uid}
+                  onClick={() => setViewingBarber(b)}
+                  className={`text-left p-5 rounded-sm border transition-all hover:border-gold/50 ${theme === 'dark' ? 'bg-mid-brown/30 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 shrink-0 bg-gold rounded-sm flex items-center justify-center font-bebas text-xl text-black">
+                      {b.firstName[0]}{b.lastName[0]}
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-bebas text-lg tracking-widest uppercase truncate">{b.firstName} {b.lastName}</h4>
+                      <p className="text-[9px] text-warm-gray uppercase tracking-widest">{b.gender === 'femme' ? 'Coiffeuse' : 'Coiffeur'}</p>
+                    </div>
+                  </div>
+                  {b.bio && <p className="text-xs text-warm-gray italic line-clamp-2 mb-3">"{b.bio}"</p>}
+                  {b.portfolioPhotos && b.portfolioPhotos.length > 0 ? (
+                    <div className="grid grid-cols-4 gap-1">
+                      {b.portfolioPhotos.slice(0, 4).map((url, i) => (
+                        <div key={i} className="aspect-square rounded-sm overflow-hidden border border-gold/10">
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-warm-gray/50 uppercase tracking-widest">Aucune photo publiée</p>
+                  )}
+                </button>
+              ))}
+              {barbers.filter(b => b.uid !== profile.uid).length === 0 && (
+                <div className="col-span-full text-center py-10 opacity-60">
+                  <Compass className="mx-auto mb-3 text-gold/30" size={32} />
+                  <p className="text-xs text-warm-gray font-bold uppercase tracking-widest">Aucun autre coiffeur inscrit pour le moment</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* MODAL BILL PAYMENT */}
@@ -878,6 +957,62 @@ export default function BarberDashboard({
                   Annuler
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: EDIT MY PROFILE (BIO + PORTFOLIO PHOTOS) */}
+      <AnimatePresence>
+        {showEditProfile && (
+          <EditProfileModal
+            profile={profile}
+            theme={theme}
+            onClose={() => setShowEditProfile(false)}
+            onUpdateBio={onUpdateBio}
+            onUploadPhoto={onUploadPhoto}
+            onDeletePhoto={onDeletePhoto}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: VIEW ANOTHER BARBER'S PROFILE */}
+      <AnimatePresence>
+        {viewingBarber && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className={`w-full max-w-lg p-6 rounded-sm border text-left max-h-[85vh] overflow-y-auto ${theme === 'dark' ? 'bg-mid-brown border-gold/30' : 'bg-white border-gray-200'}`}
+            >
+              <div className="flex justify-between items-start mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-gold rounded-sm flex items-center justify-center font-bebas text-3xl text-black shrink-0">
+                    {viewingBarber.firstName[0]}{viewingBarber.lastName[0]}
+                  </div>
+                  <div>
+                    <h3 className="font-bebas text-2xl text-gold tracking-widest uppercase">{viewingBarber.firstName} {viewingBarber.lastName}</h3>
+                    <p className="text-[10px] text-warm-gray uppercase tracking-widest">{viewingBarber.gender === 'femme' ? 'Coiffeuse' : 'Coiffeur'}</p>
+                  </div>
+                </div>
+                <button onClick={() => setViewingBarber(null)} className="text-warm-gray hover:text-gold transition-colors shrink-0"><X size={20} /></button>
+              </div>
+              {viewingBarber.bio && (
+                <p className="text-xs text-warm-gray italic leading-relaxed mb-6 pb-6 border-b border-white/5">"{viewingBarber.bio}"</p>
+              )}
+              <div className="text-[10px] text-warm-gray uppercase tracking-widest font-bold mb-3">Réalisations</div>
+              {viewingBarber.portfolioPhotos && viewingBarber.portfolioPhotos.length > 0 ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {viewingBarber.portfolioPhotos.map((url, i) => (
+                    <div key={i} className="aspect-square rounded-sm overflow-hidden border border-gold/15">
+                      <img src={url} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-warm-gray/50 uppercase tracking-widest text-center py-8">Aucune photo publiée pour le moment</p>
+              )}
             </motion.div>
           </div>
         )}
@@ -1103,4 +1238,149 @@ export function getAnnouncementLocation(appId: string) {
     x: Math.max(10, Math.min(90, base.x + jitterX)),
     y: Math.max(10, Math.min(90, base.y + jitterY))
   };
+}
+
+// EDIT PROFILE MODAL: bio + portfolio photo management (real upload via Firebase Storage)
+interface EditProfileModalProps {
+  profile: UserProfile;
+  theme: 'dark' | 'light';
+  onClose: () => void;
+  onUpdateBio: (bio: string) => Promise<void>;
+  onUploadPhoto: (file: File) => Promise<string | undefined>;
+  onDeletePhoto: (url: string) => Promise<void>;
+}
+
+function EditProfileModal({ profile, theme, onClose, onUpdateBio, onUploadPhoto, onDeletePhoto }: EditProfileModalProps) {
+  const [bio, setBio] = useState(profile.bio || '');
+  const [savingBio, setSavingBio] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSaveBio = async () => {
+    setSavingBio(true);
+    try {
+      await onUpdateBio(bio.trim());
+    } catch (e) {
+      setError("Impossible d'enregistrer la bio pour le moment.");
+    }
+    setSavingBio(false);
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Merci de choisir un fichier image.');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError('La photo dépasse la taille maximale de 8 Mo.');
+      return;
+    }
+    setError(null);
+    setUploading(true);
+    try {
+      await onUploadPhoto(file);
+    } catch (e) {
+      setError("L'envoi de la photo a échoué. Vérifiez que Firebase Storage est bien activé pour ce projet.");
+    }
+    setUploading(false);
+  };
+
+  const handleDelete = async (url: string) => {
+    setDeletingUrl(url);
+    try {
+      await onDeletePhoto(url);
+    } catch (e) {
+      setError('Impossible de supprimer cette photo pour le moment.');
+    }
+    setDeletingUrl(null);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className={`w-full max-w-lg rounded-sm border text-left max-h-[85vh] overflow-y-auto ${theme === 'dark' ? 'bg-mid-brown border-gold/30' : 'bg-white border-gray-200'}`}
+      >
+        <div className="p-6 border-b border-gold/10 flex justify-between items-center bg-gold/5">
+          <h3 className="font-bebas text-xl text-gold tracking-widest uppercase">Modifier mon profil</h3>
+          <button onClick={onClose} className="text-warm-gray hover:text-gold transition-colors"><X size={20} /></button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {error && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-sm">{error}</div>
+          )}
+
+          {/* BIO */}
+          <div>
+            <label className="text-[10px] text-warm-gray uppercase font-bold tracking-widest mb-2 block">Ma présentation</label>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              maxLength={500}
+              rows={4}
+              placeholder="Décrivez votre spécialité, votre expérience, votre style..."
+              className={`w-full text-xs p-3 rounded-sm border outline-none resize-none ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+            />
+            <div className="flex justify-between items-center mt-2">
+              <span className="text-[9px] text-warm-gray/50">{bio.length}/500</span>
+              <button
+                onClick={handleSaveBio}
+                disabled={savingBio || bio === (profile.bio || '')}
+                className="px-4 py-1.5 bg-gold text-black text-[9px] font-bold uppercase tracking-widest rounded-sm disabled:opacity-40"
+              >
+                {savingBio ? 'Enregistrement...' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+
+          {/* PORTFOLIO PHOTOS */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-[10px] text-warm-gray uppercase font-bold tracking-widest">Mes réalisations</label>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-gold/30 text-gold text-[9px] font-bold uppercase tracking-widest rounded-sm hover:bg-gold hover:text-black transition-all disabled:opacity-40"
+              >
+                <Upload size={12} /> {uploading ? 'Envoi en cours...' : 'Ajouter une photo'}
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelected} className="hidden" />
+            </div>
+
+            {profile.portfolioPhotos && profile.portfolioPhotos.length > 0 ? (
+              <div className="grid grid-cols-3 gap-2">
+                {profile.portfolioPhotos.map((url, i) => (
+                  <div key={i} className="relative aspect-square rounded-sm overflow-hidden border border-gold/15 group">
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => handleDelete(url)}
+                      disabled={deletingUrl === url}
+                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    >
+                      <Trash2 size={18} className="text-red-400" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-warm-gray/50 uppercase tracking-widest text-center py-6 border border-dashed border-white/10 rounded-sm">
+                Aucune photo publiée — ajoutez vos plus belles réalisations
+              </p>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
 }

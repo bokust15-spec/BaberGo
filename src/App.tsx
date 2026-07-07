@@ -15,19 +15,22 @@ export default function App() {
   const [hasDismissedRegister, setHasDismissedRegister] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   
-  const { 
-    user, 
-    profile, 
-    loading, 
-    services, 
+  const {
+    user,
+    profile,
+    loading,
+    services,
     barbers,
-    loginWithGoogle, 
-    logout, 
+    loginWithGoogle,
+    logout,
     registerProfile,
     getAppointments,
     createAppointment,
     updateAppointment,
-    updateAppointmentStatus
+    updateAppointmentStatus,
+    updateBio,
+    uploadPortfolioPhoto,
+    deletePortfolioPhoto
   } = useFirebase();
 
   useEffect(() => {
@@ -171,14 +174,18 @@ export default function App() {
     // Role-based routing for the main application
     if (profile?.role === 'barber') {
       return (
-        <BarberDashboard 
+        <BarberDashboard
           profile={profile}
+          barbers={barbers}
           appointments={appointments}
           services={services}
           onUpdateStatus={handleUpdateAppointmentStatus}
           onUpdateAppointment={handleUpdateAppointment}
           onLogout={handleLogoutAll}
           theme={theme}
+          onUpdateBio={updateBio}
+          onUploadPhoto={uploadPortfolioPhoto}
+          onDeletePhoto={deletePortfolioPhoto}
         />
       );
     }
@@ -203,7 +210,7 @@ export default function App() {
         aria-label="Changer de thème"
         title={theme === 'dark' ? 'Passer au mode clair' : 'Passer au mode sombre'}
         className={`fixed z-[100] p-2.5 rounded-full shadow-lg backdrop-blur-md transition-colors ${
-          view === 'landing' ? 'top-4 right-4 md:right-8' : 'bottom-6 right-6'
+          view === 'landing' || (view === 'app' && profile?.role !== 'barber') ? 'top-4 right-4 md:right-8' : 'top-3 left-3'
         } ${theme === 'dark' ? 'bg-white/10 text-gold hover:bg-white/20' : 'bg-black/10 text-gold hover:bg-black/20'}`}
       >
         {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}

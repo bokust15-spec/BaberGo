@@ -24,7 +24,7 @@ export default function HistoryTab({
   onUpdateAppointment,
   onAddReview
 }: HistoryTabProps) {
-  const [activeFilter, setActiveFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming');
+  const [activeFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming');
   const [activeReviewAppId, setActiveReviewAppId] = useState<string | null>(null);
   const [rating, setRating] = useState<number>(5);
   const [comment, setComment] = useState<string>('');
@@ -150,20 +150,6 @@ export default function HistoryTab({
 
   return (
     <div className="flex flex-col h-full bg-transparent px-4 py-6">
-      <div className="flex gap-2 mb-8 p-1 rounded-sm border border-gold/10 bg-black/20 self-start">
-        {(['upcoming', 'past', 'all'] as const).map((filter) => (
-          <button
-            key={filter}
-            onClick={() => setActiveFilter(filter)}
-            className={`px-4 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded-sm transition-all ${
-              activeFilter === filter ? 'bg-gold text-black' : 'text-warm-gray hover:text-white'
-            }`}
-          >
-            {filter === 'upcoming' ? 'À venir' : filter === 'past' ? 'Passés' : 'Tout'}
-          </button>
-        ))}
-      </div>
-
       <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
         <AnimatePresence mode="popLayout">
           {filteredAppointments.length > 0 ? (
