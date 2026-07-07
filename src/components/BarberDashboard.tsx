@@ -4,17 +4,22 @@ import {
   Home,
   User,
   CalendarCheck,
+  CalendarDays,
   ArrowLeft,
   Camera,
   Plus,
   Trash2,
   X,
   ChevronDown,
+  ChevronRight,
   AlertTriangle,
   Clock,
   Moon as MoonIcon,
   Navigation,
-  Scissors
+  Scissors,
+  MapPin,
+  Star,
+  BadgeCheck
 } from 'lucide-react';
 import { Appointment, UserProfile, Service, PortfolioItem } from '../hooks/useFirebase';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -80,6 +85,7 @@ export default function BarberDashboard({
   const [kycSelfieLoaded, setKycSelfieLoaded] = useState(false);
   const [submittingKyc, setSubmittingKyc] = useState(false);
   const [viewingBarber, setViewingBarber] = useState<UserProfile | null>(null);
+  const [quickBookItemIdx, setQuickBookItemIdx] = useState<number | undefined>(undefined);
   const [phoneInput, setPhoneInput] = useState(profile.phone || '');
   const [savingPhone, setSavingPhone] = useState(false);
 
@@ -266,7 +272,16 @@ export default function BarberDashboard({
         )}
 
         {activeTab === 'home' && (
-          <HomeTab theme={theme} feedItems={feedItems} onSelectBarber={setViewingBarber} />
+          <HomeTab
+            theme={theme}
+            feedItems={feedItems}
+            onSelectBarber={(b) => { setQuickBookItemIdx(undefined); setViewingBarber(b); }}
+            onQuickBook={(b, item) => {
+              const idx = (b.portfolioItems || []).findIndex(i => i.url === item.url);
+              setQuickBookItemIdx(idx >= 0 ? idx : undefined);
+              setViewingBarber(b);
+            }}
+          />
         )}
 
         {activeTab === 'profile' && (
@@ -364,8 +379,9 @@ export default function BarberDashboard({
         {viewingBarber && (
           <BarberProfileModal
             barber={viewingBarber}
+            initialItemIdx={quickBookItemIdx}
             theme={theme}
-            onClose={() => setViewingBarber(null)}
+            onClose={() => { setViewingBarber(null); setQuickBookItemIdx(undefined); }}
             onBook={onBookBarber}
           />
         )}
@@ -377,35 +393,61 @@ export default function BarberDashboard({
 // ============================================================
 // TAB: ACCUEIL — feed of every other barber's realizations
 // ============================================================
-function HomeTab({ theme, feedItems, onSelectBarber }: {
+function HomeTab({ theme, feedItems, onSelectBarber, onQuickBook }: {
   theme: 'dark' | 'light';
   feedItems: { barber: UserProfile; item: PortfolioItem }[];
   onSelectBarber: (b: UserProfile) => void;
+  onQuickBook: (b: UserProfile, item: PortfolioItem) => void;
 }) {
   return (
     <div className="space-y-6 text-left">
       <div>
         <h2 className="font-bebas text-3xl tracking-widest text-gold uppercase">Accueil</h2>
-        <p className="text-xs text-warm-gray">Parcourez les réalisations des coiffeurs BarberGo et réservez une séance.</p>
+        <p className="text-xs text-warm-gray">Parcourez les réalisations des coiffeurs BarberGo et réservez une séance — comme les clients le voient.</p>
       </div>
 
       {feedItems.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {feedItems.map(({ barber, item }, i) => (
-            <button
+            <div
               key={i}
-              onClick={() => onSelectBarber(barber)}
-              className="group relative aspect-[3/4] rounded-xl overflow-hidden border border-white/5 hover:border-gold/40 transition-all shadow-sm text-left"
+              className={`rounded-lg overflow-hidden border ${theme === 'dark' ? 'border-gold/15 bg-mid-brown/20' : 'border-gray-200 bg-white'}`}
             >
-              <img src={item.url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-              <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
-                <p className="text-white text-xs font-bold truncate">{item.name}</p>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-gold text-[11px] font-bold">{item.price} DH</span>
-                  <span className="text-[9px] text-white/70 truncate">{barber.firstName}</span>
+              <button onClick={() => onSelectBarber(barber)} className="group w-full text-left block">
+                <div className="relative aspect-square">
+                  <img src={item.url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                  <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full">
+                    <MapPin size={10} className="text-gold shrink-0" />
+                    <span className="text-white text-[9px] font-bold uppercase tracking-wide">Casablanca</span>
+                  </div>
                 </div>
-              </div>
-            </button>
+                <div className="p-2.5">
+                  <div className={`text-xs font-bold mb-1 truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.name}</div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    {barber.avatarUrl ? (
+                      <img src={barber.avatarUrl} alt="" className="w-5 h-5 rounded-full object-cover border border-gold shrink-0" />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-gold border border-gold shrink-0 flex items-center justify-center text-[7px] font-bold text-black">
+                        {barber.firstName[0]}
+                      </div>
+                    )}
+                    <span className="text-warm-gray text-[10px] truncate">{barber.firstName} {barber.lastName}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-gold text-[10px] font-bold">
+                      <Star size={10} className="fill-gold" /> 4.9
+                    </div>
+                    <div className="text-warm-gray text-[10px]">Dès <span className="text-gold font-bold">{item.price} DH</span></div>
+                  </div>
+                </div>
+              </button>
+              <button
+                onClick={() => onQuickBook(barber, item)}
+                className="w-full bg-gold text-black py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-gold-light transition-colors"
+              >
+                Réserver
+              </button>
+            </div>
           ))}
         </div>
       ) : (
@@ -421,19 +463,22 @@ function HomeTab({ theme, feedItems, onSelectBarber }: {
 // ============================================================
 // MODAL: view a barber's full profile + inline booking form
 // ============================================================
-function BarberProfileModal({ barber, theme, onClose, onBook }: {
+function BarberProfileModal({ barber, initialItemIdx, theme, onClose, onBook }: {
   barber: UserProfile;
+  initialItemIdx?: number;
   theme: 'dark' | 'light';
   onClose: () => void;
   onBook: (barberId: string, item: { name: string; price: number }, dateTime: Date, note?: string) => Promise<void>;
 }) {
   const items = barber.portfolioItems || [];
-  const [showBookingForm, setShowBookingForm] = useState(false);
-  const [selectedItemIdx, setSelectedItemIdx] = useState(0);
+  const [showBookingForm, setShowBookingForm] = useState(initialItemIdx !== undefined);
+  const [selectedItemIdx, setSelectedItemIdx] = useState(initialItemIdx ?? 0);
   const [dateTime, setDateTime] = useState('');
   const [note, setNote] = useState('');
   const [booking, setBooking] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+
+  const minPrice = items.length > 0 ? Math.min(...items.map(i => i.price)) : (barber.basePrice || 80);
 
   const handleBook = async () => {
     if (!dateTime) return;
@@ -456,36 +501,60 @@ function BarberProfileModal({ barber, theme, onClose, onBook }: {
         exit={{ scale: 0.95, opacity: 0 }}
         className={`w-full max-w-lg rounded-xl border text-left max-h-[85vh] overflow-y-auto ${theme === 'dark' ? 'bg-mid-brown border-gold/30' : 'bg-white border-gray-200'}`}
       >
-        <div className="relative h-32 bg-gradient-to-br from-mid-brown to-black">
+        <div className="relative h-32 md:h-40 bg-gradient-to-br from-mid-brown to-black">
           {barber.coverUrl && <img src={barber.coverUrl} className="w-full h-full object-cover" alt="" />}
-          <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80"><X size={16} /></button>
+          <div className={`absolute inset-0 bg-gradient-to-t ${theme === 'dark' ? 'from-mid-brown via-mid-brown/10' : 'from-white via-white/10'} to-transparent`} />
+          <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 z-10"><X size={16} /></button>
         </div>
 
-        <div className="p-6 -mt-10">
-          <div className="w-20 h-20 rounded-full border-4 border-mid-brown bg-gold flex items-center justify-center overflow-hidden shadow-xl mb-3">
-            {barber.avatarUrl ? <img src={barber.avatarUrl} className="w-full h-full object-cover" alt="" /> : <span className="font-bebas text-2xl text-black">{barber.firstName[0]}{barber.lastName[0]}</span>}
+        <div className="p-6 -mt-12 relative">
+          <div className="flex gap-5 items-end mb-6">
+            <div className={`w-24 h-24 rounded-full border-4 shrink-0 bg-gold flex items-center justify-center overflow-hidden shadow-xl ${theme === 'dark' ? 'border-mid-brown' : 'border-white'}`}>
+              {barber.avatarUrl ? <img src={barber.avatarUrl} className="w-full h-full object-cover" alt="" /> : <span className="font-bebas text-3xl text-black">{barber.firstName[0]}{barber.lastName[0]}</span>}
+            </div>
+            <div className="flex-1 pb-1 min-w-0">
+              <h3 className={`text-2xl font-bebas tracking-wider mb-1 uppercase flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                {barber.firstName} {barber.lastName}
+                <BadgeCheck size={18} className="text-gold shrink-0" />
+              </h3>
+              <p className="text-gold text-xs uppercase tracking-widest font-bold mb-1">{barber.gender === 'femme' ? 'Coiffeuse Experte' : 'Coiffeur Expert'}</p>
+              <p className="text-warm-gray text-[10px] uppercase tracking-widest flex items-center gap-1">
+                <MapPin size={10} /> Casablanca
+              </p>
+            </div>
           </div>
-          <h3 className="font-bebas text-2xl text-gold tracking-widest uppercase">{barber.firstName} {barber.lastName}</h3>
-          <p className="text-[10px] text-warm-gray uppercase tracking-widest">{barber.gender === 'femme' ? 'Coiffeuse' : 'Coiffeur'}</p>
+
+          <div className="grid grid-cols-4 gap-3 mb-6">
+            {[
+              { val: '5+', label: 'Ans' },
+              { val: '1k+', label: 'Clients' },
+              { val: '4.9★', label: 'Note' },
+              { val: `${minPrice} DH`, label: 'Dès' }
+            ].map((stat, i) => (
+              <div key={i} className={`text-center p-2 rounded-sm border ${theme === 'dark' ? 'bg-black/20 border-gold/10' : 'bg-gray-50 border-gray-200'}`}>
+                <div className="text-gold font-bebas text-lg leading-none">{stat.val}</div>
+                <div className="text-[8px] text-warm-gray uppercase font-bold">{stat.label}</div>
+              </div>
+            ))}
+          </div>
 
           {barber.bio && (
-            <p className="text-xs text-warm-gray italic leading-relaxed mt-4 pb-4 border-b border-white/5">"{barber.bio}"</p>
+            <div className="mb-6">
+              <div className="text-[10px] text-warm-gray uppercase tracking-widest font-bold mb-2">À propos</div>
+              <p className="text-xs text-warm-gray leading-relaxed">{barber.bio}</p>
+            </div>
           )}
 
-          <div className="text-[10px] text-warm-gray uppercase tracking-widest font-bold mt-4 mb-3">Réalisations</div>
+          <div className="text-[10px] text-warm-gray uppercase tracking-widest font-bold mb-3">Réalisations</div>
           {items.length > 0 ? (
-            <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="grid grid-cols-4 gap-2 mb-4">
               {items.map((item, i) => (
                 <button
                   key={i}
                   onClick={() => { setSelectedItemIdx(i); setShowBookingForm(true); }}
-                  className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-colors ${selectedItemIdx === i && showBookingForm ? 'border-gold' : 'border-gold/15'}`}
+                  className={`relative aspect-square rounded-sm overflow-hidden border-2 transition-colors ${selectedItemIdx === i && showBookingForm ? 'border-gold' : 'border-gold/15'}`}
                 >
-                  <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
-                  <div className="absolute inset-x-0 bottom-0 p-1 bg-black/70">
-                    <p className="text-white text-[8px] truncate">{item.name}</p>
-                    <p className="text-gold text-[8px] font-bold">{item.price} DH</p>
-                  </div>
+                  <img src={item.url} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
                 </button>
               ))}
             </div>
@@ -501,9 +570,11 @@ function BarberProfileModal({ barber, theme, onClose, onBook }: {
             <>
               <button
                 onClick={() => setShowBookingForm(v => !v)}
-                className="w-full py-3 bg-gold text-black text-[10px] font-bold uppercase tracking-widest rounded-lg hover:bg-gold-light transition-all flex items-center justify-center gap-2"
+                className="w-full btn-primary py-4 mt-2 flex items-center justify-center gap-3 group"
               >
-                <CalendarCheck size={14} /> Réserver une séance
+                <CalendarDays size={18} />
+                <span className="uppercase font-bold tracking-[0.2em] text-[10px]">Prendre rendez-vous</span>
+                <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
               </button>
 
               <AnimatePresence>
