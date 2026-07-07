@@ -23,6 +23,12 @@ import {
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { auth, db, storage, handleFirestoreError, OperationType } from '../lib/firebase';
 
+export interface PortfolioItem {
+  url: string;
+  name: string;
+  price: number;
+}
+
 export interface UserProfile {
   uid: string;
   firstName: string;
@@ -38,7 +44,16 @@ export interface UserProfile {
   unpaidCommissionsCount?: number;
   totalCommissionsOwed?: number;
   bio?: string;
-  portfolioPhotos?: string[];
+  avatarUrl?: string;
+  coverUrl?: string;
+  portfolioItems?: PortfolioItem[];
+  workingDays?: number[]; // 0 = dimanche ... 6 = samedi
+  workStartHour?: number;
+  workEndHour?: number;
+  basePrice?: number;
+  nightEnabled?: boolean;
+  nightStartHour?: number;
+  nightPrice?: number;
 }
 
 export interface Service {
@@ -58,9 +73,11 @@ export interface Appointment {
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   totalPrice: number;
   clientName?: string;
+  clientGender?: 'homme' | 'femme' | 'autre';
   serviceName?: string;
   proposedPrice?: number;
   counterPriceByBarber?: number;
+  counterDateTime?: any;
   negotiationStatus?: 'client_proposed' | 'barber_countered' | 'accepted' | 'declined';
   clientLocationShared?: boolean;
   clientNotes?: string;
@@ -353,27 +370,63 @@ export function useFirebase() {
     }
   };
 
-  const uploadPortfolioPhoto = async (file: File) => {
+  const uploadAvatar = async (file: File) => {
+    if (!user) return;
+    const path = `avatars/${user.uid}/${Date.now()}-${file.name}`;
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(storageRef);
+    const docRef = doc(db, 'users', user.uid);
+    await updateDoc(docRef, { avatarUrl: url });
+    setProfile(prev => prev ? { ...prev, avatarUrl: url } : prev);
+    return url;
+  };
+
+  const uploadCover = async (file: File) => {
+    if (!user) return;
+    const path = `covers/${user.uid}/${Date.now()}-${file.name}`;
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(storageRef);
+    const docRef = doc(db, 'users', user.uid);
+    await updateDoc(docRef, { coverUrl: url });
+    setProfile(prev => prev ? { ...prev, coverUrl: url } : prev);
+    return url;
+  };
+
+  const addPortfolioItem = async (file: File, name: string, price: number) => {
     if (!user) return;
     const path = `portfolios/${user.uid}/${Date.now()}-${file.name}`;
     const storageRef = ref(storage, path);
     await uploadBytes(storageRef, file);
     const url = await getDownloadURL(storageRef);
+    const item: PortfolioItem = { url, name, price };
     const docRef = doc(db, 'users', user.uid);
-    await updateDoc(docRef, { portfolioPhotos: arrayUnion(url) });
-    setProfile(prev => prev ? { ...prev, portfolioPhotos: [...(prev.portfolioPhotos || []), url] } : prev);
-    return url;
+    await updateDoc(docRef, { portfolioItems: arrayUnion(item) });
+    setProfile(prev => prev ? { ...prev, portfolioItems: [...(prev.portfolioItems || []), item] } : prev);
+    return item;
   };
 
-  const deletePortfolioPhoto = async (url: string) => {
+  const removePortfolioItem = async (item: PortfolioItem) => {
     if (!user) return;
     const docRef = doc(db, 'users', user.uid);
-    await updateDoc(docRef, { portfolioPhotos: arrayRemove(url) });
-    setProfile(prev => prev ? { ...prev, portfolioPhotos: (prev.portfolioPhotos || []).filter(p => p !== url) } : prev);
+    await updateDoc(docRef, { portfolioItems: arrayRemove(item) });
+    setProfile(prev => prev ? { ...prev, portfolioItems: (prev.portfolioItems || []).filter(p => p.url !== item.url) } : prev);
     try {
-      await deleteObject(ref(storage, url));
+      await deleteObject(ref(storage, item.url));
     } catch {
       // Photo may already be gone from storage; the Firestore reference removal above is what matters.
+    }
+  };
+
+  const updateAvailability = async (updates: Partial<Pick<UserProfile, 'workingDays' | 'workStartHour' | 'workEndHour' | 'basePrice' | 'nightEnabled' | 'nightStartHour' | 'nightPrice'>>) => {
+    if (!user) return;
+    const docRef = doc(db, 'users', user.uid);
+    try {
+      await updateDoc(docRef, updates);
+      setProfile(prev => prev ? { ...prev, ...updates } : prev);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
     }
   };
 
@@ -395,8 +448,11 @@ export function useFirebase() {
     addReview,
     updateBio,
     updatePhone,
-    uploadPortfolioPhoto,
-    deletePortfolioPhoto,
+    uploadAvatar,
+    uploadCover,
+    addPortfolioItem,
+    removePortfolioItem,
+    updateAvailability,
     getBarberReviews
   };
 }

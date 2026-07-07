@@ -34,8 +34,11 @@ export default function App() {
     updateAppointmentStatus,
     updateBio,
     updatePhone,
-    uploadPortfolioPhoto,
-    deletePortfolioPhoto
+    uploadAvatar,
+    uploadCover,
+    addPortfolioItem,
+    removePortfolioItem,
+    updateAvailability
   } = useFirebase();
 
   useEffect(() => {
@@ -127,6 +130,23 @@ export default function App() {
     setAppointments(apps);
   };
 
+  const handleBookBarber = async (barberId: string, item: { name: string; price: number }, dateTime: Date, note?: string) => {
+    if (!user) return;
+    await createAppointment({
+      clientId: user.uid,
+      clientName: profile ? `${profile.firstName} ${profile.lastName}` : 'Client Anonyme',
+      clientGender: profile?.gender,
+      barberId,
+      serviceId: `custom-${Date.now()}`,
+      serviceName: item.name,
+      dateTime,
+      totalPrice: item.price,
+      clientNotes: note
+    });
+    const apps = await getAppointments(profile?.role || 'client');
+    setAppointments(apps);
+  };
+
   const handleUpdateAppointment = async (id: string, updates: Partial<Appointment>) => {
     const updatedPayload = { ...updates };
     if (profile?.role === 'barber') {
@@ -198,8 +218,12 @@ export default function App() {
           theme={theme}
           onUpdateBio={updateBio}
           onUpdatePhone={updatePhone}
-          onUploadPhoto={uploadPortfolioPhoto}
-          onDeletePhoto={deletePortfolioPhoto}
+          onUploadAvatar={uploadAvatar}
+          onUploadCover={uploadCover}
+          onAddPortfolioItem={addPortfolioItem}
+          onRemovePortfolioItem={removePortfolioItem}
+          onUpdateAvailability={updateAvailability}
+          onBookBarber={handleBookBarber}
         />
       );
     }
