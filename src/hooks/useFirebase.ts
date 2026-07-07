@@ -342,6 +342,17 @@ export function useFirebase() {
     }
   };
 
+  const updatePhone = async (phone: string) => {
+    if (!user) return;
+    try {
+      const docRef = doc(db, 'users', user.uid);
+      await updateDoc(docRef, { phone });
+      setProfile(prev => prev ? { ...prev, phone } : prev);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+    }
+  };
+
   const uploadPortfolioPhoto = async (file: File) => {
     if (!user) return;
     const path = `portfolios/${user.uid}/${Date.now()}-${file.name}`;
@@ -383,6 +394,7 @@ export function useFirebase() {
     updateAppointmentStatus,
     addReview,
     updateBio,
+    updatePhone,
     uploadPortfolioPhoto,
     deletePortfolioPhoto,
     getBarberReviews

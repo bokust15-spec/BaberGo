@@ -33,6 +33,7 @@ export default function App() {
     updateAppointment,
     updateAppointmentStatus,
     updateBio,
+    updatePhone,
     uploadPortfolioPhoto,
     deletePortfolioPhoto
   } = useFirebase();
@@ -196,6 +197,7 @@ export default function App() {
           onLogout={handleLogoutAll}
           theme={theme}
           onUpdateBio={updateBio}
+          onUpdatePhone={updatePhone}
           onUploadPhoto={uploadPortfolioPhoto}
           onDeletePhoto={deletePortfolioPhoto}
         />

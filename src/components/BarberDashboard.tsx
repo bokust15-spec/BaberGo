@@ -41,6 +41,7 @@ interface BarberDashboardProps {
   onLogout: () => void;
   theme: 'dark' | 'light';
   onUpdateBio: (bio: string) => Promise<void>;
+  onUpdatePhone: (phone: string) => Promise<void>;
   onUploadPhoto: (file: File) => Promise<string | undefined>;
   onDeletePhoto: (url: string) => Promise<void>;
 }
@@ -55,6 +56,7 @@ export default function BarberDashboard({
   onLogout,
   theme,
   onUpdateBio,
+  onUpdatePhone,
   onUploadPhoto,
   onDeletePhoto
 }: BarberDashboardProps) {
@@ -70,6 +72,8 @@ export default function BarberDashboard({
   const [reportedApps, setReportedApps] = useState<Record<string, boolean>>({});
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [viewingBarber, setViewingBarber] = useState<UserProfile | null>(null);
+  const [phoneInput, setPhoneInput] = useState(profile.phone || '');
+  const [savingPhone, setSavingPhone] = useState(false);
 
   // Stats
   const pendingCount = appointments.filter(a => a.status === 'pending').length;
@@ -89,6 +93,20 @@ export default function BarberDashboard({
   const unpaidCount = profile.unpaidCommissionsCount || 0;
   const commissionsOwed = profile.totalCommissionsOwed || 0;
   const isBlockedByCommissions = unpaidCount > 3;
+  const hasPhone = !!profile.phone;
+  // Phone + KYC (CIN/selfie) must be completed before accepting a booking
+  const profileIncomplete = !hasPhone || kycStatus !== 'verified';
+
+  const handleSavePhone = async () => {
+    if (!phoneInput.trim()) return;
+    setSavingPhone(true);
+    try {
+      await onUpdatePhone(phoneInput.trim());
+    } catch (e) {
+      console.error('Error updating phone:', e);
+    }
+    setSavingPhone(false);
+  };
 
   // Local handler to update user profile in Firestore
   const handleUpdateProfile = async (updates: Partial<UserProfile>) => {
@@ -211,17 +229,39 @@ export default function BarberDashboard({
       <main className="flex-1 p-6 max-w-7xl mx-auto w-full">
         
         {/* BANNER KYC ATTENTION */}
-        {kycStatus !== 'verified' && (
+        {profileIncomplete && (
           <div className={`mb-8 p-6 rounded-sm border ${theme === 'dark' ? 'bg-amber-500/5 border-amber-500/20' : 'bg-amber-50 border-amber-200'} space-y-4`}>
             <div className="flex items-start gap-4">
               <AlertTriangle className="text-amber-500 mt-1 shrink-0 animate-pulse" size={24} />
               <div>
-                <h3 className="font-bebas text-lg tracking-wider text-amber-500 uppercase">Attention - Compte Non Vérifié (Vérification KYC requise)</h3>
+                <h3 className="font-bebas text-lg tracking-wider text-amber-500 uppercase">Attention - Profil incomplet (téléphone + KYC requis)</h3>
                 <p className="text-xs text-warm-gray leading-relaxed max-w-3xl">
-                  Conformément à la réglementation de sécurité de BarberGo (Maroc), vous devez constituer votre dossier en téléchargeant votre CIN et votre Selfie pour valider votre profil. Vous ne pourrez accepter de rendez-vous avec les clients qu'après approbation de votre dossier.
+                  Conformément à la réglementation de sécurité de BarberGo (Maroc), vous devez renseigner votre numéro de téléphone et constituer votre dossier (CIN + Selfie) pour valider votre profil. Vous ne pourrez accepter de rendez-vous avec les clients qu'après avoir complété ces informations.
                 </p>
               </div>
             </div>
+
+            {!hasPhone && (
+              <div className="pt-2 space-y-2">
+                <span className="text-[9px] text-warm-gray uppercase font-bold block">Numéro de téléphone</span>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={phoneInput}
+                    onChange={(e) => setPhoneInput(e.target.value)}
+                    placeholder="+212 6 XX XX XX XX"
+                    className={`flex-1 px-4 py-2.5 text-xs outline-none rounded-sm border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+                  />
+                  <button
+                    onClick={handleSavePhone}
+                    disabled={savingPhone || !phoneInput.trim()}
+                    className="px-5 py-2.5 bg-gold text-black text-[10px] uppercase font-bold tracking-widest hover:bg-gold-light rounded-sm disabled:opacity-40 font-sans shrink-0"
+                  >
+                    {savingPhone ? 'Enregistrement...' : 'Enregistrer mon numéro'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {kycStatus === 'unverified' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
@@ -335,7 +375,7 @@ export default function BarberDashboard({
                         serviceName={getServiceName(app.serviceId)} 
                         onUpdate={onUpdateStatus}
                         onUpdateAppointment={onUpdateAppointment}
-                        isBlocked={isBlockedByCommissions || kycStatus !== 'verified'}
+                        isBlocked={isBlockedByCommissions || profileIncomplete}
                         theme={theme} 
                       />
                     ))
@@ -613,7 +653,7 @@ export default function BarberDashboard({
                               <span className="text-lg font-bebas text-gold tracking-widest">{app.totalPrice} DH</span>
                             </div>
                             <button
-                              disabled={isBlockedByCommissions || kycStatus !== 'verified'}
+                              disabled={isBlockedByCommissions || profileIncomplete}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const confirmAction = window.confirm(`Accepter la coiffure pour ${app.totalPrice} DH avec option domicile ?`);
@@ -745,7 +785,7 @@ export default function BarberDashboard({
 
                           <div className="flex gap-1.5 pt-3 mt-3 border-t border-white/5">
                             <button
-                              disabled={isBlockedByCommissions || kycStatus !== 'verified'}
+                              disabled={isBlockedByCommissions || profileIncomplete}
                               onClick={() => {
                                 const confirmAction = window.confirm(`Valider la prestation pour ${app.totalPrice} DH ?`);
                                 if (confirmAction) onUpdateStatus(app.id, 'confirmed');
@@ -970,6 +1010,7 @@ export default function BarberDashboard({
             theme={theme}
             onClose={() => setShowEditProfile(false)}
             onUpdateBio={onUpdateBio}
+            onUpdatePhone={onUpdatePhone}
             onUploadPhoto={onUploadPhoto}
             onDeletePhoto={onDeletePhoto}
           />
@@ -1134,7 +1175,7 @@ function AppointmentRow({ app, serviceName, onUpdate, onUpdateAppointment, isBlo
       {/* DISQUALIFY BLOCK TEXT FOR STATS */}
       {isBlocked && (
         <p className="text-[10px] text-red-400 uppercase font-bold leading-relaxed">
-          🔒 Touches désactivées : Résolvez votre anomalie KYC ou payez le solde de vos commissions dues.
+          🔒 Touches désactivées : complétez votre téléphone et votre dossier KYC, ou payez le solde de vos commissions dues.
         </p>
       )}
 
@@ -1246,13 +1287,16 @@ interface EditProfileModalProps {
   theme: 'dark' | 'light';
   onClose: () => void;
   onUpdateBio: (bio: string) => Promise<void>;
+  onUpdatePhone: (phone: string) => Promise<void>;
   onUploadPhoto: (file: File) => Promise<string | undefined>;
   onDeletePhoto: (url: string) => Promise<void>;
 }
 
-function EditProfileModal({ profile, theme, onClose, onUpdateBio, onUploadPhoto, onDeletePhoto }: EditProfileModalProps) {
+function EditProfileModal({ profile, theme, onClose, onUpdateBio, onUpdatePhone, onUploadPhoto, onDeletePhoto }: EditProfileModalProps) {
   const [bio, setBio] = useState(profile.bio || '');
   const [savingBio, setSavingBio] = useState(false);
+  const [phone, setPhone] = useState(profile.phone || '');
+  const [savingPhone, setSavingPhone] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1266,6 +1310,16 @@ function EditProfileModal({ profile, theme, onClose, onUpdateBio, onUploadPhoto,
       setError("Impossible d'enregistrer la bio pour le moment.");
     }
     setSavingBio(false);
+  };
+
+  const handleSavePhone = async () => {
+    setSavingPhone(true);
+    try {
+      await onUpdatePhone(phone.trim());
+    } catch (e) {
+      setError("Impossible d'enregistrer le numéro de téléphone pour le moment.");
+    }
+    setSavingPhone(false);
   };
 
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1320,6 +1374,27 @@ function EditProfileModal({ profile, theme, onClose, onUpdateBio, onUploadPhoto,
           {error && (
             <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-sm">{error}</div>
           )}
+
+          {/* PHONE */}
+          <div>
+            <label className="text-[10px] text-warm-gray uppercase font-bold tracking-widest mb-2 block">Numéro de téléphone</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+212 6 XX XX XX XX"
+                className={`flex-1 text-xs p-3 rounded-sm border outline-none ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+              />
+              <button
+                onClick={handleSavePhone}
+                disabled={savingPhone || !phone.trim() || phone === (profile.phone || '')}
+                className="px-4 py-1.5 bg-gold text-black text-[9px] font-bold uppercase tracking-widest rounded-sm disabled:opacity-40 shrink-0"
+              >
+                {savingPhone ? 'Enregistrement...' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
 
           {/* BIO */}
           <div>

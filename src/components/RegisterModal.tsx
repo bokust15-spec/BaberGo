@@ -183,17 +183,24 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
               <p className={sectionLabelClass}><Phone size={12} /> Coordonnées</p>
               <div className="space-y-4">
                 <div>
-                  <label className="text-[10px] text-warm-gray uppercase font-bold mb-1 block">Numéro de téléphone</label>
+                  <label className="text-[10px] text-warm-gray uppercase font-bold mb-1 block">
+                    Numéro de téléphone {roleLocked && <span className="text-warm-gray/50 normal-case font-normal">(optionnel pour l'instant)</span>}
+                  </label>
                   <div className="relative">
                     <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gold/50" />
                     <input
-                      required
+                      required={!roleLocked}
                       value={formData.phone}
                       onChange={e => setFormData({...formData, phone: e.target.value})}
                       className={inputClass}
                       placeholder="+212 6 XX XX XX XX"
                     />
                   </div>
+                  {roleLocked && (
+                    <p className="text-[9px] text-warm-gray/60 mt-1 leading-relaxed">
+                      À renseigner avant d'accepter une réservation, comme la CIN et le selfie de vérification.
+                    </p>
+                  )}
                 </div>
 
                 <div>
