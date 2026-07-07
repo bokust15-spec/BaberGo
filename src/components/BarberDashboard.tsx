@@ -22,10 +22,19 @@ import {
   BadgeCheck
 } from 'lucide-react';
 import { Appointment, UserProfile, Service, PortfolioItem } from '../hooks/useFirebase';
+import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, mockBarberFromPost } from '../data/mockBarberFeed';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 const DAY_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+
+interface FeedEntry {
+  barber: UserProfile;
+  item: PortfolioItem;
+  isMock: boolean;
+  rating: number;
+  city: string;
+}
 
 function toDate(value: any): Date {
   return value instanceof Date ? value : value.toDate();
@@ -84,7 +93,7 @@ export default function BarberDashboard({
   const [kycCinLoaded, setKycCinLoaded] = useState(false);
   const [kycSelfieLoaded, setKycSelfieLoaded] = useState(false);
   const [submittingKyc, setSubmittingKyc] = useState(false);
-  const [viewingBarber, setViewingBarber] = useState<UserProfile | null>(null);
+  const [viewingEntry, setViewingEntry] = useState<FeedEntry | null>(null);
   const [quickBookItemIdx, setQuickBookItemIdx] = useState<number | undefined>(undefined);
   const [phoneInput, setPhoneInput] = useState(profile.phone || '');
   const [savingPhone, setSavingPhone] = useState(false);
@@ -156,10 +165,22 @@ export default function BarberDashboard({
     });
   };
 
+  // The Accueil feed shows every other real barber's uploaded work, plus the same
+  // mock style feed clients see (STYLE_POSTS) — barbers should see the exact same
+  // discovery experience as clients do, not a smaller/empty one.
   const feedItems = useMemo(() => {
-    const items: { barber: UserProfile; item: PortfolioItem }[] = [];
+    const items: FeedEntry[] = [];
     barbers.filter(b => b.uid !== profile.uid).forEach(b => {
-      (b.portfolioItems || []).forEach(item => items.push({ barber: b, item }));
+      (b.portfolioItems || []).forEach(item => items.push({ barber: b, item, isMock: false, rating: 4.9, city: 'Casablanca' }));
+    });
+    STYLE_POSTS.forEach(post => {
+      items.push({
+        barber: mockBarberFromPost(post),
+        item: { url: post.photo, name: post.style, price: post.priceFrom },
+        isMock: true,
+        rating: post.rating,
+        city: post.city
+      });
     });
     return items;
   }, [barbers, profile.uid]);
@@ -275,11 +296,11 @@ export default function BarberDashboard({
           <HomeTab
             theme={theme}
             feedItems={feedItems}
-            onSelectBarber={(b) => { setQuickBookItemIdx(undefined); setViewingBarber(b); }}
-            onQuickBook={(b, item) => {
-              const idx = (b.portfolioItems || []).findIndex(i => i.url === item.url);
+            onSelectEntry={(entry) => { setQuickBookItemIdx(undefined); setViewingEntry(entry); }}
+            onQuickBook={(entry) => {
+              const idx = (entry.barber.portfolioItems || []).findIndex(i => i.url === entry.item.url);
               setQuickBookItemIdx(idx >= 0 ? idx : undefined);
-              setViewingBarber(b);
+              setViewingEntry(entry);
             }}
           />
         )}
@@ -376,12 +397,12 @@ export default function BarberDashboard({
 
       {/* MODAL: VIEW BARBER PROFILE + BOOK */}
       <AnimatePresence>
-        {viewingBarber && (
+        {viewingEntry && (
           <BarberProfileModal
-            barber={viewingBarber}
+            entry={viewingEntry}
             initialItemIdx={quickBookItemIdx}
             theme={theme}
-            onClose={() => { setViewingBarber(null); setQuickBookItemIdx(undefined); }}
+            onClose={() => { setViewingEntry(null); setQuickBookItemIdx(undefined); }}
             onBook={onBookBarber}
           />
         )}
@@ -393,11 +414,11 @@ export default function BarberDashboard({
 // ============================================================
 // TAB: ACCUEIL — feed of every other barber's realizations
 // ============================================================
-function HomeTab({ theme, feedItems, onSelectBarber, onQuickBook }: {
+function HomeTab({ theme, feedItems, onSelectEntry, onQuickBook }: {
   theme: 'dark' | 'light';
-  feedItems: { barber: UserProfile; item: PortfolioItem }[];
-  onSelectBarber: (b: UserProfile) => void;
-  onQuickBook: (b: UserProfile, item: PortfolioItem) => void;
+  feedItems: FeedEntry[];
+  onSelectEntry: (entry: FeedEntry) => void;
+  onQuickBook: (entry: FeedEntry) => void;
 }) {
   return (
     <div className="space-y-6 text-left">
@@ -408,47 +429,51 @@ function HomeTab({ theme, feedItems, onSelectBarber, onQuickBook }: {
 
       {feedItems.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {feedItems.map(({ barber, item }, i) => (
-            <div
-              key={i}
-              className={`rounded-lg overflow-hidden border ${theme === 'dark' ? 'border-gold/15 bg-mid-brown/20' : 'border-gray-200 bg-white'}`}
-            >
-              <button onClick={() => onSelectBarber(barber)} className="group w-full text-left block">
-                <div className="relative aspect-square">
-                  <img src={item.url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
-                  <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full">
-                    <MapPin size={10} className="text-gold shrink-0" />
-                    <span className="text-white text-[9px] font-bold uppercase tracking-wide">Casablanca</span>
-                  </div>
-                </div>
-                <div className="p-2.5">
-                  <div className={`text-xs font-bold mb-1 truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.name}</div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    {barber.avatarUrl ? (
-                      <img src={barber.avatarUrl} alt="" className="w-5 h-5 rounded-full object-cover border border-gold shrink-0" />
-                    ) : (
-                      <div className="w-5 h-5 rounded-full bg-gold border border-gold shrink-0 flex items-center justify-center text-[7px] font-bold text-black">
-                        {barber.firstName[0]}
-                      </div>
-                    )}
-                    <span className="text-warm-gray text-[10px] truncate">{barber.firstName} {barber.lastName}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1 text-gold text-[10px] font-bold">
-                      <Star size={10} className="fill-gold" /> 4.9
-                    </div>
-                    <div className="text-warm-gray text-[10px]">Dès <span className="text-gold font-bold">{item.price} DH</span></div>
-                  </div>
-                </div>
-              </button>
-              <button
-                onClick={() => onQuickBook(barber, item)}
-                className="w-full bg-gold text-black py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-gold-light transition-colors"
+          {feedItems.map((entry, i) => {
+            const { barber, item, isMock, rating, city } = entry;
+            const avatarSrc = barber.avatarUrl || (isMock ? avatarFor(barber.uid) : '');
+            return (
+              <div
+                key={i}
+                className={`rounded-lg overflow-hidden border ${theme === 'dark' ? 'border-gold/15 bg-mid-brown/20' : 'border-gray-200 bg-white'}`}
               >
-                Réserver
-              </button>
-            </div>
-          ))}
+                <button onClick={() => onSelectEntry(entry)} className="group w-full text-left block">
+                  <div className="relative aspect-square">
+                    <img src={item.url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                    <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full">
+                      <MapPin size={10} className="text-gold shrink-0" />
+                      <span className="text-white text-[9px] font-bold uppercase tracking-wide">{city}</span>
+                    </div>
+                  </div>
+                  <div className="p-2.5">
+                    <div className={`text-xs font-bold mb-1 truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.name}</div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      {avatarSrc ? (
+                        <img src={avatarSrc} alt="" className="w-5 h-5 rounded-full object-cover border border-gold shrink-0" />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full bg-gold border border-gold shrink-0 flex items-center justify-center text-[7px] font-bold text-black">
+                          {barber.firstName[0]}
+                        </div>
+                      )}
+                      <span className="text-warm-gray text-[10px] truncate">{barber.firstName} {barber.lastName}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1 text-gold text-[10px] font-bold">
+                        <Star size={10} className="fill-gold" /> {rating}
+                      </div>
+                      <div className="text-warm-gray text-[10px]">Dès <span className="text-gold font-bold">{item.price} DH</span></div>
+                    </div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onQuickBook(entry)}
+                  className="w-full bg-gold text-black py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-gold-light transition-colors"
+                >
+                  Réserver
+                </button>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className={`p-10 text-center border border-dashed rounded-xl opacity-60 ${theme === 'dark' ? 'border-gold/20' : 'border-gray-300'}`}>
@@ -463,14 +488,22 @@ function HomeTab({ theme, feedItems, onSelectBarber, onQuickBook }: {
 // ============================================================
 // MODAL: view a barber's full profile + inline booking form
 // ============================================================
-function BarberProfileModal({ barber, initialItemIdx, theme, onClose, onBook }: {
-  barber: UserProfile;
+const MOCK_BIO_TEXT = "Spécialiste du dégradé américain et de la taille de barbe traditionnelle. Plusieurs années d'expérience dans les meilleurs salons de la capitale.";
+
+function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook }: {
+  entry: FeedEntry;
   initialItemIdx?: number;
   theme: 'dark' | 'light';
   onClose: () => void;
   onBook: (barberId: string, item: { name: string; price: number }, dateTime: Date, note?: string) => Promise<void>;
 }) {
-  const items = barber.portfolioItems || [];
+  const { barber, item: entryItem, isMock, rating, city } = entry;
+  const items = isMock ? [] : (barber.portfolioItems || []);
+  const galleryPhotos = isMock ? PORTFOLIO_PHOTOS : items.map(i => i.url);
+  const coverUrl = isMock ? entryItem.url : barber.coverUrl;
+  const avatarUrl = barber.avatarUrl || (isMock ? avatarFor(barber.uid) : '');
+  const bio = isMock ? MOCK_BIO_TEXT : barber.bio;
+
   const [showBookingForm, setShowBookingForm] = useState(initialItemIdx !== undefined);
   const [selectedItemIdx, setSelectedItemIdx] = useState(initialItemIdx ?? 0);
   const [dateTime, setDateTime] = useState('');
@@ -478,14 +511,14 @@ function BarberProfileModal({ barber, initialItemIdx, theme, onClose, onBook }: 
   const [booking, setBooking] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
 
-  const minPrice = items.length > 0 ? Math.min(...items.map(i => i.price)) : (barber.basePrice || 80);
+  const minPrice = isMock ? entryItem.price : (items.length > 0 ? Math.min(...items.map(i => i.price)) : (barber.basePrice || 80));
+  const bookItem = isMock ? { name: entryItem.name, price: entryItem.price } : (items[selectedItemIdx] ? { name: items[selectedItemIdx].name, price: items[selectedItemIdx].price } : { name: 'Séance de coiffure', price: barber.basePrice || 0 });
 
   const handleBook = async () => {
     if (!dateTime) return;
-    const item = items[selectedItemIdx];
     setBooking(true);
     try {
-      await onBook(barber.uid, { name: item ? item.name : 'Séance de coiffure', price: item ? item.price : (barber.basePrice || 0) }, new Date(dateTime), note.trim() || undefined);
+      await onBook(barber.uid, bookItem, new Date(dateTime), note.trim() || undefined);
       setConfirmed(true);
     } catch (e) {
       console.error('Booking failed', e);
@@ -502,7 +535,7 @@ function BarberProfileModal({ barber, initialItemIdx, theme, onClose, onBook }: 
         className={`w-full max-w-lg rounded-xl border text-left max-h-[85vh] overflow-y-auto ${theme === 'dark' ? 'bg-mid-brown border-gold/30' : 'bg-white border-gray-200'}`}
       >
         <div className="relative h-32 md:h-40 bg-gradient-to-br from-mid-brown to-black">
-          {barber.coverUrl && <img src={barber.coverUrl} className="w-full h-full object-cover" alt="" />}
+          {coverUrl && <img src={coverUrl} className="w-full h-full object-cover" alt="" />}
           <div className={`absolute inset-0 bg-gradient-to-t ${theme === 'dark' ? 'from-mid-brown via-mid-brown/10' : 'from-white via-white/10'} to-transparent`} />
           <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 z-10"><X size={16} /></button>
         </div>
@@ -510,7 +543,7 @@ function BarberProfileModal({ barber, initialItemIdx, theme, onClose, onBook }: 
         <div className="p-6 -mt-12 relative">
           <div className="flex gap-5 items-end mb-6">
             <div className={`w-24 h-24 rounded-full border-4 shrink-0 bg-gold flex items-center justify-center overflow-hidden shadow-xl ${theme === 'dark' ? 'border-mid-brown' : 'border-white'}`}>
-              {barber.avatarUrl ? <img src={barber.avatarUrl} className="w-full h-full object-cover" alt="" /> : <span className="font-bebas text-3xl text-black">{barber.firstName[0]}{barber.lastName[0]}</span>}
+              {avatarUrl ? <img src={avatarUrl} className="w-full h-full object-cover" alt="" /> : <span className="font-bebas text-3xl text-black">{barber.firstName[0]}{barber.lastName[0]}</span>}
             </div>
             <div className="flex-1 pb-1 min-w-0">
               <h3 className={`text-2xl font-bebas tracking-wider mb-1 uppercase flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
@@ -519,7 +552,7 @@ function BarberProfileModal({ barber, initialItemIdx, theme, onClose, onBook }: 
               </h3>
               <p className="text-gold text-xs uppercase tracking-widest font-bold mb-1">{barber.gender === 'femme' ? 'Coiffeuse Experte' : 'Coiffeur Expert'}</p>
               <p className="text-warm-gray text-[10px] uppercase tracking-widest flex items-center gap-1">
-                <MapPin size={10} /> Casablanca
+                <MapPin size={10} /> {city}
               </p>
             </div>
           </div>
@@ -528,7 +561,7 @@ function BarberProfileModal({ barber, initialItemIdx, theme, onClose, onBook }: 
             {[
               { val: '5+', label: 'Ans' },
               { val: '1k+', label: 'Clients' },
-              { val: '4.9★', label: 'Note' },
+              { val: `${rating}★`, label: 'Note' },
               { val: `${minPrice} DH`, label: 'Dès' }
             ].map((stat, i) => (
               <div key={i} className={`text-center p-2 rounded-sm border ${theme === 'dark' ? 'bg-black/20 border-gold/10' : 'bg-gray-50 border-gray-200'}`}>
@@ -538,23 +571,23 @@ function BarberProfileModal({ barber, initialItemIdx, theme, onClose, onBook }: 
             ))}
           </div>
 
-          {barber.bio && (
+          {bio && (
             <div className="mb-6">
               <div className="text-[10px] text-warm-gray uppercase tracking-widest font-bold mb-2">À propos</div>
-              <p className="text-xs text-warm-gray leading-relaxed">{barber.bio}</p>
+              <p className="text-xs text-warm-gray leading-relaxed">{bio}</p>
             </div>
           )}
 
           <div className="text-[10px] text-warm-gray uppercase tracking-widest font-bold mb-3">Réalisations</div>
-          {items.length > 0 ? (
+          {galleryPhotos.length > 0 ? (
             <div className="grid grid-cols-4 gap-2 mb-4">
-              {items.map((item, i) => (
+              {galleryPhotos.map((url, i) => (
                 <button
                   key={i}
-                  onClick={() => { setSelectedItemIdx(i); setShowBookingForm(true); }}
-                  className={`relative aspect-square rounded-sm overflow-hidden border-2 transition-colors ${selectedItemIdx === i && showBookingForm ? 'border-gold' : 'border-gold/15'}`}
+                  onClick={() => { if (!isMock) { setSelectedItemIdx(i); setShowBookingForm(true); } }}
+                  className={`relative aspect-square rounded-sm overflow-hidden border-2 transition-colors ${!isMock && selectedItemIdx === i && showBookingForm ? 'border-gold' : 'border-gold/15'}`}
                 >
-                  <img src={item.url} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
+                  <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
                 </button>
               ))}
             </div>
@@ -586,14 +619,12 @@ function BarberProfileModal({ barber, initialItemIdx, theme, onClose, onBook }: 
                     className="overflow-hidden"
                   >
                     <div className="mt-4 p-4 rounded-lg border border-gold/20 bg-black/20 space-y-3">
-                      {items.length > 0 && (
-                        <div>
-                          <label className="text-[9px] text-warm-gray uppercase font-bold mb-1 block">Style choisi</label>
-                          <div className={`px-3 py-2 rounded-lg text-xs border ${theme === 'dark' ? 'bg-black/40 border-white/10' : 'bg-white border-gray-200'}`}>
-                            {items[selectedItemIdx]?.name} — <span className="text-gold font-bold">{items[selectedItemIdx]?.price} DH</span>
-                          </div>
+                      <div>
+                        <label className="text-[9px] text-warm-gray uppercase font-bold mb-1 block">Style choisi</label>
+                        <div className={`px-3 py-2 rounded-lg text-xs border ${theme === 'dark' ? 'bg-black/40 border-white/10' : 'bg-white border-gray-200'}`}>
+                          {bookItem.name} — <span className="text-gold font-bold">{bookItem.price} DH</span>
                         </div>
-                      )}
+                      </div>
                       <div>
                         <label className="text-[9px] text-warm-gray uppercase font-bold mb-1 block">Date et heure</label>
                         <input
