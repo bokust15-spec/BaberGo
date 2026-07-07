@@ -161,6 +161,31 @@ export const STYLE_POSTS: StylePost[] = [
     '1519362909365-f8591adb630e', '1648497797412-4c38edb628fe', '1542981532-d633913a2c8a',
     '1694215685273-74ca45d14ccb', '1636018138835-a276c45c2e77',
   ], ['Coupe pixie', 'Cheveux courts'], 'femme', 127),
+
+  ...buildPosts([
+    '1522529599102-193c0d76b5b6', '1592485607288-3cb668d0213b', '1625647027179-bd3ba2aea4e4',
+    '1643904524791-2ca626c9b54c', '1643904524951-2a3a58856745',
+  ], ['Afro naturel', 'Afro texturé'], 'homme', 138),
+
+  ...buildPosts([
+    '1774304325907-c9a3ee44a763', '1483908046566-7389784ef261', '1570542867012-26f54afed609',
+    '1668749095149-924da8c36965',
+  ], ['Box braids homme', 'Tresses fines homme'], 'homme', 143),
+
+  ...buildPosts([
+    '1762108669600-d86eb3342c6d', '1668749096270-319a91089440', '1668749095833-247322d8d26b',
+    '1778546978267-b93e8c6ea099',
+  ], ['Cornrows tressées', 'Tresses collées'], 'homme', 147),
+
+  ...buildPosts([
+    '1612454152924-33bb4a8b17d4', '1612455253302-6e13a4a11bba', '1632828171993-3f191bbbea1a',
+    '1666645492015-c4dfa4cd6100',
+  ], ['Twists texturés', 'Vrilles définies'], 'homme', 151),
+
+  ...buildPosts([
+    '1611762341724-9cdbe003ea44', '1745804543291-932c748b18b5', '1567894340315-735d7c361db0',
+    '1744636574936-9b3de5c85d0d',
+  ], ['Fade texturé', 'Dégradé afro'], 'homme', 155),
 ];
 
 export function mockBarberFromPost(post: StylePost): UserProfile {
