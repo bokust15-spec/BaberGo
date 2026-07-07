@@ -11,7 +11,7 @@ import {
   XCircle,
   Clock,
   Scissors,
-  LogOut,
+  ArrowLeft,
   MapPin,
   Shield,
   FileText,
@@ -183,47 +183,14 @@ export default function BarberDashboard({
     <div className={`min-h-screen pt-20 flex flex-col font-dm-sans transition-colors duration-300 ${theme === 'dark' ? 'bg-black text-white' : 'bg-gray-50 text-gray-900'}`}>
       
       {/* Dashboard Nav */}
-      <nav className={`fixed top-0 left-0 right-0 z-40 border-b px-6 py-4 flex items-center justify-between backdrop-blur-md ${theme === 'dark' ? 'bg-black/80 border-gold/20' : 'bg-white/80 border-gray-200 shadow-sm'}`}>
-        <div className="flex items-center gap-6">
-          <div className="logo text-2xl text-gold font-bebas tracking-widest leading-none">Partners<span className="text-white">Pro</span></div>
-          <div className="hidden md:flex gap-4">
-            {(['overview', 'map', 'schedule', 'clients', 'discover'] as const).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`text-[10px] uppercase font-bold tracking-widest px-3 py-1.5 transition-all relative ${activeTab === tab ? 'text-gold font-bold' : 'text-warm-gray hover:text-white'}`}
-              >
-                {tab === 'overview' ? 'Tableau de bord' : tab === 'map' ? 'Carte des Annonces' : tab === 'schedule' ? 'Agenda' : tab === 'clients' ? 'Base Clients' : 'Découvrir'}
-                {tab === 'map' && appointments.filter(a => a.barberId === 'dummy_barber' && a.status === 'pending').length > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75 animate-pulse"></span>
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          {/* Status Badge */}
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest bg-black/40 border border-white/5">
-            {kycStatus === 'verified' ? (
-              <span className="text-emerald-400 inline-flex items-center gap-1"><Shield size={10} /> KYC Actif</span>
-            ) : kycStatus === 'pending' ? (
-              <span className="text-amber-400 inline-flex items-center gap-1"><Clock size={10} /> KYC En Attente</span>
-            ) : (
-              <span className="text-red-400 inline-flex items-center gap-1"><AlertTriangle size={10} /> KYC Manquant</span>
-            )}
-          </div>
-
-          <div className="flex flex-col items-end hidden sm:block">
-            <span className="text-xs font-bold uppercase tracking-widest">{profile.firstName} {profile.lastName}</span>
-            <span className="text-[10px] text-gold uppercase tracking-tighter">Coiffeur Casablanca</span>
-          </div>
-          <button onClick={onLogout} className="p-2 rounded-full border border-white/10 text-warm-gray hover:text-red-400 transition-colors">
-            <LogOut size={18} />
-          </button>
-        </div>
+      <nav className={`fixed top-0 left-0 right-0 z-40 border-b pl-16 pr-6 py-4 flex items-center justify-between backdrop-blur-md ${theme === 'dark' ? 'bg-black/80 border-gold/20' : 'bg-white/80 border-gray-200 shadow-sm'}`}>
+        <div className="logo text-2xl text-gold font-bebas tracking-widest leading-none">Partners<span className="text-white">Pro</span></div>
+        <button
+          onClick={onLogout}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 text-warm-gray hover:text-gold transition-colors text-[10px] font-bold uppercase tracking-widest"
+        >
+          <ArrowLeft size={14} /> Retour
+        </button>
       </nav>
 
       <main className="flex-1 p-6 max-w-7xl mx-auto w-full">
