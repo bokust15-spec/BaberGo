@@ -175,7 +175,6 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
                 >
                   <option value="homme">Homme</option>
                   <option value="femme">Femme</option>
-                  <option value="autre">Autre</option>
                 </select>
               </div>
             </div>
