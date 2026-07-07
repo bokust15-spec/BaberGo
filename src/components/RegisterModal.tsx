@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, User, Phone, Mail, ChevronRight, Check } from 'lucide-react';
+import { X, User, Phone, Mail, Lock, ChevronRight, Check, AlertTriangle } from 'lucide-react';
 
 interface RegisterModalProps {
   isOpen: boolean;
@@ -18,24 +18,40 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
     gender: 'homme' as 'homme' | 'femme' | 'autre',
     phone: '',
     email: '',
+    password: '',
+    confirmPassword: '',
     role: 'client' as 'client' | 'barber'
   });
   const [cinFile, setCinFile] = useState<string | null>(null);
   const [selfieFile, setSelfieFile] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setFormData(prev => ({ ...prev, role: defaultRole }));
+      setError(null);
     }
   }, [isOpen, defaultRole]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    if (formData.password.length < 6) {
+      setError('Le mot de passe doit contenir au moins 6 caractères.');
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError('Les deux mots de passe ne correspondent pas.');
+      return;
+    }
+
     setLoading(true);
     try {
+      const { confirmPassword, ...rest } = formData;
       const payload = {
-        ...formData,
+        ...rest,
         ...(formData.role === 'barber' ? {
           kycStatus: cinFile && selfieFile ? 'pending' : 'unverified',
           kycCinUrl: cinFile ? 'https://barbergo.ma/simulated/cin.jpg' : '',
@@ -45,8 +61,9 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
         } : {})
       };
       await onRegister(payload);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
+      setError("L'inscription a échoué. Vérifiez vos informations et réessayez.");
     } finally {
       setLoading(false);
     }
@@ -162,6 +179,46 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
                 />
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] text-warm-gray uppercase font-bold mb-1 block">Mot de passe</label>
+                <div className="relative">
+                  <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gold/50" />
+                  <input
+                    required
+                    type="password"
+                    minLength={6}
+                    value={formData.password}
+                    onChange={e => setFormData({ ...formData, password: e.target.value })}
+                    className={`w-full border pl-10 pr-4 py-2 text-xs outline-none rounded-sm ${theme === 'dark' ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                    placeholder="6 caractères min."
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] text-warm-gray uppercase font-bold mb-1 block">Confirmer</label>
+                <div className="relative">
+                  <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gold/50" />
+                  <input
+                    required
+                    type="password"
+                    minLength={6}
+                    value={formData.confirmPassword}
+                    onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    className={`w-full border pl-10 pr-4 py-2 text-xs outline-none rounded-sm ${theme === 'dark' ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                    placeholder="Répéter"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-sm flex items-start gap-2">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
 
             {formData.role === 'barber' && (
               <motion.div 

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, AlertTriangle, X } from 'lucide-react';
 import LandingPage from './components/LandingPage';
 import AppMVP from './components/AppMVP';
 import RegisterModal from './components/RegisterModal';
+import LoginModal from './components/LoginModal';
 import ProfilePage from './components/ProfilePage';
 import BarberDashboard from './components/BarberDashboard';
 import { useFirebase, Appointment } from './hooks/useFirebase';
@@ -11,17 +12,20 @@ export default function App() {
   const [view, setView] = useState<'landing' | 'app' | 'profile'>('landing');
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [registerRole, setRegisterRole] = useState<'client' | 'barber'>('client');
   const [hasDismissedRegister, setHasDismissedRegister] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  
+
   const {
     user,
     profile,
     loading,
     services,
     barbers,
-    loginWithGoogle,
+    loginWithEmail,
+    loginError,
+    clearLoginError,
     logout,
     registerProfile,
     getAppointments,
@@ -68,14 +72,22 @@ export default function App() {
     }
   };
 
-  const handleRegisterClick = async (role: 'client' | 'barber' = 'client') => {
+  const handleRegisterClick = (role: 'client' | 'barber' = 'client') => {
     setRegisterRole(role);
     setHasDismissedRegister(false); // Re-allow opening manually
-    if (!user) {
-      await loginWithGoogle();
-    } else {
-      setIsRegisterOpen(true);
+    setIsRegisterOpen(true);
+  };
+
+  const handleLoginClick = () => {
+    setIsLoginOpen(true);
+  };
+
+  const handleLoginSubmit = async (email: string, password: string) => {
+    const success = await loginWithEmail(email, password);
+    if (success) {
+      setView('app');
     }
+    return success;
   };
 
   const handleRegisterSuccess = async (data: any) => {
@@ -149,7 +161,7 @@ export default function App() {
     if (view === 'landing') {
       return (
         <LandingPage
-          onLogin={loginWithGoogle}
+          onLogin={handleLoginClick}
           theme={theme}
           onRegisterOpen={handleRegisterClick}
           onFindNearby={handleFindNearby}
@@ -216,6 +228,17 @@ export default function App() {
         {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
       </button>
 
+      {/* Visible feedback when Google sign-in fails, instead of failing silently */}
+      {loginError && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[200] w-[calc(100%-2rem)] max-w-md bg-red-950 border border-red-500/40 text-white rounded-sm shadow-2xl p-4 flex items-start gap-3">
+          <AlertTriangle size={18} className="text-red-400 shrink-0 mt-0.5" />
+          <p className="text-xs leading-relaxed flex-1">{loginError}</p>
+          <button onClick={clearLoginError} className="text-red-300 hover:text-white shrink-0" aria-label="Fermer">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Auto-open register if logged in but no profile, unless dismissed */}
       <RegisterModal
         isOpen={isRegisterOpen || (!!user && !profile && !loading && !hasDismissedRegister)}
@@ -227,6 +250,13 @@ export default function App() {
         onRegister={handleRegisterSuccess}
         theme={theme}
         defaultRole={registerRole}
+      />
+
+      <LoginModal
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
+        onLogin={handleLoginSubmit}
+        theme={theme}
       />
     </div>
   );

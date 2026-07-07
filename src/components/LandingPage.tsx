@@ -287,7 +287,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
               className="w-full h-[340px] sm:h-[440px] md:h-[620px] object-cover rounded-2xl border-2 border-gold/25 shadow-2xl"
             />
             <div className="absolute bottom-0 left-0 right-0 p-4 rounded-b-2xl bg-gradient-to-t from-black/85 via-black/40 to-transparent">
-              <p className="text-white font-bold text-center text-sm md:text-base">BarberGo vous fait gagner du temps !</p>
+              <p className="text-gold font-bold italic text-center text-xl md:text-2xl">BarberGo vous fait gagner du temps !</p>
             </div>
           </motion.div>
         </div>

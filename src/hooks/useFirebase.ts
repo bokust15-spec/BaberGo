@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { 
-  signInWithPopup, 
-  GoogleAuthProvider, 
-  onAuthStateChanged, 
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
   signOut,
   User as FirebaseUser
 } from 'firebase/auth';
@@ -76,12 +76,42 @@ export interface Review {
   createdAt: any;
 }
 
+function describeAuthError(error: any): string {
+  const code = error?.code || '';
+  if (code === 'auth/email-already-in-use') {
+    return 'Un compte existe déjà avec cet email. Essayez de vous connecter à la place.';
+  }
+  if (code === 'auth/invalid-email') {
+    return "Cette adresse email n'est pas valide.";
+  }
+  if (code === 'auth/weak-password') {
+    return 'Le mot de passe doit contenir au moins 6 caractères.';
+  }
+  if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+    return 'Email ou mot de passe incorrect.';
+  }
+  if (code === 'auth/user-not-found') {
+    return "Aucun compte n'existe avec cet email. Inscrivez-vous d'abord.";
+  }
+  if (code === 'auth/too-many-requests') {
+    return 'Trop de tentatives. Merci de réessayer dans quelques minutes.';
+  }
+  if (code === 'auth/network-request-failed') {
+    return 'Connexion impossible : vérifiez votre connexion internet.';
+  }
+  if (code === 'auth/operation-not-allowed') {
+    return "La connexion par email n'est pas encore activée pour ce projet. (À activer dans Firebase Console → Authentication → Sign-in method → Email/Password.)";
+  }
+  return "La connexion a échoué. Merci de réessayer.";
+}
+
 export function useFirebase() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<Service[]>([]);
   const [barbers, setBarbers] = useState<UserProfile[]>([]);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -167,12 +197,15 @@ export function useFirebase() {
     }
   }, [user]);
 
-  const loginWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
+  const loginWithEmail = async (email: string, password: string) => {
+    setLoginError(null);
     try {
-      await signInWithPopup(auth, provider);
+      await signInWithEmailAndPassword(auth, email, password);
+      return true;
     } catch (error) {
       console.error("Login failed:", error);
+      setLoginError(describeAuthError(error));
+      return false;
     }
   };
 
@@ -184,20 +217,28 @@ export function useFirebase() {
     }
   };
 
-  const registerProfile = async (data: Omit<UserProfile, 'uid' | 'createdAt'>) => {
-    if (!user) return;
-    
-    const profileData = {
-      ...data,
-      createdAt: serverTimestamp(),
-    };
+  // Creates the Firebase Auth account (email/password) and the matching Firestore
+  // profile in one step — registration no longer depends on being signed in already.
+  const registerProfile = async (data: Omit<UserProfile, 'uid' | 'createdAt'> & { password: string }) => {
+    setLoginError(null);
+    const { password, ...profileFields } = data;
 
     try {
-      const docRef = doc(db, 'users', user.uid);
+      const credential = await createUserWithEmailAndPassword(auth, profileFields.email, password);
+      const uid = credential.user.uid;
+
+      const profileData = {
+        ...profileFields,
+        createdAt: serverTimestamp(),
+      };
+
+      const docRef = doc(db, 'users', uid);
       await setDoc(docRef, profileData);
-      setProfile({ ...profileData, uid: user.uid, createdAt: new Date() } as UserProfile);
+      setProfile({ ...profileData, uid, createdAt: new Date() } as UserProfile);
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}`);
+      console.error("Registration failed:", error);
+      setLoginError(describeAuthError(error));
+      throw error;
     }
   };
 
@@ -331,7 +372,9 @@ export function useFirebase() {
     loading,
     services,
     barbers,
-    loginWithGoogle,
+    loginWithEmail,
+    loginError,
+    clearLoginError: () => setLoginError(null),
     logout,
     registerProfile,
     createAppointment,
