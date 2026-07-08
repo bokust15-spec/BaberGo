@@ -102,13 +102,6 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
     });
   }, [feedEntries, searchGender, searchDateTime, searchStyle]);
 
-  useEffect(() => {
-    if (profile && !selectedEntry) {
-      const timer = setTimeout(() => setShowProfileModal(true), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [profile, selectedEntry]);
-
   const handleLogoutAll = () => {
     onLogoutFirebase();
     onLogout();
@@ -135,7 +128,7 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
   return (
     <div className={`h-screen flex flex-col pt-16 font-dm-sans transition-colors duration-300 ${theme === 'dark' ? 'bg-black' : 'bg-gray-100'}`}>
       {/* APP TOP BAR */}
-      <div className={`border-b px-4 py-3 flex items-center z-40 transition-colors duration-300 ${theme === 'dark' ? 'bg-mid-brown border-gold/20' : 'bg-white border-gray-200 shadow-sm'}`}>
+      <div className={`border-b px-4 py-3 flex items-center justify-between z-40 transition-colors duration-300 ${theme === 'dark' ? 'bg-mid-brown border-gold/20' : 'bg-white border-gray-200 shadow-sm'}`}>
          <button
            onClick={onLogout}
            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm border transition-colors text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'border-white/10 text-warm-gray hover:text-gold hover:border-gold/30' : 'border-gray-200 text-gray-500 hover:text-gold hover:border-gold/30'}`}
@@ -143,6 +136,15 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
            <ArrowLeft size={14} />
            Retour
          </button>
+         {profile && (
+           <button
+             onClick={() => setShowProfileModal(true)}
+             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm border transition-colors text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'border-white/10 text-warm-gray hover:text-gold hover:border-gold/30' : 'border-gray-200 text-gray-500 hover:text-gold hover:border-gold/30'}`}
+           >
+             <User size={14} />
+             Mon compte
+           </button>
+         )}
       </div>
 
       <div className={`flex-1 overflow-y-auto pb-20 transition-colors duration-300 ${theme === 'dark' ? 'bg-black' : 'bg-gray-50'}`}>
