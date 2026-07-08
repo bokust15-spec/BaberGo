@@ -5,12 +5,13 @@ import { UserProfile, useFirebase, Appointment } from '../hooks/useFirebase';
 import { STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, SALON_COVER_PHOTO, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
 import BookingModal from './BookingModal';
 import CreateAnnonceForm from './CreateAnnonceForm';
+import CategoryRail from './CategoryRail';
 
 // A single bookable "look": either a real barber's own uploaded realization, or one
 // of the mock style-feed posts. Unified so the client search shows both the same way.
 interface FeedEntry {
   barber: UserProfile;
-  item: { url: string; name: string; price: number };
+  item: { url: string; name: string; price: number; category?: string };
   isMock: boolean;
   rating: number;
   city: string;
@@ -40,6 +41,7 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
   const [isModalAnnonceActive, setIsModalAnnonceActive] = useState(false);
 
   const [searchGender, setSearchGender] = useState<'' | 'homme' | 'femme'>('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchDateTime, setSearchDateTime] = useState('');
   const dateTimeInputRef = useRef<HTMLInputElement>(null);
   const [searchStyle, setSearchStyle] = useState('');
@@ -74,7 +76,7 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
     });
     const mock: FeedEntry[] = STYLE_POSTS.map(post => ({
       barber: mockBarberFromPost(post),
-      item: { url: post.photo, name: post.style, price: post.priceFrom },
+      item: { url: post.photo, name: post.style, price: post.priceFrom, category: post.category },
       isMock: true,
       rating: post.rating,
       city: post.city,
@@ -85,9 +87,10 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
 
   const filteredEntries = useMemo(() => {
     const selectedDay = searchDateTime ? new Date(searchDateTime).getDay() : null;
-    // Only gender and the barber's availability on the chosen day actually filter results.
+    // Only gender, category and the barber's availability on the chosen day actually filter results.
     const results = feedEntries.filter(e => {
       if (searchGender && e.barber.gender !== searchGender) return false;
+      if (selectedCategory && (e.item.category || 'coiffure') !== selectedCategory) return false;
       if (selectedDay !== null && !e.availableDays.includes(selectedDay)) return false;
       return true;
     });
@@ -100,7 +103,7 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
       const bMatch = b.item.name.toLowerCase().includes(style) ? 0 : 1;
       return aMatch - bMatch;
     });
-  }, [feedEntries, searchGender, searchDateTime, searchStyle]);
+  }, [feedEntries, searchGender, selectedCategory, searchDateTime, searchStyle]);
 
   const handleLogoutAll = () => {
     onLogoutFirebase();
@@ -252,6 +255,9 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
                 <h1 className={`font-bebas text-3xl md:text-4xl tracking-wide uppercase mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Trouvez votre coiffeur</h1>
                 <p className="text-warm-gray text-sm">Recherchez selon la disponibilité, le genre et le style que vous voulez.</p>
               </div>
+
+              {/* CATEGORY RAIL */}
+              <CategoryRail selected={selectedCategory} onSelect={setSelectedCategory} theme={theme} />
 
               {/* BOOKING-STYLE SEARCH BAR */}
               <div className={`flex flex-col md:flex-row rounded-lg md:rounded-full border-2 border-gold overflow-hidden shadow-lg mb-3 ${theme === 'dark' ? 'bg-mid-brown' : 'bg-white'}`}>

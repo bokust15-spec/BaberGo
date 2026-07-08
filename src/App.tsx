@@ -40,6 +40,7 @@ export default function App() {
     addPortfolioItem,
     removePortfolioItem,
     updateAvailability,
+    updateCategories,
     addReview
   } = useFirebase();
 
@@ -255,6 +256,7 @@ export default function App() {
           onAddPortfolioItem={addPortfolioItem}
           onRemovePortfolioItem={removePortfolioItem}
           onUpdateAvailability={updateAvailability}
+          onUpdateCategories={updateCategories}
           onBookBarber={handleBookBarber}
         />
       );

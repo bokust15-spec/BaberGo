@@ -25,6 +25,8 @@ import { Appointment, UserProfile, Service, PortfolioItem } from '../hooks/useFi
 import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, mockBarberFromPost } from '../data/mockBarberFeed';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import CategoryRail from './CategoryRail';
+import { SERVICE_CATEGORIES } from '../data/categories';
 
 const DAY_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
 
@@ -64,9 +66,10 @@ interface BarberDashboardProps {
   onUpdatePhone: (phone: string) => Promise<void>;
   onUploadAvatar: (file: File) => Promise<string | undefined>;
   onUploadCover: (file: File) => Promise<string | undefined>;
-  onAddPortfolioItem: (file: File, name: string, price: number) => Promise<PortfolioItem | undefined>;
+  onAddPortfolioItem: (file: File, name: string, price: number, category?: string) => Promise<PortfolioItem | undefined>;
   onRemovePortfolioItem: (item: PortfolioItem) => Promise<void>;
   onUpdateAvailability: (updates: Partial<Pick<UserProfile, 'workingDays' | 'workStartHour' | 'workEndHour' | 'basePrice' | 'nightEnabled' | 'nightStartHour' | 'nightPrice'>>) => Promise<void>;
+  onUpdateCategories: (categories: string[]) => Promise<void>;
   onBookBarber: (barberId: string, item: { name: string; price: number }, dateTime: Date, note?: string) => Promise<void>;
 }
 
@@ -85,6 +88,7 @@ export default function BarberDashboard({
   onAddPortfolioItem,
   onRemovePortfolioItem,
   onUpdateAvailability,
+  onUpdateCategories,
   onBookBarber
 }: BarberDashboardProps) {
   const [activeTab, setActiveTab] = useState<'home' | 'profile' | 'bookings'>('home');
@@ -95,6 +99,7 @@ export default function BarberDashboard({
   const [submittingKyc, setSubmittingKyc] = useState(false);
   const [viewingEntry, setViewingEntry] = useState<FeedEntry | null>(null);
   const [quickBookItemIdx, setQuickBookItemIdx] = useState<number | undefined>(undefined);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [phoneInput, setPhoneInput] = useState(profile.phone || '');
   const [savingPhone, setSavingPhone] = useState(false);
 
@@ -176,7 +181,7 @@ export default function BarberDashboard({
     STYLE_POSTS.forEach(post => {
       items.push({
         barber: mockBarberFromPost(post),
-        item: { url: post.photo, name: post.style, price: post.priceFrom },
+        item: { url: post.photo, name: post.style, price: post.priceFrom, category: post.category },
         isMock: true,
         rating: post.rating,
         city: post.city
@@ -184,6 +189,11 @@ export default function BarberDashboard({
     });
     return items;
   }, [barbers, profile.uid]);
+
+  const filteredFeedItems = useMemo(() => {
+    if (!selectedCategory) return feedItems;
+    return feedItems.filter(e => (e.item.category || 'coiffure') === selectedCategory);
+  }, [feedItems, selectedCategory]);
 
   return (
     <div className={`min-h-screen pt-20 pb-24 flex flex-col font-dm-sans transition-colors duration-300 ${theme === 'dark' ? 'bg-black text-white' : 'bg-gray-50 text-gray-900'}`}>
@@ -295,7 +305,9 @@ export default function BarberDashboard({
         {activeTab === 'home' && (
           <HomeTab
             theme={theme}
-            feedItems={feedItems}
+            feedItems={filteredFeedItems}
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
             onSelectEntry={(entry) => { setQuickBookItemIdx(undefined); setViewingEntry(entry); }}
             onQuickBook={(entry) => {
               const idx = (entry.barber.portfolioItems || []).findIndex(i => i.url === entry.item.url);
@@ -315,6 +327,7 @@ export default function BarberDashboard({
             onAddPortfolioItem={onAddPortfolioItem}
             onRemovePortfolioItem={onRemovePortfolioItem}
             onUpdateAvailability={onUpdateAvailability}
+            onUpdateCategories={onUpdateCategories}
           />
         )}
 
@@ -414,9 +427,11 @@ export default function BarberDashboard({
 // ============================================================
 // TAB: ACCUEIL — feed of every other barber's realizations
 // ============================================================
-function HomeTab({ theme, feedItems, onSelectEntry, onQuickBook }: {
+function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelectEntry, onQuickBook }: {
   theme: 'dark' | 'light';
   feedItems: FeedEntry[];
+  selectedCategory: string | null;
+  onSelectCategory: (id: string | null) => void;
   onSelectEntry: (entry: FeedEntry) => void;
   onQuickBook: (entry: FeedEntry) => void;
 }) {
@@ -424,8 +439,10 @@ function HomeTab({ theme, feedItems, onSelectEntry, onQuickBook }: {
     <div className="space-y-6 text-left">
       <div>
         <h2 className="font-bebas text-3xl tracking-widest text-gold uppercase">Accueil</h2>
-        <p className="text-xs text-warm-gray">Parcourez les réalisations des coiffeurs BarberGo et réservez une séance — comme les clients le voient.</p>
+        <p className="text-xs text-warm-gray">Parcourez les réalisations des prestataires BarberGo et réservez une séance — comme les clients le voient.</p>
       </div>
+
+      <CategoryRail selected={selectedCategory} onSelect={onSelectCategory} theme={theme} />
 
       {feedItems.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -672,22 +689,27 @@ interface MyProfileTabProps {
   onUpdateBio: (bio: string) => Promise<void>;
   onUploadAvatar: (file: File) => Promise<string | undefined>;
   onUploadCover: (file: File) => Promise<string | undefined>;
-  onAddPortfolioItem: (file: File, name: string, price: number) => Promise<PortfolioItem | undefined>;
+  onAddPortfolioItem: (file: File, name: string, price: number, category?: string) => Promise<PortfolioItem | undefined>;
   onRemovePortfolioItem: (item: PortfolioItem) => Promise<void>;
   onUpdateAvailability: (updates: Partial<Pick<UserProfile, 'workingDays' | 'workStartHour' | 'workEndHour' | 'basePrice' | 'nightEnabled' | 'nightStartHour' | 'nightPrice'>>) => Promise<void>;
+  onUpdateCategories: (categories: string[]) => Promise<void>;
 }
 
-function MyProfileTab({ profile, theme, onUpdateBio, onUploadAvatar, onUploadCover, onAddPortfolioItem, onRemovePortfolioItem, onUpdateAvailability }: MyProfileTabProps) {
+function MyProfileTab({ profile, theme, onUpdateBio, onUploadAvatar, onUploadCover, onAddPortfolioItem, onRemovePortfolioItem, onUpdateAvailability, onUpdateCategories }: MyProfileTabProps) {
   const [bio, setBio] = useState(profile.bio || '');
   const [savingBio, setSavingBio] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [categories, setCategories] = useState<string[]>(profile.categories ?? []);
+  const [savingCategories, setSavingCategories] = useState(false);
+
   const [newItemFile, setNewItemFile] = useState<File | null>(null);
   const [newItemPreview, setNewItemPreview] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
+  const [newItemCategory, setNewItemCategory] = useState(SERVICE_CATEGORIES[0].id);
   const [addingItem, setAddingItem] = useState(false);
   const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
 
@@ -764,7 +786,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUploadAvatar, onUploadCov
     setAddingItem(true);
     setError(null);
     try {
-      await onAddPortfolioItem(newItemFile, newItemName.trim(), Number(newItemPrice));
+      await onAddPortfolioItem(newItemFile, newItemName.trim(), Number(newItemPrice), newItemCategory);
       setNewItemFile(null);
       setNewItemPreview(null);
       setNewItemName('');
@@ -773,6 +795,22 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUploadAvatar, onUploadCov
       setError("L'ajout de la réalisation a échoué. Vérifiez que Firebase Storage est bien activé.");
     }
     setAddingItem(false);
+  };
+
+  const toggleCategory = (id: string) => {
+    setCategories(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+  };
+
+  const categoriesDirty = JSON.stringify([...categories].sort()) !== JSON.stringify([...(profile.categories ?? [])].sort());
+
+  const handleSaveCategories = async () => {
+    setSavingCategories(true);
+    try {
+      await onUpdateCategories(categories);
+    } catch {
+      setError("Impossible d'enregistrer les catégories pour le moment.");
+    }
+    setSavingCategories(false);
   };
 
   const handleDeleteItem = async (item: PortfolioItem) => {
@@ -876,6 +914,39 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUploadAvatar, onUploadCov
                 {savingBio ? 'Enregistrement...' : 'Enregistrer'}
               </button>
             </div>
+          </div>
+        </section>
+
+        {/* SERVICE CATEGORIES */}
+        <section className="mb-6">
+          <p className={sectionLabel}>Catégories de prestations</p>
+          <div className={cardClass}>
+            <p className="text-xs text-warm-gray mb-3">Sélectionnez les prestations que vous proposez — vos réalisations apparaîtront dans ces catégories côté clients.</p>
+            <div className="flex flex-wrap gap-2">
+              {SERVICE_CATEGORIES.map(cat => {
+                const Icon = cat.icon;
+                const active = categories.includes(cat.id);
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => toggleCategory(cat.id)}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full border text-[10px] font-bold uppercase tracking-widest transition-colors ${
+                      active ? 'bg-gold border-gold text-black' : theme === 'dark' ? 'border-white/10 text-warm-gray hover:border-gold/30' : 'border-gray-200 text-gray-500 hover:border-gold/30'
+                    }`}
+                  >
+                    <Icon size={12} />
+                    {cat.label}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={handleSaveCategories}
+              disabled={savingCategories || !categoriesDirty}
+              className="w-full mt-4 py-2.5 bg-gold text-black text-[10px] font-bold uppercase tracking-widest rounded-lg disabled:opacity-40"
+            >
+              {savingCategories ? 'Enregistrement...' : 'Enregistrer mes catégories'}
+            </button>
           </div>
         </section>
 
@@ -1013,6 +1084,15 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUploadAvatar, onUploadCov
                   className={`px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
                 />
               </div>
+              <select
+                value={newItemCategory}
+                onChange={(e) => setNewItemCategory(e.target.value)}
+                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+              >
+                {SERVICE_CATEGORIES.map(cat => (
+                  <option key={cat.id} value={cat.id} className={theme === 'dark' ? 'bg-mid-brown' : ''}>{cat.label}</option>
+                ))}
+              </select>
               <button
                 onClick={handleAddItem}
                 disabled={addingItem || !newItemFile || !newItemName.trim() || !newItemPrice}

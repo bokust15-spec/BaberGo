@@ -43,6 +43,8 @@ export interface StylePost {
   priceFrom: number;
   // Days of the week (0 = dimanche ... 6 = samedi) this barber is available.
   availableDays: number[];
+  // One of SERVICE_CATEGORIES ids (src/data/categories.ts)
+  category: string;
 }
 
 const MOROCCAN_CITIES = ['Casablanca', 'Rabat', 'Marrakech', 'Fès', 'Tanger', 'Meknès', 'Agadir', 'Oujda', 'Kénitra', 'Tétouan', 'Salé', 'Mohammedia'];
@@ -79,7 +81,7 @@ const FEMALE_FIRST = ['Sophia', 'Nadia', 'Yasmine', 'Sara', 'Leila', 'Salma', 'I
 const FEMALE_LAST = ['El K.', 'R.', 'F.', 'M.', 'H.', 'B.', 'T.', 'L.', 'S.', 'D.', 'N.', 'A.'];
 const PRICE_OPTIONS = [60, 70, 80, 90, 100, 120, 150];
 
-function buildPosts(ids: string[], styles: string[], gender: 'homme' | 'femme', startIdx: number): StylePost[] {
+function buildPosts(ids: string[], styles: string[], gender: 'homme' | 'femme', startIdx: number, category: string = 'coiffure'): StylePost[] {
   const firsts = gender === 'homme' ? MALE_FIRST : FEMALE_FIRST;
   const lasts = gender === 'homme' ? MALE_LAST : FEMALE_LAST;
   return ids.map((id, i) => {
@@ -94,6 +96,7 @@ function buildPosts(ids: string[], styles: string[], gender: 'homme' | 'femme', 
       rating: Math.round((4.5 + (n % 6) * 0.1) * 10) / 10,
       priceFrom: PRICE_OPTIONS[n % PRICE_OPTIONS.length],
       availableDays: [n % 7, (n + 2) % 7, (n + 4) % 7],
+      category,
     };
   });
 }
@@ -109,7 +112,7 @@ export const STYLE_POSTS: StylePost[] = [
 
   ...buildPosts([
     '1517832606299-7ae9b720a186', '1532710093739-9470acff878f', '1593702295094-aea22597af65', '1553521041-d168abd31de3',
-  ], ['Taille de barbe', 'Rasage traditionnel'], 'homme', 14),
+  ], ['Taille de barbe', 'Rasage traditionnel'], 'homme', 14, 'barbier'),
 
   ...buildPosts([
     '1580618672591-eb180b1a973f', '1560869713-7d0a29430803', '1554519934-e32b1629d9ee',

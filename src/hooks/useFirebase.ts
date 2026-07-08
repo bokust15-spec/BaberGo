@@ -27,6 +27,7 @@ export interface PortfolioItem {
   url: string;
   name: string;
   price: number;
+  category?: string; // one of SERVICE_CATEGORIES ids (src/data/categories.ts)
 }
 
 export interface UserProfile {
@@ -47,6 +48,7 @@ export interface UserProfile {
   avatarUrl?: string;
   coverUrl?: string;
   portfolioItems?: PortfolioItem[];
+  categories?: string[]; // service categories this pro offers (src/data/categories.ts)
   workingDays?: number[]; // 0 = dimanche ... 6 = samedi
   workStartHour?: number;
   workEndHour?: number;
@@ -394,13 +396,13 @@ export function useFirebase() {
     return url;
   };
 
-  const addPortfolioItem = async (file: File, name: string, price: number) => {
+  const addPortfolioItem = async (file: File, name: string, price: number, category?: string) => {
     if (!user) return;
     const path = `portfolios/${user.uid}/${Date.now()}-${file.name}`;
     const storageRef = ref(storage, path);
     await uploadBytes(storageRef, file);
     const url = await getDownloadURL(storageRef);
-    const item: PortfolioItem = { url, name, price };
+    const item: PortfolioItem = category ? { url, name, price, category } : { url, name, price };
     const docRef = doc(db, 'users', user.uid);
     await updateDoc(docRef, { portfolioItems: arrayUnion(item) });
     setProfile(prev => prev ? { ...prev, portfolioItems: [...(prev.portfolioItems || []), item] } : prev);
@@ -430,6 +432,17 @@ export function useFirebase() {
     }
   };
 
+  const updateCategories = async (categories: string[]) => {
+    if (!user) return;
+    const docRef = doc(db, 'users', user.uid);
+    try {
+      await updateDoc(docRef, { categories });
+      setProfile(prev => prev ? { ...prev, categories } : prev);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+    }
+  };
+
   return {
     user,
     profile,
@@ -453,6 +466,7 @@ export function useFirebase() {
     addPortfolioItem,
     removePortfolioItem,
     updateAvailability,
+    updateCategories,
     getBarberReviews
   };
 }
