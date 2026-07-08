@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Star, MapPin, Calendar, Scissors, Apple, Play, ShieldCheck, Wallet, Quote, Menu, X } from 'lucide-react';
+import { Star, MapPin, Calendar, Sparkles, Apple, Play, ShieldCheck, Wallet, Quote, Menu, X } from 'lucide-react';
 import CategoryRail from './CategoryRail';
 
 interface LandingPageProps {
@@ -41,19 +41,19 @@ const TESTIMONIALS = [
   {
     name: 'Amine B.',
     role: 'Client · Casablanca',
-    quote: "Réservé en 5 minutes, le coiffeur est arrivé à l'heure chez moi. Une coupe impeccable sans bouger de chez moi.",
+    quote: "Réservé en 5 minutes, l'expert est arrivé à l'heure chez moi. Une prestation impeccable sans bouger de chez moi.",
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop',
   },
   {
     name: 'Sophia El K.',
     role: 'Cliente · Rabat',
-    quote: "Enfin une appli qui rend la prise de rendez-vous simple. Les avis certifiés m'ont aidée à choisir le bon coiffeur.",
+    quote: "Enfin une appli qui rend la prise de rendez-vous simple. Les avis certifiés m'ont aidée à choisir le bon expert.",
     avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&auto=format&fit=crop',
   },
   {
     name: 'Yassine T.',
-    role: 'Coiffeur partenaire · Marrakech',
-    quote: "En tant que barbier indépendant, BarberGo m'a permis de développer ma clientèle rapidement, sans frais fixes.",
+    role: 'Expert partenaire · Marrakech',
+    quote: "En tant qu'expert indépendant, BarberGo m'a permis de développer ma clientèle rapidement, sans frais fixes.",
     avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=200&auto=format&fit=crop',
   },
 ];
@@ -144,7 +144,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
         <div className="hidden md:flex gap-5 lg:gap-8 items-center justify-self-center">
           <a href="#hero" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Accueil</a>
           <a href="#services" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Services</a>
-          <button onClick={() => onRegisterOpen('barber')} className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Je suis coiffeur</button>
+          <button onClick={() => onRegisterOpen('barber')} className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Je suis expert(e) beauté</button>
           <button onClick={onLogin} className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Se connecter</button>
           <a href="#how" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Comment ça marche</a>
           <a href="#avis" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Avis</a>
@@ -173,7 +173,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
           >
             <a onClick={() => setIsMobileMenuOpen(false)} href="#hero" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Accueil</a>
             <a onClick={() => setIsMobileMenuOpen(false)} href="#services" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Services</a>
-            <button onClick={() => { setIsMobileMenuOpen(false); onRegisterOpen('barber'); }} className="py-3 text-left text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Je suis coiffeur</button>
+            <button onClick={() => { setIsMobileMenuOpen(false); onRegisterOpen('barber'); }} className="py-3 text-left text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Je suis expert(e) beauté</button>
             <button onClick={() => { setIsMobileMenuOpen(false); onLogin(); }} className="py-3 text-left text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Se connecter</button>
             <a onClick={() => setIsMobileMenuOpen(false)} href="#how" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Comment ça marche</a>
             <a onClick={() => setIsMobileMenuOpen(false)} href="#avis" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors">Avis</a>
@@ -212,14 +212,24 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
 
         <div className="px-6 md:px-16 flex flex-col md:flex-row items-center flex-1">
         <div className="flex-1 relative z-10 w-full">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="mb-4 md:mb-6 w-full"
+          >
+            <p className={`text-[10px] uppercase tracking-widest font-bold mb-2 ${theme === 'dark' ? 'text-warm-gray' : 'text-gray-500'}`}>Parcourir par prestation</p>
+            <CategoryRail selected={null} onSelect={(id) => id ? onSelectCategory(id) : onFindNearby()} theme={theme} />
+          </motion.div>
+
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className={`font-bricolage tracking-normal text-4xl sm:text-5xl md:text-8xl lg:text-9xl leading-[0.95] md:leading-[0.9] mb-3 md:mb-6 ${theme === 'dark' ? 'text-white' : 'text-black'}`}
           >
-            Votre coiffeur<br />
-            <span className="gold-gradient-text italic">vient vers vous.</span>
+            Réservez votre<br />
+            <span className="gold-gradient-text italic">moment beauté.</span>
           </motion.h1>
 
           <motion.p
@@ -228,8 +238,8 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
             transition={{ delay: 0.2 }}
             className="text-warm-gray text-sm md:text-lg max-w-lg mb-6 md:mb-10 leading-relaxed font-light"
           >
-            BarberGo met en relation les meilleurs talents de la coiffure avec les clients les plus exigeants.
-            À domicile ou en salon — contrôlez votre style en un clic, partout dans le monde.
+            BarberGo met en relation les meilleurs talents beauté & bien-être avec les clients les plus exigeants.
+            À domicile ou en salon — réservez votre prestation en un clic, partout dans le monde.
           </motion.p>
 
           <motion.div
@@ -241,26 +251,16 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
             <div className="flex flex-wrap gap-3 md:gap-4">
               <button onClick={onFindNearby} className="btn-primary flex items-center gap-2 md:gap-3 !px-5 !py-3 md:!px-8 md:!py-3 text-[11px] md:text-sm">
                 <MapPin size={16} className="shrink-0" />
-                Trouver un coiffeur autour de moi
+                Trouver un expert autour de moi
               </button>
               <button
                 onClick={() => onRegisterOpen('barber')}
                 className={`flex items-center gap-2 md:gap-3 px-5 py-3 md:px-8 md:py-4 text-[11px] md:text-xs font-bold uppercase tracking-widest border transition-all ${theme === 'dark' ? 'border-gold/30 text-warm-gray hover:text-gold hover:border-gold' : 'border-gold/30 text-warm-gray hover:text-gold hover:border-gold'}`}
               >
-                <Scissors size={14} className="shrink-0" />
-                Je suis coiffeur
+                <Sparkles size={14} className="shrink-0" />
+                Je suis expert(e) beauté
               </button>
             </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
-            className="mt-6 md:mt-8 w-full"
-          >
-            <p className={`text-[10px] uppercase tracking-widest font-bold mb-2 ${theme === 'dark' ? 'text-warm-gray' : 'text-gray-500'}`}>Parcourir par prestation</p>
-            <CategoryRail selected={null} onSelect={(id) => id ? onSelectCategory(id) : onFindNearby()} theme={theme} />
           </motion.div>
 
           <motion.div
@@ -286,7 +286,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
 
         {/* HERO PHOTO */}
         <div className="flex-1 w-full flex flex-col items-center justify-center mt-8 md:mt-0 relative z-10">
-          <p className={`font-bold uppercase tracking-widest text-2xl md:text-3xl mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Coiffure à domicile</p>
+          <p className={`font-bold uppercase tracking-widest text-2xl md:text-3xl mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Beauté & bien-être à domicile</p>
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -295,7 +295,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
           >
             <img
               src={WORK_PHOTOS.heroBeardTrim}
-              alt="Coiffeur BarberGo réalisant une taille de barbe pour un client"
+              alt="Expert BarberGo réalisant une prestation pour un client"
               className="w-full h-[340px] sm:h-[440px] md:h-[620px] object-cover rounded-2xl border-2 border-gold/25 shadow-2xl"
             />
             <div className="absolute bottom-0 left-0 right-0 p-4 rounded-b-2xl bg-gradient-to-t from-black/85 via-black/40 to-transparent">
@@ -315,16 +315,16 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
               On connecte les <span className="italic gold-gradient-text">talents</span> aux clients
             </h2>
             <p className="text-warm-gray leading-relaxed mb-10">
-              BarberGo est la plateforme qui met en relation les coiffeurs et barbiers indépendants vérifiés avec des
-              clients à la recherche d'une coupe de qualité. Le client localise un expert proche de lui, consulte son
-              profil, ses tarifs et ses avis certifiés, puis réserve un créneau en quelques secondes. Le coiffeur reçoit
+              BarberGo est la plateforme qui met en relation des experts beauté & bien-être indépendants vérifiés avec des
+              clients à la recherche d'une prestation de qualité. Le client localise un expert proche de lui, consulte son
+              profil, ses tarifs et ses avis certifiés, puis réserve un créneau en quelques secondes. Le prestataire reçoit
               la demande, confirme le rendez-vous et se déplace à domicile ou reçoit en salon — le paiement est sécurisé
               directement dans l'application.
             </p>
             <div className="space-y-6">
               {[
-                { icon: <MapPin size={18} />, title: 'Géolocalisation instantanée', desc: "Trouvez les coiffeurs disponibles autour de vous en temps réel." },
-                { icon: <ShieldCheck size={18} />, title: 'Coiffeurs vérifiés (KYC)', desc: "CIN et selfie de validation contrôlés avant toute mise en relation." },
+                { icon: <MapPin size={18} />, title: 'Géolocalisation instantanée', desc: "Trouvez les experts disponibles autour de vous en temps réel." },
+                { icon: <ShieldCheck size={18} />, title: 'Experts vérifiés (KYC)', desc: "CIN et selfie de validation contrôlés avant toute mise en relation." },
                 { icon: <Wallet size={18} />, title: 'Paiement & réservation sécurisés', desc: "Réservez, payez et laissez un avis, le tout depuis l'application." },
               ].map((f, i) => (
                 <div key={i} className="flex gap-4 items-start">
@@ -340,17 +340,17 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
           <div className="grid grid-cols-2 gap-4">
             <img
               src={WORK_PHOTOS.salonInterior}
-              alt="Salon de coiffure partenaire BarberGo"
+              alt="Salon partenaire BarberGo"
               className="col-span-2 h-56 w-full object-cover rounded-lg border border-gold/15"
             />
             <img
               src={WORK_PHOTOS.preciseFade}
-              alt="Coupe de précision réalisée par un coiffeur BarberGo"
+              alt="Prestation de précision réalisée par un expert BarberGo"
               className="h-48 w-full object-cover rounded-lg border border-gold/15"
             />
             <img
               src={WORK_PHOTOS.clipperWork}
-              alt="Coiffeur BarberGo au travail"
+              alt="Expert BarberGo au travail"
               className="h-48 w-full object-cover rounded-lg border border-gold/15"
             />
           </div>
@@ -368,16 +368,16 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
         />
         <div className="max-w-7xl mx-auto text-center mb-20 relative z-10">
           <span className="text-gold text-xs uppercase tracking-[0.3em] font-medium block mb-4">Processus simple</span>
-          <h2 className={`text-5xl md:text-7xl mb-6 uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Comment <span className="italic gold-gradient-text text-bebas underline decoration-gold/30">trouver un coiffeur</span></h2>
-          <p className="text-warm-gray max-w-2xl mx-auto">Votre style n'a jamais été aussi facile à gérer. Trouvez, réservez et profitez de l'expertise d'un pro en quatre étapes.</p>
+          <h2 className={`text-5xl md:text-7xl mb-6 uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Comment <span className="italic gold-gradient-text text-bebas underline decoration-gold/30">trouver votre expert</span></h2>
+          <p className="text-warm-gray max-w-2xl mx-auto">Votre moment beauté n'a jamais été aussi facile à réserver. Trouvez, réservez et profitez de l'expertise d'un pro en quatre étapes.</p>
         </div>
 
         <div className={`max-w-7xl mx-auto grid md:grid-cols-4 gap-0 border border-gold/10 relative z-10 ${theme === 'dark' ? 'bg-black/20' : 'bg-white'}`}>
           {[
             { num: '01', icon: <MapPin />, title: "Localisation", desc: "Activez votre position pour voir les experts autour de vous, où que vous soyez." },
-            { num: '02', icon: <Scissors />, title: "Exploration", desc: "Consultez les portfolios et avis certifiés des barbiers locaux." },
+            { num: '02', icon: <Sparkles />, title: "Exploration", desc: "Consultez les portfolios et avis certifiés des experts locaux." },
             { num: '03', icon: <Calendar />, title: "Réservation", desc: "Choisissez votre créneau et payez en toute sécurité." },
-            { num: '04', icon: <Star />, title: "Satisfaction", desc: "Le coiffeur vient à vous ou vous accueille. Notez votre expérience." }
+            { num: '04', icon: <Star />, title: "Satisfaction", desc: "Le prestataire vient à vous ou vous accueille. Notez votre expérience." }
           ].map((item, i) => (
             <div key={i} className="p-10 border border-gold/5 hover:bg-gold/5 transition-colors relative group overflow-hidden">
                <div className="absolute top-[-1rem] right-4 text-9xl font-bebas text-gold/5 select-none leading-none group-hover:text-gold/10 transition-all">{item.num}</div>
@@ -391,7 +391,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
         <div className="flex justify-center mt-12 relative z-10">
           <button onClick={onFindNearby} className="btn-primary flex items-center gap-3">
             <MapPin size={18} />
-            Trouver un coiffeur autour de moi
+            Trouver un expert autour de moi
           </button>
         </div>
       </section>
@@ -428,7 +428,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
       <section className={`py-32 relative flex flex-col items-center text-center px-6 overflow-hidden ${theme === 'dark' ? 'bg-black' : 'bg-white'}`}>
          <div className="absolute text-[25vw] font-bebas text-gold/5 leading-none select-none -bottom-10 pointer-events-none">BARBERGO</div>
          <span className="text-gold text-xs uppercase tracking-[0.3em] font-medium block mb-6 px-4 py-1 border border-gold/20 rounded-full">Rejoignez-nous aujourd'hui</span>
-         <h2 className={`text-6xl md:text-8xl mb-10 max-w-4xl uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Prêt pour votre <br /><span className="gold-gradient-text italic">prochaine coupe ?</span></h2>
+         <h2 className={`text-6xl md:text-8xl mb-10 max-w-4xl uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Prêt pour votre <br /><span className="gold-gradient-text italic">prochain moment beauté ?</span></h2>
          <div className="flex flex-wrap justify-center gap-6 relative z-10">
             <button className="bg-mid-brown border border-gold/20 px-8 py-4 flex items-center gap-4 rounded-lg hover:border-gold/50 transition-all">
                <Apple size={24} className="text-white" />
@@ -453,7 +453,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
             <div className="md:col-span-1">
                <a href="#hero" className="logo text-2xl text-gold block mb-6 font-bebas">Barber<span className="text-white">Go</span></a>
                <p className="text-warm-gray text-sm leading-relaxed">
-                  Connecter les meilleurs talents de la coiffure du monde entier avec les clients exigeants.
+                  Connecter les meilleurs talents beauté & bien-être avec les clients exigeants, partout dans le monde.
                </p>
             </div>
             <div>
