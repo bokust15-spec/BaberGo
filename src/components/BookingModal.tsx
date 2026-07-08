@@ -154,7 +154,7 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
                         {!isWorkingDay(selectedDate) && (
                           <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-sm text-red-400 text-xs">
                             <AlertTriangle size={14} className="shrink-0" />
-                            Le coiffeur n'est pas disponible ce jour-là. Choisissez une autre date.
+                            L'expert n'est pas disponible ce jour-là. Choisissez une autre date.
                           </div>
                         )}
                       </div>
@@ -218,9 +218,9 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
 
                       {/* CONSIGNES */}
                       <div>
-                        <label className="text-[10px] text-warm-gray uppercase font-bold mb-1.5 block">Recommandation ou consigne pour le coiffeur (optionnel)</label>
+                        <label className="text-[10px] text-warm-gray uppercase font-bold mb-1.5 block">Recommandation ou consigne pour l'expert (optionnel)</label>
                         <textarea
-                          placeholder="Ex: J'aimerais un dégradé pas trop court sur les côtés..."
+                          placeholder="Ex: précisez vos attentes pour cette prestation..."
                           value={clientNotes}
                           onChange={(e) => setClientNotes(e.target.value)}
                           rows={2}

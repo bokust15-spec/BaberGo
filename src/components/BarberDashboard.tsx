@@ -529,7 +529,7 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook }: {
   const [confirmed, setConfirmed] = useState(false);
 
   const minPrice = isMock ? entryItem.price : (items.length > 0 ? Math.min(...items.map(i => i.price)) : (barber.basePrice || 80));
-  const bookItem = isMock ? { name: entryItem.name, price: entryItem.price } : (items[selectedItemIdx] ? { name: items[selectedItemIdx].name, price: items[selectedItemIdx].price } : { name: 'Séance de coiffure', price: barber.basePrice || 0 });
+  const bookItem = isMock ? { name: entryItem.name, price: entryItem.price } : (items[selectedItemIdx] ? { name: items[selectedItemIdx].name, price: items[selectedItemIdx].price } : { name: 'Séance', price: barber.basePrice || 0 });
 
   const handleBook = async () => {
     if (!dateTime) return;
@@ -567,7 +567,7 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook }: {
                 {barber.firstName} {barber.lastName}
                 <BadgeCheck size={18} className="text-gold shrink-0" />
               </h3>
-              <p className="text-gold text-xs uppercase tracking-widest font-bold mb-1">{barber.gender === 'femme' ? 'Coiffeuse Experte' : 'Coiffeur Expert'}</p>
+              <p className="text-gold text-xs uppercase tracking-widest font-bold mb-1">{barber.gender === 'femme' ? 'Experte Beauté' : 'Expert Beauté'}</p>
               <p className="text-warm-gray text-[10px] uppercase tracking-widest flex items-center gap-1">
                 <MapPin size={10} /> {city}
               </p>
@@ -886,7 +886,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUploadAvatar, onUploadCov
         </div>
 
         <h2 className="font-bebas text-2xl uppercase tracking-widest">{profile.firstName} {profile.lastName}</h2>
-        <p className="text-[10px] text-gold uppercase tracking-widest font-bold mb-6">{profile.gender === 'femme' ? 'Coiffeuse' : 'Coiffeur'} · Casablanca</p>
+        <p className="text-[10px] text-gold uppercase tracking-widest font-bold mb-6">{profile.gender === 'femme' ? 'Experte' : 'Expert'} · Casablanca</p>
 
         {error && (
           <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-lg">{error}</div>
@@ -1072,7 +1072,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUploadAvatar, onUploadCov
                 <input
                   value={newItemName}
                   onChange={(e) => setNewItemName(e.target.value)}
-                  placeholder="Nom de la coiffure"
+                  placeholder="Nom de la prestation"
                   className={`px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
                 />
                 <input
@@ -1215,7 +1215,7 @@ function BookingsTab({ appointments, theme, isBlocked, onUpdateStatus, onUpdateA
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-bebas tracking-widest uppercase truncate">{app.serviceName || 'Coiffure'}</h4>
+                      <h4 className="text-sm font-bebas tracking-widest uppercase truncate">{app.serviceName || 'Prestation'}</h4>
                       <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase shrink-0 ${statusClass[app.status]}`}>{statusLabel[app.status]}</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[10px] text-warm-gray uppercase font-semibold">
