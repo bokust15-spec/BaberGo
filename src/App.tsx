@@ -16,6 +16,7 @@ export default function App() {
   const [registerRole, setRegisterRole] = useState<'client' | 'barber'>('client');
   const [hasDismissedRegister, setHasDismissedRegister] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [clientLocation, setClientLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   const {
     user,
@@ -65,10 +66,15 @@ export default function App() {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
+  // Only used to estimate the distance between the client and each barber in the
+  // search results — never displayed on a map or shared with anyone else.
   const handleFindNearby = () => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
-        () => setView('app'),
+        (position) => {
+          setClientLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
+          setView('app');
+        },
         () => setView('app') // On continue même si la permission est refusée ou indisponible
       );
     } else {
@@ -234,6 +240,7 @@ export default function App() {
         theme={theme}
         profile={profile}
         onLogoutFirebase={handleLogoutAll}
+        clientLocation={clientLocation}
       />
     );
   };

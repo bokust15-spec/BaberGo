@@ -46,6 +46,33 @@ export interface StylePost {
 }
 
 const MOROCCAN_CITIES = ['Casablanca', 'Rabat', 'Marrakech', 'Fès', 'Tanger', 'Meknès', 'Agadir', 'Oujda', 'Kénitra', 'Tétouan', 'Salé', 'Mohammedia'];
+
+// Approximate city-center coordinates, used only to estimate the distance between the
+// client and a barber's city once the client shares their location — no precise
+// per-barber GPS position exists (or is needed) beyond that.
+export const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
+  'Casablanca': { lat: 33.5731, lng: -7.5898 },
+  'Rabat': { lat: 34.0209, lng: -6.8416 },
+  'Marrakech': { lat: 31.6295, lng: -7.9811 },
+  'Fès': { lat: 34.0331, lng: -5.0003 },
+  'Tanger': { lat: 35.7595, lng: -5.8340 },
+  'Meknès': { lat: 33.8935, lng: -5.5473 },
+  'Agadir': { lat: 30.4278, lng: -9.5981 },
+  'Oujda': { lat: 34.6814, lng: -1.9086 },
+  'Kénitra': { lat: 34.2610, lng: -6.5802 },
+  'Tétouan': { lat: 35.5785, lng: -5.3684 },
+  'Salé': { lat: 34.0531, lng: -6.7985 },
+  'Mohammedia': { lat: 33.6863, lng: -7.3830 },
+};
+
+export function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 10) / 10;
+}
 const MALE_FIRST = ['Yassine', 'Amine', 'Karim', 'Othmane', 'Hamza', 'Rachid', 'Anas', 'Zakaria', 'Ilyas', 'Soufiane', 'Adil', 'Mehdi'];
 const MALE_LAST = ['T.', 'B.', 'L.', 'D.', 'S.', 'M.', 'K.', 'A.', 'R.', 'F.', 'H.', 'N.'];
 const FEMALE_FIRST = ['Sophia', 'Nadia', 'Yasmine', 'Sara', 'Leila', 'Salma', 'Imane', 'Khadija', 'Meryem', 'Hind', 'Aya', 'Rania'];

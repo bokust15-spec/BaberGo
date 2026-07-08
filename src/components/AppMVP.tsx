@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Search, Scissors, Star, User, Users, ChevronRight, X, ArrowLeft, BadgeCheck, CalendarDays } from 'lucide-react';
+import { MapPin, Search, Scissors, Star, User, Users, ChevronRight, X, ArrowLeft, BadgeCheck, CalendarDays, Navigation } from 'lucide-react';
 import { UserProfile, useFirebase } from '../hooks/useFirebase';
-import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, SALON_COVER_PHOTO, mockBarberFromPost } from '../data/mockBarberFeed';
+import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, SALON_COVER_PHOTO, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
 import BookingModal from './BookingModal';
 import CreateAnnonceForm from './CreateAnnonceForm';
 
@@ -11,9 +11,10 @@ interface AppMVPProps {
   theme: 'dark' | 'light';
   profile: UserProfile | null;
   onLogoutFirebase: () => void;
+  clientLocation?: { lat: number; lng: number } | null;
 }
 
-export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase }: AppMVPProps) {
+export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, clientLocation }: AppMVPProps) {
   const [selectedPost, setSelectedPost] = useState<StylePost | null>(null);
   const selectedBarber = selectedPost ? mockBarberFromPost(selectedPost) : null;
   const [showBooking, setShowBooking] = useState(false);
@@ -26,6 +27,15 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase }: A
   const [searchStyle, setSearchStyle] = useState('');
 
   const { services, barbers, createAppointment, user } = useFirebase();
+
+  // Distance between the client and a barber's city, only computed once the client has
+  // shared their location (via "Trouver un coiffeur autour de moi").
+  const getDistance = (city: string) => {
+    if (!clientLocation) return null;
+    const coord = CITY_COORDS[city];
+    if (!coord) return null;
+    return distanceKm(clientLocation.lat, clientLocation.lng, coord.lat, coord.lng);
+  };
 
   const filteredPosts = useMemo(() => {
     const selectedDay = searchDateTime ? new Date(searchDateTime).getDay() : null;
@@ -138,7 +148,9 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase }: A
 
                  <div className="grid grid-cols-4 gap-4 mb-8">
                     {[
-                      { val: '5+', label: 'Ans' },
+                      selectedPost && getDistance(selectedPost.city) !== null
+                        ? { val: `${getDistance(selectedPost.city)} km`, label: 'Distance' }
+                        : { val: '5+', label: 'Ans' },
                       { val: '1k+', label: 'Clients' },
                       { val: `${selectedPost?.rating ?? '4.9'}★`, label: 'Note' },
                       { val: `${selectedPost?.priceFrom ?? '80'} DH`, label: 'Dès' }
@@ -266,6 +278,11 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase }: A
                             </div>
                             <div className="text-warm-gray text-[10px]">Dès <span className="text-gold font-bold">{post.priceFrom} DH</span></div>
                           </div>
+                          {getDistance(post.city) !== null && (
+                            <div className="flex items-center gap-1 text-warm-gray text-[10px] mt-1">
+                              <Navigation size={10} className="text-gold shrink-0" /> {getDistance(post.city)} km
+                            </div>
+                          )}
                         </div>
                       </button>
                       <button
