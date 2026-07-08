@@ -239,7 +239,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
             transition={{ delay: 0.1 }}
             className={`font-bricolage tracking-normal text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-[0.95] md:leading-[0.9] mb-3 md:mb-4 ${theme === 'dark' ? 'text-white' : 'text-black'}`}
           >
-            Réservez votre <span className="gold-gradient-text italic">moment beauté.</span>
+            Réservez votre <span className="gold-gradient-text italic">moment de beauté.</span>
           </motion.h1>
 
           <p className={`font-bold uppercase tracking-widest text-xl md:text-2xl mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Beauté & bien-être à domicile</p>
@@ -419,7 +419,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
         <div className="max-w-7xl mx-auto text-center mb-20 relative z-10">
           <span className="text-gold text-xs uppercase tracking-[0.3em] font-medium block mb-4">Processus simple</span>
           <h2 className={`text-5xl md:text-7xl mb-6 uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Comment <span className="italic gold-gradient-text text-bebas underline decoration-gold/30">trouver votre expert</span></h2>
-          <p className="text-warm-gray max-w-2xl mx-auto">Votre moment beauté n'a jamais été aussi facile à réserver. Trouvez, réservez et profitez de l'expertise d'un pro en quatre étapes.</p>
+          <p className="text-warm-gray max-w-2xl mx-auto">Votre moment de beauté n'a jamais été aussi facile à réserver. Trouvez, réservez et profitez de l'expertise d'un pro en quatre étapes.</p>
         </div>
 
         <div className={`max-w-7xl mx-auto grid md:grid-cols-4 gap-0 border border-gold/10 relative z-10 ${theme === 'dark' ? 'bg-black/20' : 'bg-white'}`}>
@@ -478,7 +478,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
       <section className={`py-32 relative flex flex-col items-center text-center px-6 overflow-hidden ${theme === 'dark' ? 'bg-black' : 'bg-white'}`}>
          <div className="absolute text-[25vw] font-bebas text-gold/5 leading-none select-none -bottom-10 pointer-events-none">BARBERGO</div>
          <span className="text-gold text-xs uppercase tracking-[0.3em] font-medium block mb-6 px-4 py-1 border border-gold/20 rounded-full">Rejoignez-nous aujourd'hui</span>
-         <h2 className={`text-6xl md:text-8xl mb-10 max-w-4xl uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Prêt pour votre <br /><span className="gold-gradient-text italic">prochain moment beauté ?</span></h2>
+         <h2 className={`text-6xl md:text-8xl mb-10 max-w-4xl uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Prêt pour votre <br /><span className="gold-gradient-text italic">prochain moment de beauté ?</span></h2>
          <div className="flex flex-wrap justify-center gap-6 relative z-10">
             <button className="bg-mid-brown border border-gold/20 px-8 py-4 flex items-center gap-4 rounded-lg hover:border-gold/50 transition-all">
                <Apple size={24} className="text-white" />
