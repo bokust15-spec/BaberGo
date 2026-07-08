@@ -232,7 +232,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
         </div>
 
         <div className="px-6 md:px-16 flex flex-col md:flex-row items-center flex-1">
-        <div className="flex-1 relative z-10 w-full">
+        <div className="flex-1 min-w-0 relative z-10 w-full">
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -306,17 +306,17 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
         </div>
 
         {/* HERO PHOTO */}
-        <div className="flex-1 w-full flex flex-col items-center justify-center mt-8 md:mt-0 relative z-10">
+        <div className="flex-1 min-w-0 w-full flex flex-col items-center justify-center mt-8 md:mt-0 relative z-10">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className="relative w-[240px] sm:w-[320px] md:w-[460px]"
+            className="relative w-full max-w-[240px] sm:max-w-[320px] md:max-w-[380px]"
           >
             <img
               src={WORK_PHOTOS.heroBeardTrim}
               alt="Expert BarberGo réalisant une prestation pour un client"
-              className="w-full h-[340px] sm:h-[440px] md:h-[620px] object-cover rounded-2xl border-2 border-gold/25 shadow-2xl"
+              className="w-full aspect-[3/4] object-cover rounded-2xl border-2 border-gold/25 shadow-2xl"
             />
             <div className="absolute bottom-0 left-0 right-0 p-4 rounded-b-2xl bg-gradient-to-t from-black/85 via-black/40 to-transparent">
               <p className="text-gold font-bold italic text-center text-xl md:text-2xl">BarberGo vous fait gagner du temps !</p>
