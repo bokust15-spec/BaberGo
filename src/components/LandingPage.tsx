@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Star, MapPin, Calendar, Scissors, Apple, Play, ShieldCheck, Wallet, Quote, Menu, X } from 'lucide-react';
+import CategoryRail from './CategoryRail';
 
 interface LandingPageProps {
   onLogin: () => void;
   theme: 'dark' | 'light';
   onRegisterOpen: (role?: 'client' | 'barber') => void;
   onFindNearby: () => void;
+  onSelectCategory: (categoryId: string) => void;
 }
 
 const WORK_PHOTOS = {
@@ -56,7 +58,7 @@ const TESTIMONIALS = [
   },
 ];
 
-export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNearby }: LandingPageProps) {
+export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNearby, onSelectCategory }: LandingPageProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const galleryRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -249,6 +251,16 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
                 Je suis coiffeur
               </button>
             </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="mt-6 md:mt-8 w-full"
+          >
+            <p className={`text-[10px] uppercase tracking-widest font-bold mb-2 ${theme === 'dark' ? 'text-warm-gray' : 'text-gray-500'}`}>Parcourir par prestation</p>
+            <CategoryRail selected={null} onSelect={(id) => id ? onSelectCategory(id) : onFindNearby()} theme={theme} />
           </motion.div>
 
           <motion.div

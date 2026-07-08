@@ -30,9 +30,10 @@ interface AppMVPProps {
   onAddReview: (review: { clientId: string; barberId: string; appointmentId: string; rating: number; comment: string }) => Promise<void>;
   onClientBook: (barberId: string, serviceId: string, dateTime: Date, totalPrice: number, proposedPrice?: number, clientNotes?: string) => Promise<void>;
   onCreateAnnonce: (serviceId: string, dateTime: Date, totalPrice: number, proposedPrice?: number, clientNotes?: string, targetBarberId?: string) => Promise<void>;
+  initialCategory?: string | null;
 }
 
-export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onCreateAnnonce }: AppMVPProps) {
+export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onCreateAnnonce, initialCategory }: AppMVPProps) {
   const [activeTab, setActiveTab] = useState<'search' | 'bookings'>('search');
   const [selectedEntry, setSelectedEntry] = useState<FeedEntry | null>(null);
   const selectedBarber = selectedEntry?.barber ?? null;
@@ -41,7 +42,7 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
   const [isModalAnnonceActive, setIsModalAnnonceActive] = useState(false);
 
   const [searchGender, setSearchGender] = useState<'' | 'homme' | 'femme'>('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory ?? null);
   const [searchDateTime, setSearchDateTime] = useState('');
   const dateTimeInputRef = useRef<HTMLInputElement>(null);
   const [searchStyle, setSearchStyle] = useState('');

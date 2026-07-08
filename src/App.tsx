@@ -17,6 +17,7 @@ export default function App() {
   const [hasDismissedRegister, setHasDismissedRegister] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [clientLocation, setClientLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [initialCategory, setInitialCategory] = useState<string | null>(null);
 
   const {
     user,
@@ -71,6 +72,7 @@ export default function App() {
   // Only used to estimate the distance between the client and each barber in the
   // search results — never displayed on a map or shared with anyone else.
   const handleFindNearby = () => {
+    setInitialCategory(null);
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -78,6 +80,23 @@ export default function App() {
           setView('app');
         },
         () => setView('app') // On continue même si la permission est refusée ou indisponible
+      );
+    } else {
+      setView('app');
+    }
+  };
+
+  // Jumping into the search from one of the landing page's category chips — same
+  // geolocation-for-distance-only flow as "Trouver un coiffeur", pre-filtered.
+  const handleSelectCategory = (categoryId: string) => {
+    setInitialCategory(categoryId);
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setClientLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
+          setView('app');
+        },
+        () => setView('app')
       );
     } else {
       setView('app');
@@ -219,6 +238,7 @@ export default function App() {
           theme={theme}
           onRegisterOpen={handleRegisterClick}
           onFindNearby={handleFindNearby}
+          onSelectCategory={handleSelectCategory}
         />
       );
     }
@@ -275,6 +295,7 @@ export default function App() {
         onAddReview={addReview}
         onClientBook={handleClientBook}
         onCreateAnnonce={handleCreateAnnonce}
+        initialCategory={initialCategory}
       />
     );
   };
