@@ -40,7 +40,7 @@ const WORK_GALLERY = [
   { src: 'https://images.unsplash.com/photo-1633526543913-d30e3c230d1f?q=80&w=400&auto=format&fit=crop', alt: "Soin des pieds en institut" },
   // Make-up
   { src: 'https://images.unsplash.com/photo-1709477542149-f4e0e21d590b?q=80&w=400&auto=format&fit=crop', alt: "Maquillage appliqué au pinceau par une professionnelle" },
-  { src: 'https://images.unsplash.com/photo-1636023730877-233b9237d4ec?q=80&w=400&auto=format&fit=crop', alt: "Maquilleuse au travail sur le visage d'une cliente" },
+  { src: 'https://images.unsplash.com/photo-1606158436222-1896b18c5d25?q=80&w=400&auto=format&fit=crop', alt: "Maquillage glamour, application de gloss sur les lèvres" },
   { src: 'https://images.unsplash.com/photo-1780504542428-897e4a4a22f2?q=80&w=400&auto=format&fit=crop', alt: "Application de maquillage professionnel" },
   // Esthétique
   { src: 'https://images.unsplash.com/photo-1531299244174-d247dd4e5a66?q=80&w=400&auto=format&fit=crop', alt: "Soin spa relaxant, concombres sur les yeux" },
