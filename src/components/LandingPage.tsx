@@ -19,22 +19,28 @@ const WORK_PHOTOS = {
   bwSalon: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=1200&auto=format&fit=crop',
 };
 
-const HAIR_GALLERY = [
+const WORK_GALLERY = [
   { src: 'https://images.unsplash.com/photo-1647140655214-e4a2d914971f?q=80&w=400&auto=format&fit=crop', alt: "Taille de barbe précise pour homme" },
   { src: 'https://images.unsplash.com/photo-1572955304332-bf714bd49add?q=80&w=400&auto=format&fit=crop', alt: "Tresses box braids sur cheveux métissés" },
   { src: 'https://images.unsplash.com/photo-1635273051937-a0ddef9573b6?q=80&w=400&auto=format&fit=crop', alt: "Dégradé homme réalisé par un barbier" },
-  { src: 'https://images.unsplash.com/photo-1613099084406-4b9140fc780a?q=80&w=400&auto=format&fit=crop', alt: "Tresses fines sur cheveux métissés" },
-  { src: 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?q=80&w=400&auto=format&fit=crop', alt: "Coupe de précision homme" },
-  { src: 'https://images.unsplash.com/photo-1572954889228-2b12a55144d1?q=80&w=400&auto=format&fit=crop', alt: "Tresses longues sur cheveux métissés" },
-  { src: 'https://images.unsplash.com/photo-1648221122323-572c13a31663?q=80&w=400&auto=format&fit=crop', alt: "Dégradé au rasoir pour homme" },
-  { src: 'https://images.unsplash.com/photo-1612459284970-e8f027596582?q=80&w=400&auto=format&fit=crop', alt: "Tresses courtes sur cheveux métissés" },
   { src: 'https://images.unsplash.com/photo-1645736279976-59f8fd22720c?q=80&w=400&auto=format&fit=crop', alt: "Belle perruque longue sur femme noire" },
-  { src: 'https://images.unsplash.com/photo-1695662917617-a1bfc0e2fbed?q=80&w=400&auto=format&fit=crop', alt: "Crête stylée pour homme" },
   { src: 'https://images.unsplash.com/photo-1560869713-bf165a9cfac1?q=80&w=400&auto=format&fit=crop', alt: "Boucles soyeuses pour femme" },
-  { src: 'https://images.unsplash.com/photo-1644199161554-f9e84cd64b7b?q=80&w=400&auto=format&fit=crop', alt: "Tête rasée (boule à zéro) avec barbe" },
   { src: 'https://images.unsplash.com/photo-1605980766335-d3a41c7332a1?q=80&w=400&auto=format&fit=crop', alt: "Balayage blond pour femme" },
-  { src: 'https://images.unsplash.com/photo-1761792390398-717211a593db?q=80&w=400&auto=format&fit=crop', alt: "Boule à zéro platine pour homme" },
   { src: 'https://images.unsplash.com/photo-1572863141204-83031c77e65a?q=80&w=400&auto=format&fit=crop', alt: "Coiffure lumineuse pour femme" },
+  { src: 'https://images.unsplash.com/photo-1741522509438-a120c0bb5e88?q=80&w=400&auto=format&fit=crop', alt: "Massage relaxant du dos" },
+  { src: 'https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=400&auto=format&fit=crop', alt: "Massage relaxant en institut" },
+  { src: 'https://images.unsplash.com/photo-1639162906614-0603b0ae95fd?q=80&w=400&auto=format&fit=crop', alt: "Massage du dos en institut spa" },
+  { src: 'https://images.unsplash.com/photo-1632345031435-8727f6897d53?q=80&w=400&auto=format&fit=crop', alt: "Manucure réalisée en salon" },
+  { src: 'https://images.unsplash.com/photo-1457972729786-0411a3b2b626?q=80&w=400&auto=format&fit=crop', alt: "Manucure en cours d'application" },
+  { src: 'https://images.unsplash.com/photo-1690749138086-7422f71dc159?q=80&w=400&auto=format&fit=crop', alt: "Soin des mains minutieux" },
+  { src: 'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?q=80&w=400&auto=format&fit=crop', alt: "Soin du visage relaxant en institut" },
+  { src: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=400&auto=format&fit=crop', alt: "Masque facial appliqué en institut" },
+  { src: 'https://images.unsplash.com/photo-1643684391140-c5056cfd3436?q=80&w=400&auto=format&fit=crop', alt: "Massage facial pendant un soin esthétique" },
+  { src: 'https://images.unsplash.com/photo-1709477542149-f4e0e21d590b?q=80&w=400&auto=format&fit=crop', alt: "Maquillage appliqué au pinceau par une professionnelle" },
+  { src: 'https://images.unsplash.com/photo-1636023730877-233b9237d4ec?q=80&w=400&auto=format&fit=crop', alt: "Maquilleuse au travail sur le visage d'une cliente" },
+  { src: 'https://images.unsplash.com/photo-1780504542428-897e4a4a22f2?q=80&w=400&auto=format&fit=crop', alt: "Application de maquillage professionnel" },
+  { src: 'https://images.unsplash.com/photo-1732118400647-a81e3b37be87?q=80&w=400&auto=format&fit=crop', alt: "Mains décorées de motifs au henné" },
+  { src: 'https://images.unsplash.com/photo-1716672042560-c59ebb0805e6?q=80&w=400&auto=format&fit=crop', alt: "Henné traditionnel sur les mains" },
 ];
 
 const TESTIMONIALS = [
@@ -201,7 +207,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
             className="relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-x-auto scrollbar-hide py-1 cursor-grab active:cursor-grabbing"
           >
             <div className="flex gap-4 w-max select-none">
-              {[...HAIR_GALLERY, ...HAIR_GALLERY].map((item, i) => (
+              {[...WORK_GALLERY, ...WORK_GALLERY].map((item, i) => (
                 <div key={i} className="w-24 h-32 sm:w-28 sm:h-36 md:w-32 md:h-40 shrink-0 rounded-xl overflow-hidden border border-gold/20 shadow-lg">
                   <img src={item.src} alt={item.alt} className="w-full h-full object-cover pointer-events-none" loading="lazy" draggable={false} />
                 </div>
