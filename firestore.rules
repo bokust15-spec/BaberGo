@@ -102,7 +102,7 @@ service cloud.firestore {
       allow list: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber');
       allow create: if isSignedIn() && isValidAppointment(request.resource.data);
       allow update: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber')
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'totalPrice', 'proposedPrice', 'counterPriceByBarber', 'counterDateTime', 'negotiationStatus', 'clientLocationShared', 'clientNotes', 'barberId'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'totalPrice', 'proposedPrice', 'counterPriceByBarber', 'counterDateTime', 'dateTime', 'negotiationStatus', 'clientLocationShared', 'clientNotes', 'barberId'])
         && (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['barberId'])
           || (resource.data.barberId == 'dummy_barber' && request.resource.data.barberId == request.auth.uid)

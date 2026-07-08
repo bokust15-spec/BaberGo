@@ -39,7 +39,8 @@ export default function App() {
     uploadCover,
     addPortfolioItem,
     removePortfolioItem,
-    updateAvailability
+    updateAvailability,
+    addReview
   } = useFirebase();
 
   useEffect(() => {
@@ -125,6 +126,31 @@ export default function App() {
       clientId: user.uid,
       clientName: profile ? `${profile.firstName} ${profile.lastName}` : 'Client Anonyme',
       barberId: targetBarberId || 'dummy_barber',
+      serviceId,
+      dateTime,
+      totalPrice,
+      proposedPrice,
+      negotiationStatus: 'client_proposed',
+      clientNotes
+    });
+    const apps = await getAppointments(profile?.role || 'client');
+    setAppointments(apps);
+  };
+
+  const handleClientBook = async (
+    barberId: string,
+    serviceId: string,
+    dateTime: Date,
+    totalPrice: number,
+    proposedPrice?: number,
+    clientNotes?: string
+  ) => {
+    if (!user) return;
+    await createAppointment({
+      clientId: user.uid,
+      clientName: profile ? `${profile.firstName} ${profile.lastName}` : 'Client Anonyme',
+      clientGender: profile?.gender,
+      barberId,
       serviceId,
       dateTime,
       totalPrice,
@@ -241,6 +267,12 @@ export default function App() {
         profile={profile}
         onLogoutFirebase={handleLogoutAll}
         clientLocation={clientLocation}
+        appointments={appointments}
+        onUpdateStatus={handleUpdateAppointmentStatus}
+        onUpdateAppointment={handleUpdateAppointment}
+        onAddReview={addReview}
+        onClientBook={handleClientBook}
+        onCreateAnnonce={handleCreateAnnonce}
       />
     );
   };
