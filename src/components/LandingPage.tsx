@@ -20,26 +20,40 @@ const WORK_PHOTOS = {
   bwSalon: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=1200&auto=format&fit=crop',
 };
 
+// One representative shot per category (in SERVICE_CATEGORIES order) — Cheveux,
+// Barbe, Main et pied, Make-up, Esthétique, Soin de visage, Massage, Beauté
+// évènementiel — so the scrolling band actually reflects every prestation offered.
 const WORK_GALLERY = [
-  { src: 'https://images.unsplash.com/photo-1647140655214-e4a2d914971f?q=80&w=400&auto=format&fit=crop', alt: "Taille de barbe précise pour homme" },
+  // Cheveux
   { src: 'https://images.unsplash.com/photo-1572955304332-bf714bd49add?q=80&w=400&auto=format&fit=crop', alt: "Tresses box braids sur cheveux métissés" },
-  { src: 'https://images.unsplash.com/photo-1635273051937-a0ddef9573b6?q=80&w=400&auto=format&fit=crop', alt: "Dégradé homme réalisé par un barbier" },
   { src: 'https://images.unsplash.com/photo-1645736279976-59f8fd22720c?q=80&w=400&auto=format&fit=crop', alt: "Belle perruque longue sur femme noire" },
   { src: 'https://images.unsplash.com/photo-1560869713-bf165a9cfac1?q=80&w=400&auto=format&fit=crop', alt: "Boucles soyeuses pour femme" },
   { src: 'https://images.unsplash.com/photo-1605980766335-d3a41c7332a1?q=80&w=400&auto=format&fit=crop', alt: "Balayage blond pour femme" },
   { src: 'https://images.unsplash.com/photo-1572863141204-83031c77e65a?q=80&w=400&auto=format&fit=crop', alt: "Coiffure lumineuse pour femme" },
-  { src: 'https://images.unsplash.com/photo-1741522509438-a120c0bb5e88?q=80&w=400&auto=format&fit=crop', alt: "Massage relaxant du dos" },
-  { src: 'https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=400&auto=format&fit=crop', alt: "Massage relaxant en institut" },
-  { src: 'https://images.unsplash.com/photo-1639162906614-0603b0ae95fd?q=80&w=400&auto=format&fit=crop', alt: "Massage du dos en institut spa" },
+  // Barbe
+  { src: 'https://images.unsplash.com/photo-1647140655214-e4a2d914971f?q=80&w=400&auto=format&fit=crop', alt: "Taille de barbe précise pour homme" },
+  { src: 'https://images.unsplash.com/photo-1635273051937-a0ddef9573b6?q=80&w=400&auto=format&fit=crop', alt: "Dégradé homme réalisé par un barbier" },
+  // Main et pied
   { src: 'https://images.unsplash.com/photo-1632345031435-8727f6897d53?q=80&w=400&auto=format&fit=crop', alt: "Manucure réalisée en salon" },
   { src: 'https://images.unsplash.com/photo-1457972729786-0411a3b2b626?q=80&w=400&auto=format&fit=crop', alt: "Manucure en cours d'application" },
   { src: 'https://images.unsplash.com/photo-1690749138086-7422f71dc159?q=80&w=400&auto=format&fit=crop', alt: "Soin des mains minutieux" },
-  { src: 'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?q=80&w=400&auto=format&fit=crop', alt: "Soin du visage relaxant en institut" },
-  { src: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=400&auto=format&fit=crop', alt: "Masque facial appliqué en institut" },
-  { src: 'https://images.unsplash.com/photo-1643684391140-c5056cfd3436?q=80&w=400&auto=format&fit=crop', alt: "Massage facial pendant un soin esthétique" },
+  { src: 'https://images.unsplash.com/photo-1633526543913-d30e3c230d1f?q=80&w=400&auto=format&fit=crop', alt: "Soin des pieds en institut" },
+  // Make-up
   { src: 'https://images.unsplash.com/photo-1709477542149-f4e0e21d590b?q=80&w=400&auto=format&fit=crop', alt: "Maquillage appliqué au pinceau par une professionnelle" },
   { src: 'https://images.unsplash.com/photo-1636023730877-233b9237d4ec?q=80&w=400&auto=format&fit=crop', alt: "Maquilleuse au travail sur le visage d'une cliente" },
   { src: 'https://images.unsplash.com/photo-1780504542428-897e4a4a22f2?q=80&w=400&auto=format&fit=crop', alt: "Application de maquillage professionnel" },
+  // Esthétique
+  { src: 'https://images.unsplash.com/photo-1531299244174-d247dd4e5a66?q=80&w=400&auto=format&fit=crop', alt: "Soin spa relaxant, concombres sur les yeux" },
+  { src: 'https://images.unsplash.com/photo-1630595271375-5073a6c0638b?q=80&w=400&auto=format&fit=crop', alt: "Moment détente en institut esthétique" },
+  // Soin de visage
+  { src: 'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?q=80&w=400&auto=format&fit=crop', alt: "Soin du visage relaxant en institut" },
+  { src: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=400&auto=format&fit=crop', alt: "Masque facial appliqué en institut" },
+  { src: 'https://images.unsplash.com/photo-1643684391140-c5056cfd3436?q=80&w=400&auto=format&fit=crop', alt: "Massage facial pendant un soin esthétique" },
+  // Massage
+  { src: 'https://images.unsplash.com/photo-1741522509438-a120c0bb5e88?q=80&w=400&auto=format&fit=crop', alt: "Massage relaxant du dos" },
+  { src: 'https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=400&auto=format&fit=crop', alt: "Massage relaxant en institut" },
+  { src: 'https://images.unsplash.com/photo-1639162906614-0603b0ae95fd?q=80&w=400&auto=format&fit=crop', alt: "Massage du dos en institut spa" },
+  // Beauté évènementiel
   { src: 'https://images.unsplash.com/photo-1732118400647-a81e3b37be87?q=80&w=400&auto=format&fit=crop', alt: "Mains décorées de motifs au henné" },
   { src: 'https://images.unsplash.com/photo-1716672042560-c59ebb0805e6?q=80&w=400&auto=format&fit=crop', alt: "Henné traditionnel sur les mains" },
 ];
@@ -219,6 +233,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
 
         <div className="px-6 md:px-16 flex flex-col md:flex-row items-center flex-1">
         <div className="flex-1 relative z-10 w-full">
+          <p className={`font-bold uppercase tracking-widest text-xl md:text-2xl mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Beauté & bien-être à domicile</p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -233,7 +248,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className={`font-bricolage tracking-normal text-4xl sm:text-5xl md:text-8xl lg:text-9xl leading-[0.95] md:leading-[0.9] mb-3 md:mb-6 ${theme === 'dark' ? 'text-white' : 'text-black'}`}
+            className={`font-bricolage tracking-normal text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[0.95] md:leading-[0.9] mb-3 md:mb-6 ${theme === 'dark' ? 'text-white' : 'text-black'}`}
           >
             Réservez votre<br />
             <span className="gold-gradient-text italic">moment beauté.</span>
@@ -293,7 +308,6 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
 
         {/* HERO PHOTO */}
         <div className="flex-1 w-full flex flex-col items-center justify-center mt-8 md:mt-0 relative z-10">
-          <p className={`font-bold uppercase tracking-widest text-2xl md:text-3xl mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Beauté & bien-être à domicile</p>
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
