@@ -1,9 +1,11 @@
-import { Scissors, ScissorsLineDashed, Footprints, Palette, Sparkles, Flower2, Hand, PartyPopper, LucideIcon } from 'lucide-react';
+import React from 'react';
+import { Scissors, ScissorsLineDashed, Palette, Sparkles, Flower2, Hand, PartyPopper } from 'lucide-react';
+import FootToes from '../components/icons/FootToes';
 
 export interface ServiceCategory {
   id: string;
   label: string;
-  icon: LucideIcon;
+  icon: React.ComponentType<{ size?: number | string; className?: string }>;
 }
 
 // The shared list of service categories offered on BarberGo — beyond hair, the
@@ -11,7 +13,7 @@ export interface ServiceCategory {
 export const SERVICE_CATEGORIES: ServiceCategory[] = [
   { id: 'cheveux', label: 'Cheveux', icon: Scissors },
   { id: 'barbe', label: 'Barbe', icon: ScissorsLineDashed },
-  { id: 'main-pied', label: 'Main et pied', icon: Footprints },
+  { id: 'main-pied', label: 'Main et pied', icon: FootToes },
   { id: 'makeup', label: 'Make-up', icon: Palette },
   { id: 'esthetique', label: 'Esthétique', icon: Sparkles },
   { id: 'soin-visage', label: 'Soin de visage', icon: Flower2 },
