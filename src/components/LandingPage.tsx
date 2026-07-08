@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Star, MapPin, Calendar, Sparkles, Apple, Play, ShieldCheck, Wallet, Quote, Menu, X } from 'lucide-react';
 import CategoryRail from './CategoryRail';
+import { SERVICE_CATEGORIES } from '../data/categories';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -312,8 +313,38 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
         </div>
       </section>
 
-      {/* SERVICES */}
-      <section id="services" className={`py-24 px-6 md:px-16 relative ${theme === 'dark' ? 'bg-black' : 'bg-white'}`}>
+      {/* SERVICES / PRESTATIONS */}
+      <section id="services" className={`py-24 px-6 md:px-16 relative ${theme === 'dark' ? 'bg-dark-brown/40' : 'bg-gray-50'}`}>
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <span className="text-gold text-xs uppercase tracking-[0.3em] font-medium block mb-4">Nos prestations</span>
+            <h2 className={`text-4xl md:text-6xl mb-6 uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+              Tout ce dont vous avez <span className="italic gold-gradient-text">besoin</span>
+            </h2>
+            <p className="text-warm-gray max-w-2xl mx-auto">Choisissez une prestation pour voir les experts qui la proposent près de chez vous.</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {SERVICE_CATEGORIES.map((cat) => {
+              const Icon = cat.icon;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => onSelectCategory(cat.id)}
+                  className={`p-6 border rounded-xl text-center transition-all group ${theme === 'dark' ? 'bg-black/30 border-gold/10 hover:border-gold/50' : 'bg-white border-gray-200 hover:border-gold/50 hover:shadow-lg'}`}
+                >
+                  <div className="w-12 h-12 mx-auto mb-4 bg-gold/10 border border-gold/20 rounded-full flex items-center justify-center text-gold group-hover:bg-gold group-hover:text-black transition-colors">
+                    <Icon size={20} />
+                  </div>
+                  <h3 className={`font-bebas text-lg tracking-widest uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{cat.label}</h3>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* MISSION */}
+      <section className={`py-24 px-6 md:px-16 relative ${theme === 'dark' ? 'bg-black' : 'bg-white'}`}>
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
           <div>
             <span className="text-gold text-xs uppercase tracking-[0.3em] font-medium block mb-4">Notre mission</span>

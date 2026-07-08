@@ -192,7 +192,7 @@ export default function BarberDashboard({
 
   const filteredFeedItems = useMemo(() => {
     if (!selectedCategory) return feedItems;
-    return feedItems.filter(e => (e.item.category || 'coiffure') === selectedCategory);
+    return feedItems.filter(e => (e.item.category || 'cheveux') === selectedCategory);
   }, [feedItems, selectedCategory]);
 
   return (

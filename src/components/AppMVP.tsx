@@ -91,7 +91,7 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
     // Only gender, category and the barber's availability on the chosen day actually filter results.
     const results = feedEntries.filter(e => {
       if (searchGender && e.barber.gender !== searchGender) return false;
-      if (selectedCategory && (e.item.category || 'coiffure') !== selectedCategory) return false;
+      if (selectedCategory && (e.item.category || 'cheveux') !== selectedCategory) return false;
       if (selectedDay !== null && !e.availableDays.includes(selectedDay)) return false;
       return true;
     });

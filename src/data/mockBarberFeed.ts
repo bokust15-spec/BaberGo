@@ -81,7 +81,7 @@ const FEMALE_FIRST = ['Sophia', 'Nadia', 'Yasmine', 'Sara', 'Leila', 'Salma', 'I
 const FEMALE_LAST = ['El K.', 'R.', 'F.', 'M.', 'H.', 'B.', 'T.', 'L.', 'S.', 'D.', 'N.', 'A.'];
 const PRICE_OPTIONS = [60, 70, 80, 90, 100, 120, 150];
 
-function buildPosts(ids: string[], styles: string[], gender: 'homme' | 'femme', startIdx: number, category: string = 'coiffure'): StylePost[] {
+function buildPosts(ids: string[], styles: string[], gender: 'homme' | 'femme', startIdx: number, category: string = 'cheveux'): StylePost[] {
   const firsts = gender === 'homme' ? MALE_FIRST : FEMALE_FIRST;
   const lasts = gender === 'homme' ? MALE_LAST : FEMALE_LAST;
   return ids.map((id, i) => {
@@ -112,7 +112,7 @@ export const STYLE_POSTS: StylePost[] = [
 
   ...buildPosts([
     '1517832606299-7ae9b720a186', '1532710093739-9470acff878f', '1593702295094-aea22597af65', '1553521041-d168abd31de3',
-  ], ['Taille de barbe', 'Rasage traditionnel'], 'homme', 14, 'barbier'),
+  ], ['Taille de barbe', 'Rasage traditionnel'], 'homme', 14, 'barbe'),
 
   ...buildPosts([
     '1580618672591-eb180b1a973f', '1560869713-7d0a29430803', '1554519934-e32b1629d9ee',

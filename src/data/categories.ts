@@ -1,4 +1,4 @@
-import { Scissors, Hand, Waves, Gem, Flower2, Palette, PenTool, LucideIcon } from 'lucide-react';
+import { Scissors, ScissorsLineDashed, Footprints, Palette, Sparkles, Flower2, Hand, PartyPopper, LucideIcon } from 'lucide-react';
 
 export interface ServiceCategory {
   id: string;
@@ -9,14 +9,14 @@ export interface ServiceCategory {
 // The shared list of service categories offered on BarberGo — beyond hair, the
 // platform now covers the beauty/wellness services most common in Morocco.
 export const SERVICE_CATEGORIES: ServiceCategory[] = [
-  { id: 'coiffure', label: 'Coiffure', icon: Scissors },
-  { id: 'barbier', label: 'Barbier', icon: Scissors },
+  { id: 'cheveux', label: 'Cheveux', icon: Scissors },
+  { id: 'barbe', label: 'Barbe', icon: ScissorsLineDashed },
+  { id: 'main-pied', label: 'Main et pied', icon: Footprints },
+  { id: 'makeup', label: 'Make-up', icon: Palette },
+  { id: 'esthetique', label: 'Esthétique', icon: Sparkles },
+  { id: 'soin-visage', label: 'Soin de visage', icon: Flower2 },
   { id: 'massage', label: 'Massage', icon: Hand },
-  { id: 'hammam', label: 'Hammam', icon: Waves },
-  { id: 'ongles', label: 'Ongles', icon: Gem },
-  { id: 'soins-visage', label: 'Soins du visage', icon: Flower2 },
-  { id: 'maquillage', label: 'Maquillage', icon: Palette },
-  { id: 'henne', label: 'Henné', icon: PenTool },
+  { id: 'beaute-evenementiel', label: 'Beauté évènementiel', icon: PartyPopper },
 ];
 
 export function categoryLabel(id: string): string {
