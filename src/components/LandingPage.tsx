@@ -233,6 +233,15 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
 
         <div className="px-6 md:px-16 flex flex-col md:flex-row items-center flex-1">
         <div className="flex-1 relative z-10 w-full">
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className={`font-bricolage tracking-normal text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-[0.95] md:leading-[0.9] mb-3 md:mb-4 ${theme === 'dark' ? 'text-white' : 'text-black'}`}
+          >
+            Réservez votre <span className="gold-gradient-text italic">moment beauté.</span>
+          </motion.h1>
+
           <p className={`font-bold uppercase tracking-widest text-xl md:text-2xl mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Beauté & bien-être à domicile</p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -243,16 +252,6 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
             <p className={`text-[10px] uppercase tracking-widest font-bold mb-2 ${theme === 'dark' ? 'text-warm-gray' : 'text-gray-500'}`}>Parcourir par prestation</p>
             <CategoryRail selected={null} onSelect={(id) => id ? onSelectCategory(id) : onFindNearby()} theme={theme} />
           </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className={`font-bricolage tracking-normal text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[0.95] md:leading-[0.9] mb-3 md:mb-6 ${theme === 'dark' ? 'text-white' : 'text-black'}`}
-          >
-            Réservez votre<br />
-            <span className="gold-gradient-text italic">moment beauté.</span>
-          </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
