@@ -220,7 +220,7 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
                       <div>
                         <label className="text-[10px] text-warm-gray uppercase font-bold mb-1.5 block">Recommandation ou consigne pour le coiffeur (optionnel)</label>
                         <textarea
-                          placeholder="Ex: Résidence Al Baraka, Immeuble B, Porte 4. S'il vous plaît portez un masque..."
+                          placeholder="Ex: J'aimerais un dégradé pas trop court sur les côtés..."
                           value={clientNotes}
                           onChange={(e) => setClientNotes(e.target.value)}
                           rows={2}
