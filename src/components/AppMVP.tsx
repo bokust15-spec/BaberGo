@@ -2,9 +2,20 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, Search, Scissors, Star, User, Users, ChevronRight, ChevronDown, X, ArrowLeft, BadgeCheck, CalendarDays, CalendarCheck, Navigation, Clock, AlertTriangle, Check } from 'lucide-react';
 import { UserProfile, useFirebase, Appointment } from '../hooks/useFirebase';
-import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, SALON_COVER_PHOTO, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
+import { STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, SALON_COVER_PHOTO, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
 import BookingModal from './BookingModal';
 import CreateAnnonceForm from './CreateAnnonceForm';
+
+// A single bookable "look": either a real barber's own uploaded realization, or one
+// of the mock style-feed posts. Unified so the client search shows both the same way.
+interface FeedEntry {
+  barber: UserProfile;
+  item: { url: string; name: string; price: number };
+  isMock: boolean;
+  rating: number;
+  city: string;
+  availableDays: number[];
+}
 
 interface AppMVPProps {
   onLogout: () => void;
@@ -22,8 +33,8 @@ interface AppMVPProps {
 
 export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onCreateAnnonce }: AppMVPProps) {
   const [activeTab, setActiveTab] = useState<'search' | 'bookings'>('search');
-  const [selectedPost, setSelectedPost] = useState<StylePost | null>(null);
-  const selectedBarber = selectedPost ? mockBarberFromPost(selectedPost) : null;
+  const [selectedEntry, setSelectedEntry] = useState<FeedEntry | null>(null);
+  const selectedBarber = selectedEntry?.barber ?? null;
   const [showBooking, setShowBooking] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isModalAnnonceActive, setIsModalAnnonceActive] = useState(false);
@@ -44,12 +55,40 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
     return distanceKm(clientLocation.lat, clientLocation.lng, coord.lat, coord.lng);
   };
 
-  const filteredPosts = useMemo(() => {
+  // Real barbers who've published their own realizations show up next to the mock
+  // style feed — clients should be able to find and book them, same as the barber
+  // side's own "Accueil" tab already does for browsing other barbers.
+  const feedEntries = useMemo<FeedEntry[]>(() => {
+    const real: FeedEntry[] = [];
+    barbers.forEach(b => {
+      (b.portfolioItems || []).forEach(item => {
+        real.push({
+          barber: b,
+          item,
+          isMock: false,
+          rating: 4.9,
+          city: 'Casablanca',
+          availableDays: b.workingDays && b.workingDays.length > 0 ? b.workingDays : [1, 2, 3, 4, 5, 6]
+        });
+      });
+    });
+    const mock: FeedEntry[] = STYLE_POSTS.map(post => ({
+      barber: mockBarberFromPost(post),
+      item: { url: post.photo, name: post.style, price: post.priceFrom },
+      isMock: true,
+      rating: post.rating,
+      city: post.city,
+      availableDays: post.availableDays
+    }));
+    return [...real, ...mock];
+  }, [barbers]);
+
+  const filteredEntries = useMemo(() => {
     const selectedDay = searchDateTime ? new Date(searchDateTime).getDay() : null;
     // Only gender and the barber's availability on the chosen day actually filter results.
-    const results = STYLE_POSTS.filter(p => {
-      if (searchGender && p.gender !== searchGender) return false;
-      if (selectedDay !== null && !p.availableDays.includes(selectedDay)) return false;
+    const results = feedEntries.filter(e => {
+      if (searchGender && e.barber.gender !== searchGender) return false;
+      if (selectedDay !== null && !e.availableDays.includes(selectedDay)) return false;
       return true;
     });
     // The style text doesn't exclude anyone — it just brings barbers who have already
@@ -57,18 +96,18 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
     const style = searchStyle.trim().toLowerCase();
     if (!style) return results;
     return [...results].sort((a, b) => {
-      const aMatch = a.style.toLowerCase().includes(style) ? 0 : 1;
-      const bMatch = b.style.toLowerCase().includes(style) ? 0 : 1;
+      const aMatch = a.item.name.toLowerCase().includes(style) ? 0 : 1;
+      const bMatch = b.item.name.toLowerCase().includes(style) ? 0 : 1;
       return aMatch - bMatch;
     });
-  }, [searchGender, searchDateTime, searchStyle]);
+  }, [feedEntries, searchGender, searchDateTime, searchStyle]);
 
   useEffect(() => {
-    if (profile && !selectedPost) {
+    if (profile && !selectedEntry) {
       const timer = setTimeout(() => setShowProfileModal(true), 1500);
       return () => clearTimeout(timer);
     }
-  }, [profile, selectedPost]);
+  }, [profile, selectedEntry]);
 
   const handleLogoutAll = () => {
     onLogoutFirebase();
@@ -79,12 +118,12 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
     document.getElementById('style-gallery')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const openPost = (post: StylePost) => {
-    setSelectedPost(post);
+  const openEntry = (entry: FeedEntry) => {
+    setSelectedEntry(entry);
   };
 
-  const quickBook = (post: StylePost) => {
-    setSelectedPost(post);
+  const quickBook = (entry: FeedEntry) => {
+    setSelectedEntry(entry);
     setShowBooking(true);
   };
 
@@ -120,11 +159,11 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
           />
         ) : (
         <AnimatePresence mode="wait">
-          {selectedBarber ? (
+          {selectedBarber && selectedEntry ? (
             <motion.div key="profile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-3xl mx-auto">
               <div className="p-4">
                 <button
-                  onClick={() => setSelectedPost(null)}
+                  onClick={() => setSelectedEntry(null)}
                   className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gold hover:opacity-80 transition-opacity"
                 >
                   <ArrowLeft size={14} /> Retour à la recherche
@@ -133,14 +172,14 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
 
               {/* COVER */}
               <div className="h-32 md:h-40 w-full relative overflow-hidden">
-                 <img src={selectedPost?.photo || SALON_COVER_PHOTO} alt="" className="w-full h-full object-cover" />
+                 <img src={(selectedEntry.isMock ? selectedEntry.item.url : selectedBarber.coverUrl) || SALON_COVER_PHOTO} alt="" className="w-full h-full object-cover" />
                  <div className={`absolute inset-0 bg-gradient-to-t ${theme === 'dark' ? 'from-black via-black/20' : 'from-white via-white/10'} to-transparent`} />
               </div>
 
               <div className="p-6 -mt-12 relative">
                  <div className="flex gap-5 items-end mb-6">
                     <img
-                      src={avatarFor(selectedBarber.uid)}
+                      src={selectedBarber.avatarUrl || avatarFor(selectedBarber.uid)}
                       alt={selectedBarber.firstName}
                       className={`w-24 h-24 rounded-full object-cover shadow-xl border-4 shrink-0 ${theme === 'dark' ? 'border-black' : 'border-white'}`}
                     />
@@ -149,21 +188,21 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
                          {selectedBarber.firstName} {selectedBarber.lastName}
                          <BadgeCheck size={18} className="text-gold" />
                        </h2>
-                       <p className="text-gold text-xs uppercase tracking-widest font-bold mb-1">Barbe & Cheveux Expert</p>
+                       <p className="text-gold text-xs uppercase tracking-widest font-bold mb-1">{selectedBarber.gender === 'femme' ? 'Coiffeuse Experte' : 'Coiffeur Expert'}</p>
                        <p className="text-warm-gray text-[10px] uppercase tracking-widest flex items-center gap-1">
-                         <MapPin size={10} /> {selectedPost?.city || 'Casablanca'}
+                         <MapPin size={10} /> {selectedEntry.city}
                        </p>
                     </div>
                  </div>
 
                  <div className="grid grid-cols-4 gap-4 mb-8">
                     {[
-                      selectedPost && getDistance(selectedPost.city) !== null
-                        ? { val: `${getDistance(selectedPost.city)} km`, label: 'Distance' }
+                      getDistance(selectedEntry.city) !== null
+                        ? { val: `${getDistance(selectedEntry.city)} km`, label: 'Distance' }
                         : { val: '5+', label: 'Ans' },
                       { val: '1k+', label: 'Clients' },
-                      { val: `${selectedPost?.rating ?? '4.9'}★`, label: 'Note' },
-                      { val: `${selectedPost?.priceFrom ?? '80'} DH`, label: 'Dès' }
+                      { val: `${selectedEntry.rating}★`, label: 'Note' },
+                      { val: `${selectedEntry.item.price} DH`, label: 'Dès' }
                     ].map((stat, i) => (
                       <div key={i} className={`text-center p-2 rounded-sm border ${theme === 'dark' ? 'bg-mid-brown/30 border-gold/10' : 'bg-gray-50 border-gray-200'}`}>
                          <div className="text-gold font-bebas text-xl leading-none">{stat.val}</div>
@@ -175,19 +214,24 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
                  <div className="mb-8">
                    <div className="text-[10px] text-warm-gray uppercase tracking-widest font-bold mb-4">À propos</div>
                    <p className={`text-xs leading-relaxed ${theme === 'dark' ? 'text-white/60' : 'text-gray-600'}`}>
-                     Spécialiste du dégradé américain et de la taille de barbe traditionnelle. Plusieurs années d'expérience dans les meilleurs salons de la capitale.
+                     {selectedEntry.isMock || !selectedBarber.bio
+                       ? "Spécialiste du dégradé américain et de la taille de barbe traditionnelle. Plusieurs années d'expérience dans les meilleurs salons de la capitale."
+                       : selectedBarber.bio}
                    </p>
                  </div>
 
                  <div className="mb-8">
                    <div className="text-[10px] text-warm-gray uppercase tracking-widest font-bold mb-4">Réalisations</div>
                    <div className="grid grid-cols-4 gap-2">
-                     {PORTFOLIO_PHOTOS.map((src, i) => (
+                     {(selectedEntry.isMock ? PORTFOLIO_PHOTOS : (selectedBarber.portfolioItems || []).map(i => i.url)).map((src, i) => (
                        <div key={i} className="aspect-square rounded-sm overflow-hidden border border-gold/15">
                          <img src={src} alt="" className="w-full h-full object-cover" loading="lazy" />
                        </div>
                      ))}
                    </div>
+                   {!selectedEntry.isMock && (selectedBarber.portfolioItems || []).length === 0 && (
+                     <p className="text-xs text-warm-gray/50 uppercase tracking-widest text-center py-6">Aucune photo publiée pour le moment</p>
+                   )}
                  </div>
 
                  <button
@@ -256,55 +300,58 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
                  </button>
               </div>
               <p className="text-warm-gray text-[10px] uppercase tracking-widest mb-10">
-                {filteredPosts.length} coiffeur{filteredPosts.length > 1 ? 's' : ''} disponible{filteredPosts.length > 1 ? 's' : ''}
+                {filteredEntries.length} coiffeur{filteredEntries.length > 1 ? 's' : ''} disponible{filteredEntries.length > 1 ? 's' : ''}
               </p>
 
               {/* STYLE GALLERY */}
               <div id="style-gallery">
                 <h2 className={`font-bebas text-xl tracking-widest uppercase mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Coupes réalisées par nos coiffeurs</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {filteredPosts.map((post) => (
+                  {filteredEntries.map((entry, i) => {
+                    const avatarSrc = entry.barber.avatarUrl || avatarFor(entry.barber.uid);
+                    return (
                     <div
-                      key={post.id}
+                      key={i}
                       className={`rounded-lg overflow-hidden border ${theme === 'dark' ? 'border-gold/15 bg-mid-brown/20' : 'border-gray-200 bg-white'}`}
                     >
-                      <button onClick={() => openPost(post)} className="group w-full text-left block">
+                      <button onClick={() => openEntry(entry)} className="group w-full text-left block">
                         <div className="relative aspect-square">
-                          <img src={post.photo} alt={post.style} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                          <img src={entry.item.url} alt={entry.item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                           <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full">
                             <MapPin size={10} className="text-gold shrink-0" />
-                            <span className="text-white text-[9px] font-bold uppercase tracking-wide">{post.city}</span>
+                            <span className="text-white text-[9px] font-bold uppercase tracking-wide">{entry.city}</span>
                           </div>
                         </div>
                         <div className="p-2.5">
-                          <div className={`text-xs font-bold mb-1 truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{post.style}</div>
+                          <div className={`text-xs font-bold mb-1 truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{entry.item.name}</div>
                           <div className="flex items-center gap-1.5 mb-2">
-                            <img src={avatarFor(post.id)} alt="" className="w-5 h-5 rounded-full object-cover border border-gold shrink-0" />
-                            <span className="text-warm-gray text-[10px] truncate">{post.barberName}</span>
+                            <img src={avatarSrc} alt="" className="w-5 h-5 rounded-full object-cover border border-gold shrink-0" />
+                            <span className="text-warm-gray text-[10px] truncate">{entry.barber.firstName} {entry.barber.lastName}</span>
                           </div>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1 text-gold text-[10px] font-bold">
-                              <Star size={10} className="fill-gold" /> {post.rating}
+                              <Star size={10} className="fill-gold" /> {entry.rating}
                             </div>
-                            <div className="text-warm-gray text-[10px]">Dès <span className="text-gold font-bold">{post.priceFrom} DH</span></div>
+                            <div className="text-warm-gray text-[10px]">Dès <span className="text-gold font-bold">{entry.item.price} DH</span></div>
                           </div>
-                          {getDistance(post.city) !== null && (
+                          {getDistance(entry.city) !== null && (
                             <div className="flex items-center gap-1 text-warm-gray text-[10px] mt-1">
-                              <Navigation size={10} className="text-gold shrink-0" /> {getDistance(post.city)} km
+                              <Navigation size={10} className="text-gold shrink-0" /> {getDistance(entry.city)} km
                             </div>
                           )}
                         </div>
                       </button>
                       <button
-                        onClick={() => quickBook(post)}
+                        onClick={() => quickBook(entry)}
                         className="w-full bg-gold text-black py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-gold-light transition-colors"
                       >
                         Réserver
                       </button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
-                {filteredPosts.length === 0 && (
+                {filteredEntries.length === 0 && (
                   <div className="text-center py-16 text-warm-gray text-xs uppercase tracking-widest">Aucun résultat pour ces critères</div>
                 )}
               </div>
@@ -323,7 +370,7 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
           ]).map(tab => (
             <button
               key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setSelectedPost(null); }}
+              onClick={() => { setActiveTab(tab.id); setSelectedEntry(null); }}
               className={`flex flex-col items-center gap-1 py-3 transition-colors ${activeTab === tab.id ? 'text-gold' : 'text-warm-gray hover:text-white'}`}
             >
               <tab.Icon size={20} />
