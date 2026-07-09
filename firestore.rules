@@ -81,10 +81,11 @@ service cloud.firestore {
         && data.createdAt == request.time;
     }
 
-    // User profiles
+    // User profiles — barber profiles are public (clients browse prestations/profiles
+    // without an account) but non-barber profiles (other clients) stay signed-in-only.
     match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn(); 
+      allow get: if isSignedIn() || resource.data.role == 'barber';
+      allow list: if isSignedIn() || resource.data.role == 'barber';
       allow create: if isOwner(userId) && isValidNewUser(request.resource.data);
       allow update: if isOwner(userId)
         && isValidUserFields(request.resource.data)
@@ -92,9 +93,9 @@ service cloud.firestore {
         && request.resource.data.createdAt == resource.data.createdAt;
     }
 
-    // Services (Menu)
+    // Services (Menu) — public so guests can browse prestations before signing in.
     match /services/{serviceId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isSignedIn(); // For now allow write to seed, should be restricted later
     }
 

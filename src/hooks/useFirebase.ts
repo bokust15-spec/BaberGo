@@ -158,31 +158,55 @@ export function useFirebase() {
     return () => unsubscribe();
   }, []);
 
-  // Seed services if none exist (for demo)
+  // Clients browse prestations/profiles without an account — only booking requires
+  // signing in — so this fetch runs for guests too, not just signed-in users.
   useEffect(() => {
     const fetchServices = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, 'services'));
-        const servicesList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Service));
-        
-        if (servicesList.length === 0) {
+        setServices(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Service)));
+      } catch (error) {
+        console.error("Error fetching services:", error);
+      }
+    };
+
+    fetchServices();
+
+    // Live listener (not a one-time fetch) so a barber's new portfolio item, category,
+    // or profile change shows up for clients already browsing, without needing a reload.
+    const barbersQuery = query(collection(db, 'users'), where('role', '==', 'barber'));
+    const unsubscribeBarbers = onSnapshot(barbersQuery, (snapshot) => {
+      setBarbers(snapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserProfile)));
+    }, (error) => {
+      console.error("Error fetching barbers:", error);
+    });
+
+    return () => unsubscribeBarbers();
+  }, []);
+
+  // Seed default services/barbers on first run (demo data) — writing requires being
+  // signed in, so this only runs once an account exists, separate from the public read above.
+  useEffect(() => {
+    if (!user) return;
+
+    const seedServicesIfEmpty = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'services'));
+        if (querySnapshot.empty) {
           const defaultServices: Omit<Service, 'id'>[] = [
             { name: 'Coupe Classique', price: 25, duration: 30, category: 'Cheveux' },
             { name: 'Taille de Barbe Royale', price: 20, duration: 25, category: 'Barbe' },
             { name: 'Dégradé Américain', price: 30, duration: 45, category: 'Cheveux' },
             { name: 'Soin Visage & Massage', price: 15, duration: 15, category: 'Soin' },
           ];
-          
           for (const s of defaultServices) {
             await addDoc(collection(db, 'services'), s);
           }
           const reSnapshot = await getDocs(collection(db, 'services'));
           setServices(reSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Service)));
-        } else {
-          setServices(servicesList);
         }
       } catch (error) {
-        console.error("Error with services:", error);
+        console.error("Error seeding services:", error);
       }
     };
 
@@ -206,21 +230,8 @@ export function useFirebase() {
       }
     };
 
-    if (!user) return;
-
-    fetchServices();
+    seedServicesIfEmpty();
     seedBarbersIfEmpty();
-
-    // Live listener (not a one-time fetch) so a barber's new portfolio item, category,
-    // or profile change shows up for clients already browsing, without needing a reload.
-    const barbersQuery = query(collection(db, 'users'), where('role', '==', 'barber'));
-    const unsubscribeBarbers = onSnapshot(barbersQuery, (snapshot) => {
-      setBarbers(snapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserProfile)));
-    }, (error) => {
-      console.error("Error fetching barbers:", error);
-    });
-
-    return () => unsubscribeBarbers();
   }, [user]);
 
   const loginWithEmail = async (email: string, password: string) => {

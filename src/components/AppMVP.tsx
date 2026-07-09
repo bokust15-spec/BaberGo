@@ -121,6 +121,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   };
 
   const quickBook = (entry: FeedEntry) => {
+    if (!profile) { onLogin(); return; }
     setSelectedEntry(entry);
     setShowBooking(true);
   };
@@ -250,7 +251,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                  </div>
 
                  <button
-                   onClick={() => setShowBooking(true)}
+                   onClick={() => profile ? setShowBooking(true) : onLogin()}
                    className="w-full btn-primary py-5 mt-4 flex items-center justify-center gap-3 group"
                  >
                    <CalendarDays size={18} />
@@ -401,7 +402,11 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
           ]).map(tab => (
             <button
               key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setSelectedEntry(null); }}
+              onClick={() => {
+                if (tab.id === 'bookings' && !profile) { onLogin(); return; }
+                setActiveTab(tab.id);
+                setSelectedEntry(null);
+              }}
               className={`flex flex-col items-center gap-1 py-3 transition-colors ${activeTab === tab.id ? 'text-gold' : 'text-warm-gray hover:text-white'}`}
             >
               <tab.Icon size={20} />
