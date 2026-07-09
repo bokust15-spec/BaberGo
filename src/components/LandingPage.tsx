@@ -262,7 +262,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
             transition={{ delay: 0.1 }}
             className={`font-bricolage tracking-normal text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-[0.95] md:leading-[0.9] mb-4 md:mb-6 md:whitespace-nowrap ${theme === 'dark' ? 'text-white' : 'text-black'}`}
           >
-            Réservez votre <span className="gold-gradient-text italic">moment de beauté.</span>
+            Réservez votre <span className="gold-gradient-text italic">moment de beauté chez vous.</span>
           </motion.h1>
         </div>
 
