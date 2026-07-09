@@ -733,6 +733,9 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
   const [nightStartHour, setNightStartHour] = useState(profile.nightStartHour ?? 22);
   const [nightPrice, setNightPrice] = useState(profile.nightPrice?.toString() ?? '50');
   const [savingAvailability, setSavingAvailability] = useState(false);
+  const [isEditingAvailability, setIsEditingAvailability] = useState(
+    profile.workingDays === undefined && profile.basePrice === undefined
+  );
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -894,10 +897,22 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
         nightStartHour,
         nightPrice: Number(nightPrice) || 0
       });
+      setIsEditingAvailability(false);
     } catch {
       setError("L'enregistrement des disponibilités a échoué.");
     }
     setSavingAvailability(false);
+  };
+
+  const handleCancelEditAvailability = () => {
+    setWorkingDays(profile.workingDays ?? [1, 2, 3, 4, 5, 6]);
+    setWorkStartHour(profile.workStartHour ?? 9);
+    setWorkEndHour(profile.workEndHour ?? 20);
+    setBasePrice(profile.basePrice?.toString() ?? '30');
+    setNightEnabled(profile.nightEnabled ?? false);
+    setNightStartHour(profile.nightStartHour ?? 22);
+    setNightPrice(profile.nightPrice?.toString() ?? '50');
+    setIsEditingAvailability(false);
   };
 
   const sectionLabel = `text-[10px] uppercase font-bold tracking-widest mb-3 ${theme === 'dark' ? 'text-gold/80' : 'text-gold'}`;
@@ -1115,102 +1130,151 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
         {/* AVAILABILITY & PRICING */}
         <section className="mb-6">
           <p className={sectionLabel}>Disponibilités &amp; tarifs</p>
-          <div className={`${cardClass} space-y-5`}>
-            <div>
-              <span className="text-[9px] text-warm-gray uppercase font-bold block mb-2">Jours travaillés</span>
-              <div className="flex flex-wrap gap-2">
-                {DAY_LABELS.map((label, day) => (
-                  <button
-                    key={day}
-                    onClick={() => toggleDay(day)}
-                    className={`w-11 h-9 rounded-lg text-[10px] font-bold uppercase transition-all ${
-                      workingDays.includes(day) ? 'bg-gold text-black' : `${theme === 'dark' ? 'bg-black/40 text-warm-gray' : 'bg-gray-100 text-gray-500'}`
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
+          <div className={`${cardClass} ${isEditingAvailability ? 'space-y-5' : ''}`}>
+            {isEditingAvailability ? (
+              <>
+                <div>
+                  <span className="text-[9px] text-warm-gray uppercase font-bold block mb-2">Jours travaillés</span>
+                  <div className="flex flex-wrap gap-2">
+                    {DAY_LABELS.map((label, day) => (
+                      <button
+                        key={day}
+                        onClick={() => toggleDay(day)}
+                        className={`w-11 h-9 rounded-lg text-[10px] font-bold uppercase transition-all ${
+                          workingDays.includes(day) ? 'bg-gold text-black' : `${theme === 'dark' ? 'bg-black/40 text-warm-gray' : 'bg-gray-100 text-gray-500'}`
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="text-[9px] text-warm-gray uppercase font-bold block mb-1">Heure d'ouverture</span>
-                <select
-                  value={workStartHour}
-                  onChange={(e) => setWorkStartHour(Number(e.target.value))}
-                  className={`w-full px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
-                >
-                  {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{h}h00</option>)}
-                </select>
-              </div>
-              <div>
-                <span className="text-[9px] text-warm-gray uppercase font-bold block mb-1">Heure de fermeture</span>
-                <select
-                  value={workEndHour}
-                  onChange={(e) => setWorkEndHour(Number(e.target.value))}
-                  className={`w-full px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
-                >
-                  {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{h}h00</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <span className="text-[9px] text-warm-gray uppercase font-bold block mb-1">Tarif de base (DH)</span>
-              <input
-                type="number"
-                min={0}
-                value={basePrice}
-                onChange={(e) => setBasePrice(e.target.value)}
-                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
-              />
-            </div>
-
-            <div className="pt-3 border-t border-white/5">
-              <button
-                onClick={() => setNightEnabled(v => !v)}
-                className="flex items-center gap-2 mb-3"
-              >
-                <span className={`w-9 h-5 rounded-full transition-colors relative ${nightEnabled ? 'bg-gold' : theme === 'dark' ? 'bg-white/10' : 'bg-gray-200'}`}>
-                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${nightEnabled ? 'left-4.5' : 'left-0.5'}`} style={{ left: nightEnabled ? '18px' : '2px' }} />
-                </span>
-                <span className="text-[10px] uppercase font-bold tracking-widest flex items-center gap-1.5"><MoonIcon size={12} className="text-gold" /> Tarif de nuit</span>
-              </button>
-
-              {nightEnabled && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <span className="text-[9px] text-warm-gray uppercase font-bold block mb-1">À partir de</span>
+                    <span className="text-[9px] text-warm-gray uppercase font-bold block mb-1">Heure d'ouverture</span>
                     <select
-                      value={nightStartHour}
-                      onChange={(e) => setNightStartHour(Number(e.target.value))}
+                      value={workStartHour}
+                      onChange={(e) => setWorkStartHour(Number(e.target.value))}
                       className={`w-full px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
                     >
                       {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{h}h00</option>)}
                     </select>
                   </div>
                   <div>
-                    <span className="text-[9px] text-warm-gray uppercase font-bold block mb-1">Nouveau tarif (DH)</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={nightPrice}
-                      onChange={(e) => setNightPrice(e.target.value)}
+                    <span className="text-[9px] text-warm-gray uppercase font-bold block mb-1">Heure de fermeture</span>
+                    <select
+                      value={workEndHour}
+                      onChange={(e) => setWorkEndHour(Number(e.target.value))}
                       className={`w-full px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
-                    />
+                    >
+                      {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{h}h00</option>)}
+                    </select>
                   </div>
                 </div>
-              )}
-            </div>
 
-            <button
-              onClick={handleSaveAvailability}
-              disabled={savingAvailability || !availabilityDirty}
-              className="w-full py-2.5 bg-gold text-black text-[10px] font-bold uppercase tracking-widest rounded-lg disabled:opacity-40"
-            >
-              {savingAvailability ? 'Enregistrement...' : 'Enregistrer mes disponibilités'}
-            </button>
+                <div>
+                  <span className="text-[9px] text-warm-gray uppercase font-bold block mb-1">Tarif de base (DH)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={basePrice}
+                    onChange={(e) => setBasePrice(e.target.value)}
+                    className={`w-full px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                  />
+                </div>
+
+                <div className="pt-3 border-t border-white/5">
+                  <button
+                    onClick={() => setNightEnabled(v => !v)}
+                    className="flex items-center gap-2 mb-3"
+                  >
+                    <span className={`w-9 h-5 rounded-full transition-colors relative ${nightEnabled ? 'bg-gold' : theme === 'dark' ? 'bg-white/10' : 'bg-gray-200'}`}>
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${nightEnabled ? 'left-4.5' : 'left-0.5'}`} style={{ left: nightEnabled ? '18px' : '2px' }} />
+                    </span>
+                    <span className="text-[10px] uppercase font-bold tracking-widest flex items-center gap-1.5"><MoonIcon size={12} className="text-gold" /> Tarif de nuit</span>
+                  </button>
+
+                  {nightEnabled && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-[9px] text-warm-gray uppercase font-bold block mb-1">À partir de</span>
+                        <select
+                          value={nightStartHour}
+                          onChange={(e) => setNightStartHour(Number(e.target.value))}
+                          className={`w-full px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                        >
+                          {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{h}h00</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-warm-gray uppercase font-bold block mb-1">Nouveau tarif (DH)</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={nightPrice}
+                          onChange={(e) => setNightPrice(e.target.value)}
+                          className={`w-full px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {(profile.workingDays !== undefined || profile.basePrice !== undefined) && (
+                    <button
+                      onClick={handleCancelEditAvailability}
+                      className="py-2.5 px-4 text-[10px] text-warm-gray uppercase tracking-widest font-bold hover:text-gold transition-colors"
+                    >
+                      Annuler
+                    </button>
+                  )}
+                  <button
+                    onClick={handleSaveAvailability}
+                    disabled={savingAvailability || !availabilityDirty}
+                    className="flex-1 py-2.5 bg-gold text-black text-[10px] font-bold uppercase tracking-widest rounded-lg disabled:opacity-40"
+                  >
+                    {savingAvailability ? 'Enregistrement...' : 'Enregistrer mes disponibilités'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button onClick={() => setIsEditingAvailability(true)} className="w-full text-left space-y-4">
+                <div>
+                  <span className="text-[9px] text-warm-gray uppercase font-bold block mb-2">Jours travaillés</span>
+                  <div className="flex flex-wrap gap-2">
+                    {DAY_LABELS.map((label, day) => (
+                      <span
+                        key={day}
+                        className={`w-11 h-9 flex items-center justify-center rounded-lg text-[10px] font-bold uppercase ${
+                          workingDays.includes(day) ? 'bg-gold text-black' : `${theme === 'dark' ? 'bg-black/40 text-warm-gray' : 'bg-gray-100 text-gray-500'}`
+                        }`}
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-[9px] text-warm-gray uppercase font-bold block mb-1">Horaires</span>
+                    <span className="text-xs">{workStartHour}h00 – {workEndHour}h00</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-warm-gray uppercase font-bold block mb-1">Tarif de base</span>
+                    <span className="text-xs">{basePrice} DH</span>
+                  </div>
+                </div>
+                {nightEnabled && (
+                  <div className="pt-3 border-t border-white/5">
+                    <span className="text-[9px] text-warm-gray uppercase font-bold flex items-center gap-1.5 mb-1"><MoonIcon size={12} className="text-gold" /> Tarif de nuit à partir de {nightStartHour}h00</span>
+                    <span className="text-xs">{nightPrice} DH</span>
+                  </div>
+                )}
+                <span className="mt-1 inline-block text-[9px] text-gold uppercase tracking-widest font-bold hover:underline">Modifier</span>
+              </button>
+            )}
           </div>
         </section>
 
