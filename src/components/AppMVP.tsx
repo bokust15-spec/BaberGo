@@ -4,7 +4,6 @@ import { MapPin, Search, Scissors, Star, User, Users, ChevronRight, ChevronDown,
 import { UserProfile, useFirebase, Appointment } from '../hooks/useFirebase';
 import { STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, SALON_COVER_PHOTO, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
 import BookingModal from './BookingModal';
-import CreateAnnonceForm from './CreateAnnonceForm';
 import CategoryRail from './CategoryRail';
 
 // A single bookable "look": either a real barber's own uploaded realization, or one
@@ -20,6 +19,7 @@ interface FeedEntry {
 
 interface AppMVPProps {
   onLogout: () => void;
+  onLogin: () => void;
   theme: 'dark' | 'light';
   profile: UserProfile | null;
   onLogoutFirebase: () => void;
@@ -29,23 +29,23 @@ interface AppMVPProps {
   onUpdateAppointment: (id: string, updates: Partial<Appointment>) => Promise<void>;
   onAddReview: (review: { clientId: string; barberId: string; appointmentId: string; rating: number; comment: string }) => Promise<void>;
   onClientBook: (barberId: string, serviceId: string, dateTime: Date, totalPrice: number, proposedPrice?: number, clientNotes?: string) => Promise<void>;
-  onCreateAnnonce: (serviceId: string, dateTime: Date, totalPrice: number, proposedPrice?: number, clientNotes?: string, targetBarberId?: string) => Promise<void>;
   initialCategory?: string | null;
 }
 
-export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onCreateAnnonce, initialCategory }: AppMVPProps) {
+export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, initialCategory }: AppMVPProps) {
   const [activeTab, setActiveTab] = useState<'search' | 'bookings'>('search');
   const [selectedEntry, setSelectedEntry] = useState<FeedEntry | null>(null);
   const selectedBarber = selectedEntry?.barber ?? null;
   const [showBooking, setShowBooking] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [isModalAnnonceActive, setIsModalAnnonceActive] = useState(false);
 
   const [searchGender, setSearchGender] = useState<'' | 'homme' | 'femme'>('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory ?? null);
   const [searchDateTime, setSearchDateTime] = useState('');
   const dateTimeInputRef = useRef<HTMLInputElement>(null);
   const [searchStyle, setSearchStyle] = useState('');
+  const [searchCity, setSearchCity] = useState('');
+  const moroccanCities = useMemo(() => Object.keys(CITY_COORDS).sort(), []);
 
   const { services, barbers, user } = useFirebase();
 
@@ -88,10 +88,11 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
 
   const filteredEntries = useMemo(() => {
     const selectedDay = searchDateTime ? new Date(searchDateTime).getDay() : null;
-    // Only gender, category and the barber's availability on the chosen day actually filter results.
+    // Only gender, category, city and the barber's availability on the chosen day actually filter results.
     const results = feedEntries.filter(e => {
       if (searchGender && e.barber.gender !== searchGender) return false;
       if (selectedCategory && (e.item.category || 'cheveux') !== selectedCategory) return false;
+      if (searchCity && e.city !== searchCity) return false;
       if (selectedDay !== null && !e.availableDays.includes(selectedDay)) return false;
       return true;
     });
@@ -104,7 +105,7 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
       const bMatch = b.item.name.toLowerCase().includes(style) ? 0 : 1;
       return aMatch - bMatch;
     });
-  }, [feedEntries, searchGender, selectedCategory, searchDateTime, searchStyle]);
+  }, [feedEntries, searchGender, selectedCategory, searchCity, searchDateTime, searchStyle]);
 
   const handleLogoutAll = () => {
     onLogoutFirebase();
@@ -140,13 +141,21 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
            <ArrowLeft size={14} />
            Retour
          </button>
-         {profile && (
+         {profile ? (
            <button
              onClick={() => setShowProfileModal(true)}
              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm border transition-colors text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'border-white/10 text-warm-gray hover:text-gold hover:border-gold/30' : 'border-gray-200 text-gray-500 hover:text-gold hover:border-gold/30'}`}
            >
              <User size={14} />
-             Mon compte
+             {profile.firstName}
+           </button>
+         ) : (
+           <button
+             onClick={onLogin}
+             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm border transition-colors text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'border-white/10 text-warm-gray hover:text-gold hover:border-gold/30' : 'border-gray-200 text-gray-500 hover:text-gold hover:border-gold/30'}`}
+           >
+             <User size={14} />
+             Se connecter
            </button>
          )}
       </div>
@@ -272,6 +281,19 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
                       <option value="" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Un expert ou une experte</option>
                       <option value="homme" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Un expert</option>
                       <option value="femme" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Une experte</option>
+                    </select>
+                 </div>
+                 <div className={`flex-1 flex items-center gap-2 px-4 py-3 border-b md:border-b-0 md:border-r ${theme === 'dark' ? 'border-gold/15' : 'border-gray-200'}`}>
+                    <MapPin size={16} className="text-gold shrink-0" />
+                    <select
+                      value={searchCity}
+                      onChange={(e) => setSearchCity(e.target.value)}
+                      className={`bg-transparent border-none outline-none text-xs w-full ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
+                    >
+                      <option value="" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Toutes les villes</option>
+                      {moroccanCities.map(city => (
+                        <option key={city} value={city} className={theme === 'dark' ? 'bg-mid-brown' : ''}>{city}</option>
+                      ))}
                     </select>
                  </div>
                  <div className={`flex-1 flex items-center gap-2 px-4 py-3 border-b md:border-b-0 md:border-r ${theme === 'dark' ? 'border-gold/15' : 'border-gray-200'}`}>
@@ -409,70 +431,38 @@ export default function AppMVP({ onLogout, theme, profile, onLogoutFirebase, cli
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className={`w-full ${isModalAnnonceActive ? 'max-w-lg' : 'max-w-sm'} border rounded-sm overflow-hidden transition-all duration-300 ${theme === 'dark' ? 'bg-mid-brown border-gold/30' : 'bg-white border-gray-200 shadow-2xl'}`}
+              className={`w-full max-w-sm border rounded-sm overflow-hidden transition-all duration-300 ${theme === 'dark' ? 'bg-mid-brown border-gold/30' : 'bg-white border-gray-200 shadow-2xl'}`}
             >
                <div className="p-6 border-b border-gold/10 flex justify-between items-center bg-gold/5">
-                  <h3 className="font-bebas text-xl text-gold tracking-widest uppercase">
-                    {isModalAnnonceActive ? 'Nouvelle Annonce' : 'Mon Compte'}
-                  </h3>
-                  <button onClick={() => { setShowProfileModal(false); setIsModalAnnonceActive(false); }} className="text-warm-gray hover:text-gold transition-colors"><X size={20} /></button>
+                  <h3 className="font-bebas text-xl text-gold tracking-widest uppercase">Mon Compte</h3>
+                  <button onClick={() => setShowProfileModal(false)} className="text-warm-gray hover:text-gold transition-colors"><X size={20} /></button>
                </div>
 
-               {isModalAnnonceActive ? (
-                 <div className="p-6 space-y-4">
-                   <CreateAnnonceForm
-                     services={services}
-                     barbers={barbers}
-                     onBook={onCreateAnnonce}
-                     theme={theme}
-                     onSuccess={() => {
-                        setShowProfileModal(false);
-                        setIsModalAnnonceActive(false);
-                     }}
-                   />
-                   <button
-                     onClick={() => setIsModalAnnonceActive(false)}
-                     className="w-full text-center text-[10px] uppercase font-bold text-gold/60 hover:text-gold tracking-wider transition-colors"
-                   >
-                     ← Retour aux détails du compte
-                   </button>
-                 </div>
-               ) : (
-                 <div className="p-8 text-center space-y-6">
-                    <div className="w-20 h-20 bg-gold/10 rounded-full border-2 border-gold flex items-center justify-center mx-auto">
-                       <User size={40} className="text-gold" />
-                    </div>
-                    <div>
-                      <h4 className={`text-2xl font-bebas tracking-wider uppercase ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{profile.firstName} {profile.lastName}</h4>
-                      <p className="text-gold text-[10px] font-bold uppercase tracking-widest mt-1">Membre BarberGo</p>
-                    </div>
-                    <div className="space-y-2">
-                       <div className={`p-4 rounded-sm border flex justify-between items-center ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
-                          <span className="text-[10px] text-warm-gray uppercase font-bold">Email</span>
-                          <span className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{profile.email}</span>
-                       </div>
-                       <div className={`p-4 rounded-sm border flex justify-between items-center ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
-                          <span className="text-[10px] text-warm-gray uppercase font-bold">Mobile</span>
-                          <span className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{profile.phone}</span>
-                       </div>
-
-                       {profile.role === 'client' && (
-                         <button
-                           onClick={() => setIsModalAnnonceActive(true)}
-                           className="w-full btn-primary py-4 uppercase font-bold tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 group mt-2"
-                         >
-                            ⚡ Poster une Annonce (InDrive)
-                         </button>
-                       )}
-                    </div>
-                    <button
-                      onClick={handleLogoutAll}
-                      className="w-full py-4 border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-all rounded-sm text-[10px] font-bold uppercase tracking-widest"
-                    >
-                      Déconnexion
-                    </button>
-                 </div>
-               )}
+               <div className="p-8 text-center space-y-6">
+                  <div className="w-20 h-20 bg-gold/10 rounded-full border-2 border-gold flex items-center justify-center mx-auto">
+                     <User size={40} className="text-gold" />
+                  </div>
+                  <div>
+                    <h4 className={`text-2xl font-bebas tracking-wider uppercase ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{profile.firstName} {profile.lastName}</h4>
+                    <p className="text-gold text-[10px] font-bold uppercase tracking-widest mt-1">Membre BarberGo</p>
+                  </div>
+                  <div className="space-y-2">
+                     <div className={`p-4 rounded-sm border flex justify-between items-center ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                        <span className="text-[10px] text-warm-gray uppercase font-bold">Email</span>
+                        <span className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{profile.email}</span>
+                     </div>
+                     <div className={`p-4 rounded-sm border flex justify-between items-center ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                        <span className="text-[10px] text-warm-gray uppercase font-bold">Mobile</span>
+                        <span className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{profile.phone}</span>
+                     </div>
+                  </div>
+                  <button
+                    onClick={handleLogoutAll}
+                    className="w-full py-4 border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-all rounded-sm text-[10px] font-bold uppercase tracking-widest"
+                  >
+                    Déconnexion
+                  </button>
+               </div>
             </motion.div>
           </motion.div>
         )}

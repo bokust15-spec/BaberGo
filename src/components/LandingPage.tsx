@@ -259,8 +259,8 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
             "à domicile" feeling more directly (cozy home setting behind the content). */}
         <div className="relative flex-1 flex flex-col justify-center overflow-hidden">
           <img
-            src="https://images.unsplash.com/photo-1608499458674-82a32e0b0934?q=80&w=1600&auto=format&fit=crop"
-            alt="Cliente détendue chez elle, dans son salon"
+            src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=1600&auto=format&fit=crop"
+            alt="Expert BarberGo réalisant une taille de barbe pour un client"
             className="absolute inset-0 w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/40" />

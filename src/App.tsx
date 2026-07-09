@@ -294,8 +294,8 @@ export default function App() {
         onUpdateAppointment={handleUpdateAppointment}
         onAddReview={addReview}
         onClientBook={handleClientBook}
-        onCreateAnnonce={handleCreateAnnonce}
         initialCategory={initialCategory}
+        onLogin={handleLoginClick}
       />
     );
   };
