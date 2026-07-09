@@ -18,7 +18,8 @@ import {
   where,
   updateDoc,
   arrayUnion,
-  arrayRemove
+  arrayRemove,
+  onSnapshot
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { auth, db, storage, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -185,13 +186,11 @@ export function useFirebase() {
       }
     };
 
-    const fetchBarbers = async () => {
+    const seedBarbersIfEmpty = async () => {
       try {
         const q = query(collection(db, 'users'), where('role', '==', 'barber'));
         const querySnapshot = await getDocs(q);
-        const barbersList = querySnapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserProfile));
-        
-        if (barbersList.length === 0) {
+        if (querySnapshot.empty) {
           const defaultBarbers = [
             { firstName: 'Karim', lastName: 'El Fassi', gender: 'homme', phone: '0612345678', email: 'karim@barbergo.ma', role: 'barber', createdAt: serverTimestamp() },
             { firstName: 'Nadia', lastName: 'Bennani', gender: 'femme', phone: '0612345679', email: 'nadia@barbergo.ma', role: 'barber', createdAt: serverTimestamp() },
@@ -201,20 +200,27 @@ export function useFirebase() {
           for (const b of defaultBarbers) {
             await setDoc(doc(db, 'users', b.email.split('@')[0]), b);
           }
-          const reSnapshot = await getDocs(q);
-          setBarbers(reSnapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserProfile)));
-        } else {
-          setBarbers(barbersList);
         }
       } catch (error) {
-        console.error("Error fetching barbers:", error);
+        console.error("Error seeding barbers:", error);
       }
     };
 
-    if (user) {
-      fetchServices();
-      fetchBarbers();
-    }
+    if (!user) return;
+
+    fetchServices();
+    seedBarbersIfEmpty();
+
+    // Live listener (not a one-time fetch) so a barber's new portfolio item, category,
+    // or profile change shows up for clients already browsing, without needing a reload.
+    const barbersQuery = query(collection(db, 'users'), where('role', '==', 'barber'));
+    const unsubscribeBarbers = onSnapshot(barbersQuery, (snapshot) => {
+      setBarbers(snapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserProfile)));
+    }, (error) => {
+      console.error("Error fetching barbers:", error);
+    });
+
+    return () => unsubscribeBarbers();
   }, [user]);
 
   const loginWithEmail = async (email: string, password: string) => {
