@@ -183,6 +183,32 @@ export default function App() {
     setAppointments(apps);
   };
 
+  // A guest can fill out the whole booking flow before creating an account — the
+  // account (email + password) is only required at the very last step, right before
+  // confirming, so it doubles as their registration.
+  const handleGuestRegisterAndBook = async (
+    registerData: { firstName: string; lastName: string; gender: 'homme' | 'femme' | 'autre'; phone: string; email: string; password: string },
+    barberId: string,
+    serviceId: string,
+    dateTime: Date,
+    totalPrice: number,
+    clientNotes?: string
+  ) => {
+    const uid = await registerProfile({ ...registerData, role: 'client' });
+    if (!uid) return;
+    await createAppointment({
+      clientId: uid,
+      clientName: `${registerData.firstName} ${registerData.lastName}`,
+      clientGender: registerData.gender,
+      barberId,
+      serviceId,
+      dateTime,
+      totalPrice,
+      negotiationStatus: 'client_proposed',
+      clientNotes
+    });
+  };
+
   const handleBookBarber = async (barberId: string, item: { name: string; price: number }, dateTime: Date, note?: string) => {
     if (!user) return;
     await createAppointment({
@@ -298,6 +324,7 @@ export default function App() {
         onUpdateAppointment={handleUpdateAppointment}
         onAddReview={addReview}
         onClientBook={handleClientBook}
+        onGuestRegisterAndBook={handleGuestRegisterAndBook}
         initialCategory={initialCategory}
         onLogin={handleLoginClick}
       />

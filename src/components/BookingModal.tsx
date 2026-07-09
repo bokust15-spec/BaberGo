@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Calendar, Clock, Scissors, CreditCard, CheckCircle2, ChevronRight, AlertTriangle } from 'lucide-react';
+import { X, Calendar, Clock, Scissors, CreditCard, CheckCircle2, ChevronRight, AlertTriangle, User, Mail, Lock, Phone } from 'lucide-react';
 import { Service, UserProfile } from '../hooks/useFirebase';
 
 interface BookingModalProps {
@@ -9,12 +9,20 @@ interface BookingModalProps {
   barber: UserProfile;
   services: Service[];
   onBook: (serviceId: string, dateTime: Date, totalPrice: number, proposedPrice?: number, clientNotes?: string) => Promise<void>;
+  profile: UserProfile | null;
+  onGuestRegisterAndBook: (
+    registerData: { firstName: string; lastName: string; gender: 'homme' | 'femme' | 'autre'; phone: string; email: string; password: string },
+    serviceId: string,
+    dateTime: Date,
+    totalPrice: number,
+    clientNotes?: string
+  ) => Promise<void>;
   theme: 'dark' | 'light';
 }
 
 const DAY_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
 
-export default function BookingModal({ isOpen, onClose, barber, services, onBook, theme }: BookingModalProps) {
+export default function BookingModal({ isOpen, onClose, barber, services, onBook, profile, onGuestRegisterAndBook, theme }: BookingModalProps) {
   const workingDays = barber.workingDays && barber.workingDays.length > 0 ? barber.workingDays : [1, 2, 3, 4, 5, 6];
   const workStartHour = barber.workStartHour ?? 9;
   const workEndHour = barber.workEndHour ?? 20;
@@ -35,6 +43,17 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
   const [clientNotes, setClientNotes] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Only asked as the very last step, for guests — filling it out doubles as their
+  // account creation, so they don't need to sign up before browsing/booking.
+  const [regFirstName, setRegFirstName] = useState('');
+  const [regLastName, setRegLastName] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+
+  const totalSteps = profile ? 3 : 4;
 
   const isWorkingDay = (dateStr: string) => workingDays.includes(new Date(dateStr).getDay());
 
@@ -43,19 +62,34 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
     timeSlots.push(`${String(h).padStart(2, '0')}:00`);
   }
 
+  const isGuestFormValid = regFirstName.trim() && regLastName.trim() && regPhone.trim() && regEmail.trim() && regPassword.length >= 6;
+
   const handleBook = async () => {
     if (!selectedService || !selectedDate || !selectedTime) return;
+    if (!profile && !isGuestFormValid) return;
 
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
       const [hours, minutes] = selectedTime.split(':').map(Number);
       const appointmentDate = new Date(selectedDate);
       appointmentDate.setHours(hours, minutes, 0, 0);
 
-      await onBook(selectedService.id, appointmentDate, selectedService.price, undefined, clientNotes);
+      if (profile) {
+        await onBook(selectedService.id, appointmentDate, selectedService.price, undefined, clientNotes);
+      } else {
+        await onGuestRegisterAndBook(
+          { firstName: regFirstName.trim(), lastName: regLastName.trim(), gender: 'autre', phone: regPhone.trim(), email: regEmail.trim(), password: regPassword },
+          selectedService.id,
+          appointmentDate,
+          selectedService.price,
+          clientNotes
+        );
+      }
       setIsSuccess(true);
     } catch (error) {
       console.error(error);
+      setSubmitError("La création du compte ou de la réservation a échoué. Vérifiez vos informations et réessayez.");
     } finally {
       setIsSubmitting(false);
     }
@@ -77,6 +111,12 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
     setSelectedTime('');
     setClientNotes('');
     setIsSuccess(false);
+    setSubmitError(null);
+    setRegFirstName('');
+    setRegLastName('');
+    setRegPhone('');
+    setRegEmail('');
+    setRegPassword('');
     onClose();
   };
 
@@ -94,7 +134,9 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
             <div className="p-6 border-b border-gold/10 flex justify-between items-center bg-gold/5">
               <div>
                 <h3 className="font-bebas text-xl text-gold tracking-widest uppercase">Réserver avec {barber.firstName}</h3>
-                <p className="text-[10px] text-warm-gray uppercase tracking-widest font-bold">Étape {step} sur 3</p>
+                {!isSuccess && (
+                  <p className="text-[10px] text-warm-gray uppercase tracking-widest font-bold">Étape {step} sur {totalSteps}</p>
+                )}
               </div>
               <button onClick={resetAndClose} className="text-warm-gray hover:text-gold transition-colors"><X size={20} /></button>
             </div>
@@ -232,6 +274,72 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
                     </motion.div>
                   )}
 
+                  {/* Step 4 (guests only): create the account right before confirming — the
+                      login/password requirement never blocks browsing, only this final step. */}
+                  {step === 4 && !profile && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <User size={16} className="text-gold" />
+                        <span className={`text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Créez votre compte pour valider</span>
+                      </div>
+                      <p className="text-xs text-warm-gray -mt-2 mb-2">Votre rendez-vous est prêt — indiquez votre email pour finaliser votre inscription et confirmer.</p>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <input
+                          value={regFirstName}
+                          onChange={(e) => setRegFirstName(e.target.value)}
+                          placeholder="Prénom"
+                          className={`w-full p-3 rounded-sm border outline-none text-xs focus:border-gold transition-colors ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                        />
+                        <input
+                          value={regLastName}
+                          onChange={(e) => setRegLastName(e.target.value)}
+                          placeholder="Nom"
+                          className={`w-full p-3 rounded-sm border outline-none text-xs focus:border-gold transition-colors ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                        />
+                      </div>
+
+                      <div className="relative">
+                        <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gold" />
+                        <input
+                          value={regPhone}
+                          onChange={(e) => setRegPhone(e.target.value)}
+                          placeholder="Téléphone"
+                          className={`w-full p-3 pl-9 rounded-sm border outline-none text-xs focus:border-gold transition-colors ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                        />
+                      </div>
+
+                      <div className="relative">
+                        <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gold" />
+                        <input
+                          type="email"
+                          value={regEmail}
+                          onChange={(e) => setRegEmail(e.target.value)}
+                          placeholder="Email"
+                          className={`w-full p-3 pl-9 rounded-sm border outline-none text-xs focus:border-gold transition-colors ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                        />
+                      </div>
+
+                      <div className="relative">
+                        <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gold" />
+                        <input
+                          type="password"
+                          value={regPassword}
+                          onChange={(e) => setRegPassword(e.target.value)}
+                          placeholder="Mot de passe (6 caractères min.)"
+                          className={`w-full p-3 pl-9 rounded-sm border outline-none text-xs focus:border-gold transition-colors ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                        />
+                      </div>
+
+                      {submitError && (
+                        <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-sm text-red-400 text-xs">
+                          <AlertTriangle size={14} className="shrink-0" />
+                          {submitError}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+
                   {/* Actions */}
                   <div className="mt-8 flex gap-3">
                     {step > 1 && (
@@ -245,9 +353,9 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
                       </button>
                     )}
 
-                    {step < 3 ? (
+                    {step < totalSteps ? (
                       <button
-                        disabled={step === 1 ? !selectedService : (!isWorkingDay(selectedDate) || !selectedTime)}
+                        disabled={step === 1 ? !selectedService : step === 2 ? (!isWorkingDay(selectedDate) || !selectedTime) : false}
                         onClick={() => setStep(step + 1)}
                         className="flex-[2] btn-primary py-4 text-[10px] uppercase font-bold tracking-widest disabled:opacity-50 disabled:cursor-not-allowed group flex items-center justify-center gap-2"
                       >
@@ -255,7 +363,7 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
                       </button>
                     ) : (
                       <button
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || (!profile && !isGuestFormValid)}
                         onClick={handleBook}
                         className="flex-[2] btn-primary py-4 text-[10px] uppercase font-bold tracking-widest disabled:opacity-50 flex items-center justify-center gap-2"
                       >
@@ -275,7 +383,7 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
                   <div className="w-20 h-20 bg-gold rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_rgba(212,175,55,0.4)]">
                     <CheckCircle2 size={40} className="text-black" />
                   </div>
-                  <h2 className={`text-3xl font-bebas tracking-widest uppercase mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Résreservation Validée !</h2>
+                  <h2 className={`text-3xl font-bebas tracking-widest uppercase mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Réservation validée !</h2>
                   <p className="text-warm-gray text-sm mb-8">Votre rendez-vous pour {selectedService?.name} est confirmé pour le {new Date(selectedDate).toLocaleDateString('fr-FR')} à {selectedTime}.</p>
                   <button
                     onClick={resetAndClose}

@@ -29,10 +29,18 @@ interface AppMVPProps {
   onUpdateAppointment: (id: string, updates: Partial<Appointment>) => Promise<void>;
   onAddReview: (review: { clientId: string; barberId: string; appointmentId: string; rating: number; comment: string }) => Promise<void>;
   onClientBook: (barberId: string, serviceId: string, dateTime: Date, totalPrice: number, proposedPrice?: number, clientNotes?: string) => Promise<void>;
+  onGuestRegisterAndBook: (
+    registerData: { firstName: string; lastName: string; gender: 'homme' | 'femme' | 'autre'; phone: string; email: string; password: string },
+    barberId: string,
+    serviceId: string,
+    dateTime: Date,
+    totalPrice: number,
+    clientNotes?: string
+  ) => Promise<void>;
   initialCategory?: string | null;
 }
 
-export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, initialCategory }: AppMVPProps) {
+export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory }: AppMVPProps) {
   const [activeTab, setActiveTab] = useState<'search' | 'bookings'>('search');
   const [selectedEntry, setSelectedEntry] = useState<FeedEntry | null>(null);
   const selectedBarber = selectedEntry?.barber ?? null;
@@ -121,7 +129,6 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   };
 
   const quickBook = (entry: FeedEntry) => {
-    if (!profile) { onLogin(); return; }
     setSelectedEntry(entry);
     setShowBooking(true);
   };
@@ -129,6 +136,17 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   const handleBook = async (serviceId: string, dateTime: Date, totalPrice: number, proposedPrice?: number, clientNotes?: string) => {
     if (!selectedBarber) return;
     await onClientBook(selectedBarber.uid, serviceId, dateTime, totalPrice, proposedPrice, clientNotes);
+  };
+
+  const handleGuestBook = async (
+    registerData: { firstName: string; lastName: string; gender: 'homme' | 'femme' | 'autre'; phone: string; email: string; password: string },
+    serviceId: string,
+    dateTime: Date,
+    totalPrice: number,
+    clientNotes?: string
+  ) => {
+    if (!selectedBarber) return;
+    await onGuestRegisterAndBook(registerData, selectedBarber.uid, serviceId, dateTime, totalPrice, clientNotes);
   };
 
   return (
@@ -251,7 +269,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                  </div>
 
                  <button
-                   onClick={() => profile ? setShowBooking(true) : onLogin()}
+                   onClick={() => setShowBooking(true)}
                    className="w-full btn-primary py-5 mt-4 flex items-center justify-center gap-3 group"
                  >
                    <CalendarDays size={18} />
@@ -423,6 +441,8 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
           barber={selectedBarber}
           services={services}
           onBook={handleBook}
+          profile={profile}
+          onGuestRegisterAndBook={handleGuestBook}
           theme={theme}
         />
       )}

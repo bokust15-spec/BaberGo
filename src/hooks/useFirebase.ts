@@ -272,6 +272,7 @@ export function useFirebase() {
       const docRef = doc(db, 'users', uid);
       await setDoc(docRef, profileData);
       setProfile({ ...profileData, uid, createdAt: new Date() } as UserProfile);
+      return uid;
     } catch (error) {
       console.error("Registration failed:", error);
       setLoginError(describeAuthError(error));
