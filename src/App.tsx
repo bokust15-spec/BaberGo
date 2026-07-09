@@ -36,6 +36,7 @@ export default function App() {
     updateAppointmentStatus,
     updateBio,
     updatePhone,
+    updateCity,
     uploadAvatar,
     uploadCover,
     addPortfolioItem,
@@ -273,6 +274,7 @@ export default function App() {
           theme={theme}
           onUpdateBio={updateBio}
           onUpdatePhone={updatePhone}
+          onUpdateCity={updateCity}
           onUploadAvatar={uploadAvatar}
           onUploadCover={uploadCover}
           onAddPortfolioItem={addPortfolioItem}

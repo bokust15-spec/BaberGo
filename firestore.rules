@@ -35,6 +35,7 @@ service cloud.firestore {
         && data.email is string && data.email.size() <= 200
         && data.role in ['client', 'barber']
         && (!('bio' in data) || (data.bio is string && data.bio.size() <= 500))
+        && (!('city' in data) || (data.city is string && data.city.size() <= 50))
         && (!('avatarUrl' in data) || data.avatarUrl is string)
         && (!('coverUrl' in data) || data.coverUrl is string)
         && (!('portfolioItems' in data) || (data.portfolioItems is list && data.portfolioItems.size() <= 60))

@@ -22,7 +22,7 @@ import {
   BadgeCheck
 } from 'lucide-react';
 import { Appointment, UserProfile, Service, PortfolioItem } from '../hooks/useFirebase';
-import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, mockBarberFromPost } from '../data/mockBarberFeed';
+import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, mockBarberFromPost, CITY_COORDS } from '../data/mockBarberFeed';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import CategoryRail from './CategoryRail';
@@ -64,6 +64,7 @@ interface BarberDashboardProps {
   theme: 'dark' | 'light';
   onUpdateBio: (bio: string) => Promise<void>;
   onUpdatePhone: (phone: string) => Promise<void>;
+  onUpdateCity: (city: string) => Promise<void>;
   onUploadAvatar: (file: File) => Promise<string | undefined>;
   onUploadCover: (file: File) => Promise<string | undefined>;
   onAddPortfolioItem: (file: File, name: string, price: number, category?: string) => Promise<PortfolioItem | undefined>;
@@ -83,6 +84,7 @@ export default function BarberDashboard({
   theme,
   onUpdateBio,
   onUpdatePhone,
+  onUpdateCity,
   onUploadAvatar,
   onUploadCover,
   onAddPortfolioItem,
@@ -176,7 +178,7 @@ export default function BarberDashboard({
   const feedItems = useMemo(() => {
     const items: FeedEntry[] = [];
     barbers.filter(b => b.uid !== profile.uid).forEach(b => {
-      (b.portfolioItems || []).forEach(item => items.push({ barber: b, item, isMock: false, rating: 4.9, city: 'Casablanca' }));
+      (b.portfolioItems || []).forEach(item => items.push({ barber: b, item, isMock: false, rating: 4.9, city: b.city || 'Casablanca' }));
     });
     STYLE_POSTS.forEach(post => {
       items.push({
@@ -322,6 +324,7 @@ export default function BarberDashboard({
             profile={profile}
             theme={theme}
             onUpdateBio={onUpdateBio}
+            onUpdateCity={onUpdateCity}
             onUploadAvatar={onUploadAvatar}
             onUploadCover={onUploadCover}
             onAddPortfolioItem={onAddPortfolioItem}
@@ -687,6 +690,7 @@ interface MyProfileTabProps {
   profile: UserProfile;
   theme: 'dark' | 'light';
   onUpdateBio: (bio: string) => Promise<void>;
+  onUpdateCity: (city: string) => Promise<void>;
   onUploadAvatar: (file: File) => Promise<string | undefined>;
   onUploadCover: (file: File) => Promise<string | undefined>;
   onAddPortfolioItem: (file: File, name: string, price: number, category?: string) => Promise<PortfolioItem | undefined>;
@@ -695,15 +699,23 @@ interface MyProfileTabProps {
   onUpdateCategories: (categories: string[]) => Promise<void>;
 }
 
-function MyProfileTab({ profile, theme, onUpdateBio, onUploadAvatar, onUploadCover, onAddPortfolioItem, onRemovePortfolioItem, onUpdateAvailability, onUpdateCategories }: MyProfileTabProps) {
+function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvatar, onUploadCover, onAddPortfolioItem, onRemovePortfolioItem, onUpdateAvailability, onUpdateCategories }: MyProfileTabProps) {
   const [bio, setBio] = useState(profile.bio || '');
   const [savingBio, setSavingBio] = useState(false);
+  const [isEditingBio, setIsEditingBio] = useState(!profile.bio);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [city, setCity] = useState(profile.city || 'Casablanca');
+  const [savingCity, setSavingCity] = useState(false);
+  const moroccanCities = useMemo(() => Object.keys(CITY_COORDS).sort(), []);
+
   const [categories, setCategories] = useState<string[]>(profile.categories ?? []);
   const [savingCategories, setSavingCategories] = useState(false);
+  const [isEditingCategories, setIsEditingCategories] = useState((profile.categories ?? []).length === 0);
+  const [showCustomSpecialtyInput, setShowCustomSpecialtyInput] = useState(false);
+  const [customSpecialtyInput, setCustomSpecialtyInput] = useState('');
 
   const [newItemFile, setNewItemFile] = useState<File | null>(null);
   const [newItemPreview, setNewItemPreview] = useState<string | null>(null);
@@ -739,10 +751,27 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUploadAvatar, onUploadCov
     setSavingBio(true);
     try {
       await onUpdateBio(bio.trim());
+      setIsEditingBio(false);
     } catch {
       setError("Impossible d'enregistrer la bio pour le moment.");
     }
     setSavingBio(false);
+  };
+
+  const handleCancelEditBio = () => {
+    setBio(profile.bio || '');
+    setIsEditingBio(false);
+  };
+
+  const handleChangeCity = async (nextCity: string) => {
+    setCity(nextCity);
+    setSavingCity(true);
+    try {
+      await onUpdateCity(nextCity);
+    } catch {
+      setError("Impossible d'enregistrer la ville pour le moment.");
+    }
+    setSavingCity(false);
   };
 
   const handleAvatarSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -801,16 +830,42 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUploadAvatar, onUploadCov
     setCategories(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
   };
 
+  const knownCategoryIds = new Set(SERVICE_CATEGORIES.map(c => c.id));
+  const customSpecialties = categories.filter(c => !knownCategoryIds.has(c));
+
+  const addCustomSpecialty = () => {
+    const word = customSpecialtyInput.trim();
+    if (!word || categories.includes(word)) {
+      setCustomSpecialtyInput('');
+      return;
+    }
+    setCategories(prev => [...prev, word]);
+    setCustomSpecialtyInput('');
+  };
+
+  const removeCustomSpecialty = (word: string) => {
+    setCategories(prev => prev.filter(c => c !== word));
+  };
+
   const categoriesDirty = JSON.stringify([...categories].sort()) !== JSON.stringify([...(profile.categories ?? [])].sort());
 
   const handleSaveCategories = async () => {
     setSavingCategories(true);
     try {
       await onUpdateCategories(categories);
+      setIsEditingCategories(false);
+      setShowCustomSpecialtyInput(false);
     } catch {
       setError("Impossible d'enregistrer les catégories pour le moment.");
     }
     setSavingCategories(false);
+  };
+
+  const handleCancelEditCategories = () => {
+    setCategories(profile.categories ?? []);
+    setCustomSpecialtyInput('');
+    setShowCustomSpecialtyInput(false);
+    setIsEditingCategories(false);
   };
 
   const handleDeleteItem = async (item: PortfolioItem) => {
@@ -886,7 +941,19 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUploadAvatar, onUploadCov
         </div>
 
         <h2 className="font-bebas text-2xl uppercase tracking-widest">{profile.firstName} {profile.lastName}</h2>
-        <p className="text-[10px] text-gold uppercase tracking-widest font-bold mb-6">{profile.gender === 'femme' ? 'Professionnelle' : 'Professionnel'} · Casablanca</p>
+        <p className="text-[10px] text-gold uppercase tracking-widest font-bold mb-6 flex items-center gap-1">
+          {profile.gender === 'femme' ? 'Professionnelle' : 'Professionnel'} ·
+          <select
+            value={city}
+            onChange={(e) => handleChangeCity(e.target.value)}
+            disabled={savingCity}
+            className="bg-transparent border-none outline-none text-gold uppercase tracking-widest font-bold text-[10px] cursor-pointer disabled:opacity-50"
+          >
+            {moroccanCities.map(c => (
+              <option key={c} value={c} className={theme === 'dark' ? 'bg-mid-brown' : ''}>{c}</option>
+            ))}
+          </select>
+        </p>
 
         {error && (
           <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-lg">{error}</div>
@@ -896,24 +963,43 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUploadAvatar, onUploadCov
         <section className="mb-6">
           <p className={sectionLabel}>Ma présentation</p>
           <div className={cardClass}>
-            <textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              maxLength={500}
-              rows={4}
-              placeholder="Décrivez votre spécialité, votre expérience, votre style..."
-              className={`w-full text-xs p-3 rounded-lg border outline-none resize-none ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
-            />
-            <div className="flex justify-between items-center mt-3">
-              <span className="text-[9px] text-warm-gray/50">{bio.length}/500</span>
-              <button
-                onClick={handleSaveBio}
-                disabled={savingBio || bio === (profile.bio || '')}
-                className="px-4 py-1.5 bg-gold text-black text-[9px] font-bold uppercase tracking-widest rounded-lg disabled:opacity-40"
-              >
-                {savingBio ? 'Enregistrement...' : 'Enregistrer'}
+            {isEditingBio ? (
+              <>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  maxLength={500}
+                  rows={4}
+                  placeholder="Décrivez votre spécialité, votre expérience, votre style..."
+                  className={`w-full text-xs p-3 rounded-lg border outline-none resize-none ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                />
+                <div className="flex justify-between items-center mt-3">
+                  <span className="text-[9px] text-warm-gray/50">{bio.length}/500</span>
+                  <div className="flex items-center gap-3">
+                    {profile.bio && (
+                      <button
+                        onClick={handleCancelEditBio}
+                        className="text-[9px] text-warm-gray uppercase tracking-widest font-bold hover:text-gold transition-colors"
+                      >
+                        Annuler
+                      </button>
+                    )}
+                    <button
+                      onClick={handleSaveBio}
+                      disabled={savingBio || !bio.trim() || bio === (profile.bio || '')}
+                      className="px-4 py-1.5 bg-gold text-black text-[9px] font-bold uppercase tracking-widest rounded-lg disabled:opacity-40"
+                    >
+                      {savingBio ? 'Enregistrement...' : 'Enregistrer'}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <button onClick={() => setIsEditingBio(true)} className="w-full text-left">
+                <p className="text-xs text-warm-gray leading-relaxed">{profile.bio}</p>
+                <span className="mt-3 inline-block text-[9px] text-gold uppercase tracking-widest font-bold hover:underline">Modifier</span>
               </button>
-            </div>
+            )}
           </div>
         </section>
 
@@ -921,32 +1007,108 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUploadAvatar, onUploadCov
         <section className="mb-6">
           <p className={sectionLabel}>Catégories de prestations</p>
           <div className={cardClass}>
-            <p className="text-xs text-warm-gray mb-3">Sélectionnez les prestations que vous proposez — vos réalisations apparaîtront dans ces catégories côté clients.</p>
-            <div className="flex flex-wrap gap-2">
-              {SERVICE_CATEGORIES.map(cat => {
-                const Icon = cat.icon;
-                const active = categories.includes(cat.id);
-                return (
+            {isEditingCategories ? (
+              <>
+                <p className="text-xs text-warm-gray mb-3">Sélectionnez les prestations que vous proposez — vos réalisations apparaîtront dans ces catégories côté clients.</p>
+                <div className="flex flex-wrap gap-2">
+                  {SERVICE_CATEGORIES.map(cat => {
+                    const Icon = cat.icon;
+                    const active = categories.includes(cat.id);
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => toggleCategory(cat.id)}
+                        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full border text-[10px] font-bold uppercase tracking-widest transition-colors ${
+                          active ? 'bg-gold border-gold text-black' : theme === 'dark' ? 'border-white/10 text-warm-gray hover:border-gold/30' : 'border-gray-200 text-gray-500 hover:border-gold/30'
+                        }`}
+                      >
+                        <Icon size={12} />
+                        {cat.label}
+                      </button>
+                    );
+                  })}
+                  {customSpecialties.map(word => (
+                    <button
+                      key={word}
+                      onClick={() => removeCustomSpecialty(word)}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-full border bg-gold border-gold text-black text-[10px] font-bold uppercase tracking-widest transition-colors"
+                    >
+                      {word}
+                      <X size={12} />
+                    </button>
+                  ))}
                   <button
-                    key={cat.id}
-                    onClick={() => toggleCategory(cat.id)}
-                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full border text-[10px] font-bold uppercase tracking-widest transition-colors ${
-                      active ? 'bg-gold border-gold text-black' : theme === 'dark' ? 'border-white/10 text-warm-gray hover:border-gold/30' : 'border-gray-200 text-gray-500 hover:border-gold/30'
-                    }`}
+                    onClick={() => setShowCustomSpecialtyInput(true)}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-dashed text-[10px] font-bold uppercase tracking-widest transition-colors ${theme === 'dark' ? 'border-white/20 text-warm-gray hover:border-gold/50 hover:text-gold' : 'border-gray-300 text-gray-500 hover:border-gold/50 hover:text-gold'}`}
                   >
-                    <Icon size={12} />
-                    {cat.label}
+                    <Plus size={12} />
+                    Autre
                   </button>
-                );
-              })}
-            </div>
-            <button
-              onClick={handleSaveCategories}
-              disabled={savingCategories || !categoriesDirty}
-              className="w-full mt-4 py-2.5 bg-gold text-black text-[10px] font-bold uppercase tracking-widest rounded-lg disabled:opacity-40"
-            >
-              {savingCategories ? 'Enregistrement...' : 'Enregistrer mes catégories'}
-            </button>
+                </div>
+
+                {showCustomSpecialtyInput && (
+                  <div className="flex items-center gap-2 mt-3">
+                    <input
+                      value={customSpecialtyInput}
+                      onChange={(e) => setCustomSpecialtyInput(e.target.value.replace(/\s/g, ''))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomSpecialty(); } }}
+                      maxLength={20}
+                      placeholder="Ex: Tatouage"
+                      className={`flex-1 text-xs p-2.5 rounded-lg border outline-none ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                    />
+                    <button
+                      onClick={addCustomSpecialty}
+                      disabled={!customSpecialtyInput.trim()}
+                      className="px-4 py-2.5 bg-gold text-black text-[9px] font-bold uppercase tracking-widest rounded-lg disabled:opacity-40"
+                    >
+                      Ajouter
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3 mt-4">
+                  {(profile.categories ?? []).length > 0 && (
+                    <button
+                      onClick={handleCancelEditCategories}
+                      className="py-2.5 px-4 text-[10px] text-warm-gray uppercase tracking-widest font-bold hover:text-gold transition-colors"
+                    >
+                      Annuler
+                    </button>
+                  )}
+                  <button
+                    onClick={handleSaveCategories}
+                    disabled={savingCategories || !categoriesDirty}
+                    className="flex-1 py-2.5 bg-gold text-black text-[10px] font-bold uppercase tracking-widest rounded-lg disabled:opacity-40"
+                  >
+                    {savingCategories ? 'Enregistrement...' : 'Enregistrer mes catégories'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button onClick={() => setIsEditingCategories(true)} className="w-full text-left">
+                {categories.length === 0 ? (
+                  <p className="text-xs text-warm-gray/60">Aucune catégorie sélectionnée.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {SERVICE_CATEGORIES.filter(cat => categories.includes(cat.id)).map(cat => {
+                      const Icon = cat.icon;
+                      return (
+                        <span key={cat.id} className="flex items-center gap-1.5 px-3.5 py-2 rounded-full border bg-gold border-gold text-black text-[10px] font-bold uppercase tracking-widest">
+                          <Icon size={12} />
+                          {cat.label}
+                        </span>
+                      );
+                    })}
+                    {customSpecialties.map(word => (
+                      <span key={word} className="flex items-center gap-1.5 px-3.5 py-2 rounded-full border bg-gold border-gold text-black text-[10px] font-bold uppercase tracking-widest">
+                        {word}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <span className="mt-3 inline-block text-[9px] text-gold uppercase tracking-widest font-bold hover:underline">Modifier</span>
+              </button>
+            )}
           </div>
         </section>
 

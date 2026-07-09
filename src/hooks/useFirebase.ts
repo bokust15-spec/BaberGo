@@ -45,6 +45,7 @@ export interface UserProfile {
   unpaidCommissionsCount?: number;
   totalCommissionsOwed?: number;
   bio?: string;
+  city?: string;
   avatarUrl?: string;
   coverUrl?: string;
   portfolioItems?: PortfolioItem[];
@@ -372,6 +373,17 @@ export function useFirebase() {
     }
   };
 
+  const updateCity = async (city: string) => {
+    if (!user) return;
+    try {
+      const docRef = doc(db, 'users', user.uid);
+      await updateDoc(docRef, { city });
+      setProfile(prev => prev ? { ...prev, city } : prev);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+    }
+  };
+
   const uploadAvatar = async (file: File) => {
     if (!user) return;
     const path = `avatars/${user.uid}/${Date.now()}-${file.name}`;
@@ -461,6 +473,7 @@ export function useFirebase() {
     addReview,
     updateBio,
     updatePhone,
+    updateCity,
     uploadAvatar,
     uploadCover,
     addPortfolioItem,

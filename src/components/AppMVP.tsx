@@ -70,7 +70,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
           item,
           isMock: false,
           rating: 4.9,
-          city: 'Casablanca',
+          city: b.city || 'Casablanca',
           availableDays: b.workingDays && b.workingDays.length > 0 ? b.workingDays : [1, 2, 3, 4, 5, 6]
         });
       });
