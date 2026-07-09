@@ -174,12 +174,12 @@ export default function BarberDashboard({
     });
   };
 
-  // The Accueil feed shows every other real barber's uploaded work, plus the same
-  // mock style feed clients see (STYLE_POSTS) — barbers should see the exact same
-  // discovery experience as clients do, not a smaller/empty one.
+  // The Accueil feed shows every real barber's uploaded work — including the
+  // currently logged-in barber's own posts — plus the same mock style feed clients
+  // see (STYLE_POSTS); everyone sees the exact same discovery experience.
   const feedItems = useMemo(() => {
     const items: FeedEntry[] = [];
-    barbers.filter(b => b.uid !== profile.uid).forEach(b => {
+    barbers.forEach(b => {
       (b.portfolioItems || []).forEach(item => items.push({ barber: b, item, isMock: false, rating: 4.9, city: b.city || 'Casablanca' }));
     });
     STYLE_POSTS.forEach(post => {
@@ -192,7 +192,7 @@ export default function BarberDashboard({
       });
     });
     return items;
-  }, [barbers, profile.uid]);
+  }, [barbers]);
 
   const filteredFeedItems = useMemo(() => {
     if (!selectedCategory) return feedItems;
