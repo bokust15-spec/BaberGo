@@ -28,11 +28,12 @@ interface AppMVPProps {
   onUpdateStatus: (id: string, status: Appointment['status']) => Promise<void>;
   onUpdateAppointment: (id: string, updates: Partial<Appointment>) => Promise<void>;
   onAddReview: (review: { clientId: string; barberId: string; appointmentId: string; rating: number; comment: string }) => Promise<void>;
-  onClientBook: (barberId: string, serviceId: string, dateTime: Date, totalPrice: number, proposedPrice?: number, clientNotes?: string) => Promise<void>;
+  onClientBook: (barberId: string, serviceId: string, serviceName: string, dateTime: Date, totalPrice: number, proposedPrice?: number, clientNotes?: string) => Promise<void>;
   onGuestRegisterAndBook: (
-    registerData: { firstName: string; lastName: string; gender: 'homme' | 'femme' | 'autre'; phone: string; email: string; password: string },
+    registerData: { firstName: string; email: string },
     barberId: string,
     serviceId: string,
+    serviceName: string,
     dateTime: Date,
     totalPrice: number,
     clientNotes?: string
@@ -46,6 +47,20 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   const selectedBarber = selectedEntry?.barber ?? null;
   const [showBooking, setShowBooking] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+
+  // The list a client picks from when booking: the barber's own prestations menu when
+  // they've prepared one, otherwise the single realization the client clicked into.
+  const barberServicesForBooking = useMemo(() => {
+    if (!selectedBarber) return [];
+    if (selectedBarber.services && selectedBarber.services.length > 0) {
+      return selectedBarber.services.map(s => ({ ...s, category: '' }));
+    }
+    if (selectedEntry) {
+      return [{ id: 'entry', name: selectedEntry.item.name, price: selectedEntry.item.price, duration: 30, category: selectedEntry.item.category || '' }];
+    }
+    return [];
+  }, [selectedBarber, selectedEntry]);
 
   const [searchGender, setSearchGender] = useState<'' | 'homme' | 'femme'>('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory ?? null);
@@ -133,20 +148,21 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
     setShowBooking(true);
   };
 
-  const handleBook = async (serviceId: string, dateTime: Date, totalPrice: number, proposedPrice?: number, clientNotes?: string) => {
+  const handleBook = async (serviceId: string, serviceName: string, dateTime: Date, totalPrice: number, proposedPrice?: number, clientNotes?: string) => {
     if (!selectedBarber) return;
-    await onClientBook(selectedBarber.uid, serviceId, dateTime, totalPrice, proposedPrice, clientNotes);
+    await onClientBook(selectedBarber.uid, serviceId, serviceName, dateTime, totalPrice, proposedPrice, clientNotes);
   };
 
   const handleGuestBook = async (
-    registerData: { firstName: string; lastName: string; gender: 'homme' | 'femme' | 'autre'; phone: string; email: string; password: string },
+    registerData: { firstName: string; email: string },
     serviceId: string,
+    serviceName: string,
     dateTime: Date,
     totalPrice: number,
     clientNotes?: string
   ) => {
     if (!selectedBarber) return;
-    await onGuestRegisterAndBook(registerData, selectedBarber.uid, serviceId, dateTime, totalPrice, clientNotes);
+    await onGuestRegisterAndBook(registerData, selectedBarber.uid, serviceId, serviceName, dateTime, totalPrice, clientNotes);
   };
 
   return (
@@ -258,9 +274,9 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                    <div className="text-[10px] text-warm-gray uppercase tracking-widest font-bold mb-4">Réalisations</div>
                    <div className="grid grid-cols-4 gap-2">
                      {(selectedEntry.isMock ? PORTFOLIO_PHOTOS : (selectedBarber.portfolioItems || []).map(i => i.url)).map((src, i) => (
-                       <div key={i} className="aspect-square rounded-sm overflow-hidden border border-gold/15">
+                       <button key={i} onClick={() => setLightboxSrc(src)} className="aspect-square rounded-sm overflow-hidden border border-gold/15">
                          <img src={src} alt="" className="w-full h-full object-cover" loading="lazy" />
-                       </div>
+                       </button>
                      ))}
                    </div>
                    {!selectedEntry.isMock && (selectedBarber.portfolioItems || []).length === 0 && (
@@ -439,13 +455,39 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
           isOpen={showBooking}
           onClose={() => setShowBooking(false)}
           barber={selectedBarber}
-          services={services}
+          services={barberServicesForBooking}
           onBook={handleBook}
           profile={profile}
           onGuestRegisterAndBook={handleGuestBook}
           theme={theme}
         />
       )}
+
+      {/* FULLSCREEN PHOTO VIEWER */}
+      <AnimatePresence>
+        {lightboxSrc && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setLightboxSrc(null)}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm"
+          >
+            <button
+              onClick={() => setLightboxSrc(null)}
+              className="absolute top-4 right-4 text-white/70 hover:text-gold transition-colors"
+              aria-label="Fermer"
+            >
+              <X size={28} />
+            </button>
+            <motion.img
+              initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+              src={lightboxSrc}
+              alt=""
+              onClick={(e) => e.stopPropagation()}
+              className="max-w-full max-h-full object-contain rounded-sm"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* PROFILE MODAL */}
       <AnimatePresence>

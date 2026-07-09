@@ -31,6 +31,13 @@ export interface PortfolioItem {
   category?: string; // one of SERVICE_CATEGORIES ids (src/data/categories.ts)
 }
 
+export interface BarberService {
+  id: string;
+  name: string;
+  price: number;
+  duration: number;
+}
+
 export interface UserProfile {
   uid: string;
   firstName: string;
@@ -51,6 +58,7 @@ export interface UserProfile {
   coverUrl?: string;
   portfolioItems?: PortfolioItem[];
   categories?: string[]; // service categories this pro offers (src/data/categories.ts)
+  services?: BarberService[]; // this pro's own menu of prestations with prices, shown when a client books
   workingDays?: number[]; // 0 = dimanche ... 6 = samedi
   workStartHour?: number;
   workEndHour?: number;
@@ -473,6 +481,17 @@ export function useFirebase() {
     }
   };
 
+  const updateServices = async (services: BarberService[]) => {
+    if (!user) return;
+    const docRef = doc(db, 'users', user.uid);
+    try {
+      await updateDoc(docRef, { services });
+      setProfile(prev => prev ? { ...prev, services } : prev);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+    }
+  };
+
   return {
     user,
     profile,
@@ -498,6 +517,7 @@ export function useFirebase() {
     removePortfolioItem,
     updateAvailability,
     updateCategories,
+    updateServices,
     getBarberReviews
   };
 }

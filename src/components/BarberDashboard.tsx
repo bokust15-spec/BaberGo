@@ -21,7 +21,7 @@ import {
   Star,
   BadgeCheck
 } from 'lucide-react';
-import { Appointment, UserProfile, Service, PortfolioItem } from '../hooks/useFirebase';
+import { Appointment, UserProfile, Service, PortfolioItem, BarberService } from '../hooks/useFirebase';
 import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, mockBarberFromPost, CITY_COORDS } from '../data/mockBarberFeed';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -71,6 +71,7 @@ interface BarberDashboardProps {
   onRemovePortfolioItem: (item: PortfolioItem) => Promise<void>;
   onUpdateAvailability: (updates: Partial<Pick<UserProfile, 'workingDays' | 'workStartHour' | 'workEndHour' | 'basePrice' | 'nightEnabled' | 'nightStartHour' | 'nightPrice'>>) => Promise<void>;
   onUpdateCategories: (categories: string[]) => Promise<void>;
+  onUpdateServices: (services: BarberService[]) => Promise<void>;
   onBookBarber: (barberId: string, item: { name: string; price: number }, dateTime: Date, note?: string) => Promise<void>;
 }
 
@@ -91,6 +92,7 @@ export default function BarberDashboard({
   onRemovePortfolioItem,
   onUpdateAvailability,
   onUpdateCategories,
+  onUpdateServices,
   onBookBarber
 }: BarberDashboardProps) {
   const [activeTab, setActiveTab] = useState<'home' | 'profile' | 'bookings'>('home');
@@ -331,6 +333,7 @@ export default function BarberDashboard({
             onRemovePortfolioItem={onRemovePortfolioItem}
             onUpdateAvailability={onUpdateAvailability}
             onUpdateCategories={onUpdateCategories}
+            onUpdateServices={onUpdateServices}
           />
         )}
 
@@ -697,9 +700,10 @@ interface MyProfileTabProps {
   onRemovePortfolioItem: (item: PortfolioItem) => Promise<void>;
   onUpdateAvailability: (updates: Partial<Pick<UserProfile, 'workingDays' | 'workStartHour' | 'workEndHour' | 'basePrice' | 'nightEnabled' | 'nightStartHour' | 'nightPrice'>>) => Promise<void>;
   onUpdateCategories: (categories: string[]) => Promise<void>;
+  onUpdateServices: (services: BarberService[]) => Promise<void>;
 }
 
-function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvatar, onUploadCover, onAddPortfolioItem, onRemovePortfolioItem, onUpdateAvailability, onUpdateCategories }: MyProfileTabProps) {
+function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvatar, onUploadCover, onAddPortfolioItem, onRemovePortfolioItem, onUpdateAvailability, onUpdateCategories, onUpdateServices }: MyProfileTabProps) {
   const [bio, setBio] = useState(profile.bio || '');
   const [savingBio, setSavingBio] = useState(false);
   const [isEditingBio, setIsEditingBio] = useState(!profile.bio);
@@ -716,6 +720,13 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
   const [isEditingCategories, setIsEditingCategories] = useState((profile.categories ?? []).length === 0);
   const [showCustomSpecialtyInput, setShowCustomSpecialtyInput] = useState(false);
   const [customSpecialtyInput, setCustomSpecialtyInput] = useState('');
+
+  const [barberServices, setBarberServices] = useState<BarberService[]>(profile.services ?? []);
+  const [savingServices, setSavingServices] = useState(false);
+  const [isEditingServices, setIsEditingServices] = useState((profile.services ?? []).length === 0);
+  const [newServiceName, setNewServiceName] = useState('');
+  const [newServicePrice, setNewServicePrice] = useState('');
+  const [newServiceDuration, setNewServiceDuration] = useState('30');
 
   const [newItemFile, setNewItemFile] = useState<File | null>(null);
   const [newItemPreview, setNewItemPreview] = useState<string | null>(null);
@@ -869,6 +880,45 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
     setCustomSpecialtyInput('');
     setShowCustomSpecialtyInput(false);
     setIsEditingCategories(false);
+  };
+
+  const addBarberService = () => {
+    if (!newServiceName.trim() || !newServicePrice) return;
+    const service: BarberService = {
+      id: `${Date.now()}`,
+      name: newServiceName.trim(),
+      price: Number(newServicePrice) || 0,
+      duration: Number(newServiceDuration) || 30,
+    };
+    setBarberServices(prev => [...prev, service]);
+    setNewServiceName('');
+    setNewServicePrice('');
+    setNewServiceDuration('30');
+  };
+
+  const removeBarberService = (id: string) => {
+    setBarberServices(prev => prev.filter(s => s.id !== id));
+  };
+
+  const servicesDirty = JSON.stringify(barberServices) !== JSON.stringify(profile.services ?? []);
+
+  const handleSaveServices = async () => {
+    setSavingServices(true);
+    try {
+      await onUpdateServices(barberServices);
+      setIsEditingServices(false);
+    } catch {
+      setError("Impossible d'enregistrer vos prestations pour le moment.");
+    }
+    setSavingServices(false);
+  };
+
+  const handleCancelEditServices = () => {
+    setBarberServices(profile.services ?? []);
+    setNewServiceName('');
+    setNewServicePrice('');
+    setNewServiceDuration('30');
+    setIsEditingServices(false);
   };
 
   const handleDeleteItem = async (item: PortfolioItem) => {
@@ -1118,6 +1168,106 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
                       <span key={word} className="flex items-center gap-1.5 px-3.5 py-2 rounded-full border bg-gold border-gold text-black text-[10px] font-bold uppercase tracking-widest">
                         {word}
                       </span>
+                    ))}
+                  </div>
+                )}
+                <span className="mt-3 inline-block text-[9px] text-gold uppercase tracking-widest font-bold hover:underline">Modifier</span>
+              </button>
+            )}
+          </div>
+        </section>
+
+        {/* SERVICES MENU — the list of prestations with prices a client picks from when booking */}
+        <section className="mb-6">
+          <p className={sectionLabel}>Mes prestations</p>
+          <div className={cardClass}>
+            {isEditingServices ? (
+              <>
+                <p className="text-xs text-warm-gray mb-3">Préparez la liste des prestations que vous proposez avec leur prix — c'est ce que les clients verront pour réserver chez vous.</p>
+
+                {barberServices.length > 0 && (
+                  <div className="space-y-2 mb-4">
+                    {barberServices.map(s => (
+                      <div key={s.id} className={`flex items-center justify-between p-3 rounded-sm border ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                        <div>
+                          <div className={`text-xs font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{s.name}</div>
+                          <div className="text-[10px] text-warm-gray uppercase tracking-widest">{s.duration} min</div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-gold font-bold text-sm">{s.price} DH</span>
+                          <button onClick={() => removeBarberService(s.id)} className="text-warm-gray hover:text-red-400 transition-colors">
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-2">
+                  <input
+                    value={newServiceName}
+                    onChange={(e) => setNewServiceName(e.target.value)}
+                    placeholder="Nom de la prestation"
+                    className={`col-span-3 sm:col-span-1 p-2.5 rounded-sm border outline-none text-xs ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    value={newServicePrice}
+                    onChange={(e) => setNewServicePrice(e.target.value)}
+                    placeholder="Prix (DH)"
+                    className={`p-2.5 rounded-sm border outline-none text-xs ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                  />
+                  <input
+                    type="number"
+                    min={5}
+                    value={newServiceDuration}
+                    onChange={(e) => setNewServiceDuration(e.target.value)}
+                    placeholder="Durée (min)"
+                    className={`p-2.5 rounded-sm border outline-none text-xs ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                  />
+                </div>
+                <button
+                  onClick={addBarberService}
+                  disabled={!newServiceName.trim() || !newServicePrice}
+                  className={`w-full mt-2 py-2.5 border border-dashed rounded-sm text-[10px] font-bold uppercase tracking-widest transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5 ${theme === 'dark' ? 'border-white/20 text-warm-gray hover:border-gold/50 hover:text-gold' : 'border-gray-300 text-gray-500 hover:border-gold/50 hover:text-gold'}`}
+                >
+                  <Plus size={12} /> Ajouter une prestation
+                </button>
+
+                <div className="flex items-center gap-3 mt-4">
+                  {(profile.services ?? []).length > 0 && (
+                    <button
+                      onClick={handleCancelEditServices}
+                      className="py-2.5 px-4 text-[10px] text-warm-gray uppercase tracking-widest font-bold hover:text-gold transition-colors"
+                    >
+                      Annuler
+                    </button>
+                  )}
+                  <button
+                    onClick={handleSaveServices}
+                    disabled={savingServices || !servicesDirty}
+                    className="flex-1 py-2.5 bg-gold text-black text-[10px] font-bold uppercase tracking-widest rounded-lg disabled:opacity-40"
+                  >
+                    {savingServices ? 'Enregistrement...' : 'Enregistrer mes prestations'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button onClick={() => setIsEditingServices(true)} className="w-full text-left">
+                {barberServices.length === 0 ? (
+                  <p className="text-xs text-warm-gray/60">Aucune prestation configurée.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {barberServices.map(s => (
+                      <div key={s.id} className="flex items-center justify-between">
+                        <div>
+                          <div className={`text-xs font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{s.name}</div>
+                          <div className="text-[10px] text-warm-gray uppercase tracking-widest">{s.duration} min</div>
+                        </div>
+                        <span className="text-gold font-bold text-sm">{s.price} DH</span>
+                      </div>
                     ))}
                   </div>
                 )}

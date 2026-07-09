@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Calendar, Clock, Scissors, CreditCard, CheckCircle2, ChevronRight, AlertTriangle, User, Mail, Lock, Phone } from 'lucide-react';
+import { X, Calendar, Clock, Scissors, CreditCard, CheckCircle2, ChevronRight, AlertTriangle, User, Mail } from 'lucide-react';
 import { Service, UserProfile } from '../hooks/useFirebase';
 
 interface BookingModalProps {
@@ -8,11 +8,12 @@ interface BookingModalProps {
   onClose: () => void;
   barber: UserProfile;
   services: Service[];
-  onBook: (serviceId: string, dateTime: Date, totalPrice: number, proposedPrice?: number, clientNotes?: string) => Promise<void>;
+  onBook: (serviceId: string, serviceName: string, dateTime: Date, totalPrice: number, proposedPrice?: number, clientNotes?: string) => Promise<void>;
   profile: UserProfile | null;
   onGuestRegisterAndBook: (
-    registerData: { firstName: string; lastName: string; gender: 'homme' | 'femme' | 'autre'; phone: string; email: string; password: string },
+    registerData: { firstName: string; email: string },
     serviceId: string,
+    serviceName: string,
     dateTime: Date,
     totalPrice: number,
     clientNotes?: string
@@ -48,10 +49,7 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
   // Only asked as the very last step, for guests — filling it out doubles as their
   // account creation, so they don't need to sign up before browsing/booking.
   const [regFirstName, setRegFirstName] = useState('');
-  const [regLastName, setRegLastName] = useState('');
-  const [regPhone, setRegPhone] = useState('');
   const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
 
   const totalSteps = profile ? 3 : 4;
 
@@ -62,7 +60,7 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
     timeSlots.push(`${String(h).padStart(2, '0')}:00`);
   }
 
-  const isGuestFormValid = regFirstName.trim() && regLastName.trim() && regPhone.trim() && regEmail.trim() && regPassword.length >= 6;
+  const isGuestFormValid = regFirstName.trim().length > 0 && /\S+@\S+\.\S+/.test(regEmail.trim());
 
   const handleBook = async () => {
     if (!selectedService || !selectedDate || !selectedTime) return;
@@ -76,11 +74,12 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
       appointmentDate.setHours(hours, minutes, 0, 0);
 
       if (profile) {
-        await onBook(selectedService.id, appointmentDate, selectedService.price, undefined, clientNotes);
+        await onBook(selectedService.id, selectedService.name, appointmentDate, selectedService.price, undefined, clientNotes);
       } else {
         await onGuestRegisterAndBook(
-          { firstName: regFirstName.trim(), lastName: regLastName.trim(), gender: 'autre', phone: regPhone.trim(), email: regEmail.trim(), password: regPassword },
+          { firstName: regFirstName.trim(), email: regEmail.trim() },
           selectedService.id,
+          selectedService.name,
           appointmentDate,
           selectedService.price,
           clientNotes
@@ -113,10 +112,7 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
     setIsSuccess(false);
     setSubmitError(null);
     setRegFirstName('');
-    setRegLastName('');
-    setRegPhone('');
     setRegEmail('');
-    setRegPassword('');
     onClose();
   };
 
@@ -151,25 +147,32 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
                         <Scissors size={16} className="text-gold" />
                         <span className={`text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Choisir une prestation</span>
                       </div>
-                      <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                        {services.map((service) => (
-                          <button
-                            key={service.id}
-                            onClick={() => handleSelectService(service)}
-                            className={`p-4 rounded-sm border text-left transition-all flex justify-between items-center group ${
-                              selectedService?.id === service.id
-                                ? 'border-gold bg-gold/10 ring-1 ring-gold'
-                                : `border-white/5 hover:border-gold/30 ${theme === 'dark' ? 'bg-black/20' : 'bg-gray-50'}`
-                            }`}
-                          >
-                            <div>
-                              <div className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{service.name}</div>
-                              <div className="text-[10px] text-warm-gray uppercase tracking-widest">{service.duration} min • {service.category}</div>
-                            </div>
-                            <div className="text-gold font-bold">{service.price} DH</div>
-                          </button>
-                        ))}
-                      </div>
+                      {services.length > 0 ? (
+                        <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                          {services.map((service) => (
+                            <button
+                              key={service.id}
+                              onClick={() => handleSelectService(service)}
+                              className={`p-4 rounded-sm border text-left transition-all flex justify-between items-center group ${
+                                selectedService?.id === service.id
+                                  ? 'border-gold bg-gold/10 ring-1 ring-gold'
+                                  : `border-white/5 hover:border-gold/30 ${theme === 'dark' ? 'bg-black/20' : 'bg-gray-50'}`
+                              }`}
+                            >
+                              <div>
+                                <div className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{service.name}</div>
+                                <div className="text-[10px] text-warm-gray uppercase tracking-widest">{service.duration} min{service.category ? ` • ${service.category}` : ''}</div>
+                              </div>
+                              <div className="text-gold font-bold">{service.price} DH</div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-sm text-red-400 text-xs">
+                          <AlertTriangle size={14} className="shrink-0" />
+                          Ce professionnel n'a pas encore configuré ses prestations. Réessayez plus tard.
+                        </div>
+                      )}
                     </motion.div>
                   )}
 
@@ -282,29 +285,14 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
                         <User size={16} className="text-gold" />
                         <span className={`text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Créez votre compte pour valider</span>
                       </div>
-                      <p className="text-xs text-warm-gray -mt-2 mb-2">Votre rendez-vous est prêt — indiquez votre email pour finaliser votre inscription et confirmer.</p>
+                      <p className="text-xs text-warm-gray -mt-2 mb-2">Votre rendez-vous est prêt — indiquez votre prénom et votre email pour finaliser votre inscription et confirmer.</p>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="relative">
+                        <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gold" />
                         <input
                           value={regFirstName}
                           onChange={(e) => setRegFirstName(e.target.value)}
                           placeholder="Prénom"
-                          className={`w-full p-3 rounded-sm border outline-none text-xs focus:border-gold transition-colors ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
-                        />
-                        <input
-                          value={regLastName}
-                          onChange={(e) => setRegLastName(e.target.value)}
-                          placeholder="Nom"
-                          className={`w-full p-3 rounded-sm border outline-none text-xs focus:border-gold transition-colors ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
-                        />
-                      </div>
-
-                      <div className="relative">
-                        <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gold" />
-                        <input
-                          value={regPhone}
-                          onChange={(e) => setRegPhone(e.target.value)}
-                          placeholder="Téléphone"
                           className={`w-full p-3 pl-9 rounded-sm border outline-none text-xs focus:border-gold transition-colors ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
                         />
                       </div>
@@ -316,17 +304,6 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
                           value={regEmail}
                           onChange={(e) => setRegEmail(e.target.value)}
                           placeholder="Email"
-                          className={`w-full p-3 pl-9 rounded-sm border outline-none text-xs focus:border-gold transition-colors ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
-                        />
-                      </div>
-
-                      <div className="relative">
-                        <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gold" />
-                        <input
-                          type="password"
-                          value={regPassword}
-                          onChange={(e) => setRegPassword(e.target.value)}
-                          placeholder="Mot de passe (6 caractères min.)"
                           className={`w-full p-3 pl-9 rounded-sm border outline-none text-xs focus:border-gold transition-colors ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
                         />
                       </div>

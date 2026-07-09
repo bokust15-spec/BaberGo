@@ -27,9 +27,10 @@ service cloud.firestore {
     // since on update createdAt must stay equal to its original value, not "now").
     function isValidUserFields(data) {
       return data.keys().hasAll(['firstName', 'lastName', 'gender', 'phone', 'email', 'role', 'createdAt'])
-        && data.keys().size() >= 7 && data.keys().size() <= 27
+        && data.keys().size() >= 7 && data.keys().size() <= 28
         && data.firstName is string && data.firstName.size() >= 1 && data.firstName.size() <= 100
-        && data.lastName is string && data.lastName.size() >= 1 && data.lastName.size() <= 100
+        // lastName may be empty — a guest completing a booking only has to give a first name and email.
+        && data.lastName is string && data.lastName.size() <= 100
         && data.gender in ['homme', 'femme', 'autre']
         && data.phone is string && data.phone.size() <= 20 && (data.phone.size() == 0 || data.phone.size() >= 8)
         && data.email is string && data.email.size() <= 200
@@ -40,6 +41,7 @@ service cloud.firestore {
         && (!('coverUrl' in data) || data.coverUrl is string)
         && (!('portfolioItems' in data) || (data.portfolioItems is list && data.portfolioItems.size() <= 60))
         && (!('categories' in data) || (data.categories is list && data.categories.size() <= 20))
+        && (!('services' in data) || (data.services is list && data.services.size() <= 30))
         && (!('workingDays' in data) || data.workingDays is list)
         && (!('workStartHour' in data) || isNum(data.workStartHour))
         && (!('workEndHour' in data) || isNum(data.workEndHour))

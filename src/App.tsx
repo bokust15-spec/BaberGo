@@ -43,6 +43,7 @@ export default function App() {
     removePortfolioItem,
     updateAvailability,
     updateCategories,
+    updateServices,
     addReview
   } = useFirebase();
 
@@ -161,6 +162,7 @@ export default function App() {
   const handleClientBook = async (
     barberId: string,
     serviceId: string,
+    serviceName: string,
     dateTime: Date,
     totalPrice: number,
     proposedPrice?: number,
@@ -173,6 +175,7 @@ export default function App() {
       clientGender: profile?.gender,
       barberId,
       serviceId,
+      serviceName,
       dateTime,
       totalPrice,
       proposedPrice,
@@ -183,25 +186,36 @@ export default function App() {
     setAppointments(apps);
   };
 
-  // A guest can fill out the whole booking flow before creating an account — the
-  // account (email + password) is only required at the very last step, right before
-  // confirming, so it doubles as their registration.
+  // A guest can fill out the whole booking flow before creating an account — only a
+  // first name and email are asked, right before confirming, and double as their
+  // registration (a random password is generated behind the scenes).
   const handleGuestRegisterAndBook = async (
-    registerData: { firstName: string; lastName: string; gender: 'homme' | 'femme' | 'autre'; phone: string; email: string; password: string },
+    registerData: { firstName: string; email: string },
     barberId: string,
     serviceId: string,
+    serviceName: string,
     dateTime: Date,
     totalPrice: number,
     clientNotes?: string
   ) => {
-    const uid = await registerProfile({ ...registerData, role: 'client' });
+    const password = Math.random().toString(36).slice(-10) + Date.now().toString(36);
+    const uid = await registerProfile({
+      firstName: registerData.firstName,
+      lastName: '',
+      gender: 'autre',
+      phone: '',
+      email: registerData.email,
+      role: 'client',
+      password
+    });
     if (!uid) return;
     await createAppointment({
       clientId: uid,
-      clientName: `${registerData.firstName} ${registerData.lastName}`,
-      clientGender: registerData.gender,
+      clientName: registerData.firstName,
+      clientGender: 'autre',
       barberId,
       serviceId,
+      serviceName,
       dateTime,
       totalPrice,
       negotiationStatus: 'client_proposed',
@@ -307,6 +321,7 @@ export default function App() {
           onRemovePortfolioItem={removePortfolioItem}
           onUpdateAvailability={updateAvailability}
           onUpdateCategories={updateCategories}
+          onUpdateServices={updateServices}
           onBookBarber={handleBookBarber}
         />
       );
