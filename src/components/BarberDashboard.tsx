@@ -567,7 +567,7 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook }: {
                 {barber.firstName} {barber.lastName}
                 <BadgeCheck size={18} className="text-gold shrink-0" />
               </h3>
-              <p className="text-gold text-xs uppercase tracking-widest font-bold mb-1">{barber.gender === 'femme' ? 'Experte Beauté' : 'Expert Beauté'}</p>
+              <p className="text-gold text-xs uppercase tracking-widest font-bold mb-1">{barber.gender === 'femme' ? 'Professionnelle Beauté' : 'Professionnel Beauté'}</p>
               <p className="text-warm-gray text-[10px] uppercase tracking-widest flex items-center gap-1">
                 <MapPin size={10} /> {city}
               </p>
@@ -886,7 +886,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUploadAvatar, onUploadCov
         </div>
 
         <h2 className="font-bebas text-2xl uppercase tracking-widest">{profile.firstName} {profile.lastName}</h2>
-        <p className="text-[10px] text-gold uppercase tracking-widest font-bold mb-6">{profile.gender === 'femme' ? 'Experte' : 'Expert'} · Casablanca</p>
+        <p className="text-[10px] text-gold uppercase tracking-widest font-bold mb-6">{profile.gender === 'femme' ? 'Professionnelle' : 'Professionnel'} · Casablanca</p>
 
         {error && (
           <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-lg">{error}</div>

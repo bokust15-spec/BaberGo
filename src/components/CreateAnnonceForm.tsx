@@ -214,7 +214,7 @@ export default function CreateAnnonceForm({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <User size={14} className="text-gold" />
-                    <label className="text-[10px] uppercase tracking-widest font-bold text-warm-gray">Expert cible</label>
+                    <label className="text-[10px] uppercase tracking-widest font-bold text-warm-gray">Professionnel cible</label>
                   </div>
                   <select
                     value={targetBarber}
@@ -223,10 +223,10 @@ export default function CreateAnnonceForm({
                       theme === 'dark' ? 'bg-black text-white border-white/10' : 'bg-gray-50 text-gray-900 border-gray-200'
                     }`}
                   >
-                    <option value="dummy_barber">💈 Appel d'offres ouvert à tous les experts (Simulation active)</option>
+                    <option value="dummy_barber">💈 Appel d'offres ouvert à tous les professionnels (Simulation active)</option>
                     {barbers.map(b => (
                       <option key={b.uid} value={b.uid}>
-                        🧑‍🎨 {b.firstName} {b.lastName} (Expert {b.gender === 'homme' ? 'Homme' : 'Femme'})
+                        🧑‍🎨 {b.firstName} {b.lastName} (Professionnel {b.gender === 'homme' ? 'Homme' : 'Femme'})
                       </option>
                     ))}
                   </select>
@@ -267,7 +267,7 @@ export default function CreateAnnonceForm({
                 <div className={`p-4 border rounded-sm ${theme === 'dark' ? 'bg-gold/5 border-gold/25' : 'bg-yellow-500/5 border-gold/20'}`}>
                   <label className="text-[10px] text-gold uppercase font-bold tracking-widest block mb-1">PROPOSEZ VOTRE TARIF (InDrive Model)</label>
                   <p className="text-[9px] text-warm-gray mb-3 leading-relaxed">
-                    Ajustez votre prix à la baisse ou à la hausse. Les experts indépendants de Casablanca peuvent accepter l'offre ou formuler une contre-offre immédiatement.
+                    Ajustez votre prix à la baisse ou à la hausse. Les professionnels indépendants de Casablanca peuvent accepter l'offre ou formuler une contre-offre immédiatement.
                   </p>
 
                   <div className="flex items-center justify-between gap-4 max-w-[240px] mx-auto bg-black/30 p-2 border border-white/5 rounded">
@@ -370,7 +370,7 @@ export default function CreateAnnonceForm({
             <div>
               <h4 className="font-bebas text-2xl tracking-widest text-gold uppercase">Annonce En Ligne !</h4>
               <p className="text-xs text-warm-gray leading-relaxed max-w-sm mx-auto mt-1">
-                Votre appel d'offres a été publié avec succès. Les experts disponibles à Casablanca peuvent maintenant consulter votre proposition et vous faire des offres en temps réel !
+                Votre appel d'offres a été publié avec succès. Les professionnels disponibles à Casablanca peuvent maintenant consulter votre proposition et vous faire des offres en temps réel !
               </p>
             </div>
 

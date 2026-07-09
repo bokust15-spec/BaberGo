@@ -68,7 +68,7 @@ export default function ProfilePage({
                 </h1>
                 <div className={`flex items-center gap-2 mb-6 ${isClient ? 'justify-start' : 'justify-center'}`}>
                   <span className="px-2.5 py-0.5 bg-gold text-black text-[9px] font-bold uppercase tracking-widest rounded-sm">
-                    {profile.role === 'barber' ? 'Expert Partenaire' : 'Client Privilège'}
+                    {profile.role === 'barber' ? 'Professionnel Partenaire' : 'Client Privilège'}
                   </span>
                   <span className={`text-[9px] uppercase tracking-widest font-bold ${theme === 'dark' ? 'text-warm-gray' : 'text-gray-400'}`}>
                     Casablanca Est. 2026

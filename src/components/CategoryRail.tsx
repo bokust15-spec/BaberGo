@@ -6,12 +6,13 @@ interface CategoryRailProps {
   onSelect: (id: string | null) => void;
   theme: 'dark' | 'light';
   size?: 'default' | 'lg';
+  hideAll?: boolean;
 }
 
 // Shared horizontally-scrolling category picker ("bande défilante") — used identically
 // in the client search (AppMVP) and the barber's own "Accueil" tab (BarberDashboard)
 // so both sides browse the same category set the same way.
-export default function CategoryRail({ selected, onSelect, theme, size = 'default' }: CategoryRailProps) {
+export default function CategoryRail({ selected, onSelect, theme, size = 'default', hideAll = false }: CategoryRailProps) {
   const isLg = size === 'lg';
   const iconSize = isLg ? 16 : 14;
   const chipClass = (active: boolean) =>
@@ -28,10 +29,12 @@ export default function CategoryRail({ selected, onSelect, theme, size = 'defaul
   return (
     <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen md:static md:left-0 md:right-0 md:mx-0 md:w-full overflow-x-auto scrollbar-hide mb-6">
       <div className={`flex w-max px-4 md:px-0 ${isLg ? 'gap-3' : 'gap-2'}`}>
-        <button onClick={() => onSelect(null)} className={chipClass(selected === null)}>
-          <LayoutGrid size={iconSize} />
-          Tous
-        </button>
+        {!hideAll && (
+          <button onClick={() => onSelect(null)} className={chipClass(selected === null)}>
+            <LayoutGrid size={iconSize} />
+            Tous
+          </button>
+        )}
         {SERVICE_CATEGORIES.map(cat => {
           const Icon = cat.icon;
           return (

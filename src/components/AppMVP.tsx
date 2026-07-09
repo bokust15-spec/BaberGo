@@ -203,7 +203,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                          {selectedBarber.firstName} {selectedBarber.lastName}
                          <BadgeCheck size={18} className="text-gold" />
                        </h2>
-                       <p className="text-gold text-xs uppercase tracking-widest font-bold mb-1">{selectedBarber.gender === 'femme' ? 'Experte Beauté' : 'Expert Beauté'}</p>
+                       <p className="text-gold text-xs uppercase tracking-widest font-bold mb-1">{selectedBarber.gender === 'femme' ? 'Professionnelle Beauté' : 'Professionnel Beauté'}</p>
                        <p className="text-warm-gray text-[10px] uppercase tracking-widest flex items-center gap-1">
                          <MapPin size={10} /> {selectedEntry.city}
                        </p>
@@ -262,7 +262,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
           ) : (
             <motion.div key="search" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-5xl mx-auto px-4 py-8 md:py-12">
               <div className="mb-6">
-                <h1 className={`font-bebas text-3xl md:text-4xl tracking-wide uppercase mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Trouvez votre expert</h1>
+                <h1 className={`font-bebas text-3xl md:text-4xl tracking-wide uppercase mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Trouvez votre professionnel</h1>
                 <p className="text-warm-gray text-sm">Recherchez selon la disponibilité, le genre et la prestation que vous voulez.</p>
               </div>
 
@@ -278,9 +278,9 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                       onChange={(e) => setSearchGender(e.target.value as '' | 'homme' | 'femme')}
                       className={`bg-transparent border-none outline-none text-xs w-full ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
                     >
-                      <option value="" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Un expert ou une experte</option>
-                      <option value="homme" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Un expert</option>
-                      <option value="femme" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Une experte</option>
+                      <option value="" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Un professionnel ou une professionnelle</option>
+                      <option value="homme" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Un professionnel</option>
+                      <option value="femme" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Une professionnelle</option>
                     </select>
                  </div>
                  <div className={`flex-1 flex items-center gap-2 px-4 py-3 border-b md:border-b-0 md:border-r ${theme === 'dark' ? 'border-gold/15' : 'border-gray-200'}`}>
@@ -331,12 +331,12 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                  </button>
               </div>
               <p className="text-warm-gray text-[10px] uppercase tracking-widest mb-10">
-                {filteredEntries.length} expert{filteredEntries.length > 1 ? 's' : ''} disponible{filteredEntries.length > 1 ? 's' : ''}
+                {filteredEntries.length} professionnel{filteredEntries.length > 1 ? 's' : ''} disponible{filteredEntries.length > 1 ? 's' : ''}
               </p>
 
               {/* STYLE GALLERY */}
               <div id="style-gallery">
-                <h2 className={`font-bebas text-xl tracking-widest uppercase mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Réalisations de nos experts</h2>
+                <h2 className={`font-bebas text-xl tracking-widest uppercase mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Réalisations de nos professionnels</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                   {filteredEntries.map((entry, i) => {
                     const avatarSrc = entry.barber.avatarUrl || avatarFor(entry.barber.uid);
@@ -506,12 +506,12 @@ function MyBookingsSection({ appointments, barbers, services, theme, clientId, o
   const getServiceLabel = (app: Appointment) => app.serviceName || services.find(s => s.id === app.serviceId)?.name || 'Prestation';
 
   const getBarberInfo = (app: Appointment): { name: string; avatarUrl: string | null } => {
-    if (app.barberId === 'dummy_barber') return { name: 'Recherche d\'un expert en cours...', avatarUrl: null };
+    if (app.barberId === 'dummy_barber') return { name: 'Recherche d\'un professionnel en cours...', avatarUrl: null };
     const real = barbers.find(b => b.uid === app.barberId);
     if (real) return { name: `${real.firstName} ${real.lastName}`, avatarUrl: real.avatarUrl || null };
     const mockPost = STYLE_POSTS.find(p => p.id === app.barberId);
     if (mockPost) return { name: mockPost.barberName, avatarUrl: avatarFor(mockPost.id) };
-    return { name: 'Expert BarberGo', avatarUrl: null };
+    return { name: 'Professionnel BarberGo', avatarUrl: null };
   };
 
   const statusLabel: Record<Appointment['status'], string> = {
@@ -584,7 +584,7 @@ function MyBookingsSection({ appointments, barbers, services, theme, clientId, o
     <div className="max-w-3xl mx-auto px-4 py-8 md:py-12 text-left">
       <div className="mb-6">
         <h1 className={`font-bebas text-3xl md:text-4xl tracking-wide uppercase mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Mes réservations</h1>
-        <p className="text-warm-gray text-sm">Suivez vos demandes, répondez aux propositions de vos experts et laissez un avis après votre séance.</p>
+        <p className="text-warm-gray text-sm">Suivez vos demandes, répondez aux propositions de vos professionnels et laissez un avis après votre séance.</p>
       </div>
 
       {sorted.length === 0 ? (
@@ -645,7 +645,7 @@ function MyBookingsSection({ appointments, barbers, services, theme, clientId, o
                         {hasCounter(app) && (
                           <div className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 space-y-2">
                             <p className="text-[10px] text-amber-400 uppercase font-bold flex items-center gap-1.5">
-                              <AlertTriangle size={12} /> Votre expert propose un changement
+                              <AlertTriangle size={12} /> Votre professionnel propose un changement
                             </p>
                             {app.counterDateTime && (
                               <p className="text-xs text-warm-gray">Nouveau créneau : <strong className="text-white">{toDate(app.counterDateTime).toLocaleString('fr-FR')}</strong></p>
@@ -674,7 +674,7 @@ function MyBookingsSection({ appointments, barbers, services, theme, clientId, o
 
                         {app.status === 'pending' && !hasCounter(app) && (
                           <div className="space-y-2">
-                            <p className="text-[10px] text-warm-gray uppercase font-bold">En attente de la réponse de l'expert</p>
+                            <p className="text-[10px] text-warm-gray uppercase font-bold">En attente de la réponse de l'professionnel</p>
                             <button
                               disabled={busy}
                               onClick={() => handleCancel(app)}
@@ -718,7 +718,7 @@ function MyBookingsSection({ appointments, barbers, services, theme, clientId, o
                                 value={commentDraft[app.id] || ''}
                                 onChange={(e) => setCommentDraft(prev => ({ ...prev, [app.id]: e.target.value }))}
                                 rows={2}
-                                placeholder="Votre expérience avec cet expert..."
+                                placeholder="Votre expérience avec cet professionnel..."
                                 className={`w-full px-3 py-2 rounded-lg text-xs outline-none border resize-none ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
                               />
                               <button

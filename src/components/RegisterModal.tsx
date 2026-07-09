@@ -120,7 +120,7 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
           <form className="p-6 space-y-6 overflow-y-auto" onSubmit={handleSubmit}>
             {roleLocked ? (
               <div className={`flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gold text-black text-[10px] font-bold uppercase tracking-widest shadow-md shadow-gold/20`}>
-                <Scissors size={13} /> Inscription Expert Beauté
+                <Scissors size={13} /> Inscription Professionnel Beauté
               </div>
             ) : (
               <div className="flex gap-2 p-1 bg-black/20 rounded-xl">
@@ -136,7 +136,7 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
                   onClick={() => setFormData({...formData, role: 'barber'})}
                   className={`flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5 ${formData.role === 'barber' ? 'bg-gold text-black shadow-md shadow-gold/20' : 'text-warm-gray hover:text-white'}`}
                  >
-                   <Scissors size={13} /> Expert
+                   <Scissors size={13} /> Professionnel
                  </button>
               </div>
             )}
@@ -273,7 +273,7 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
                   <ShieldCheck size={14} /> Vérification KYC obligatoire (Maroc)
                 </h4>
                 <p className="text-[9px] text-warm-gray leading-relaxed">
-                  Conformément aux normes réglementaires de BarberGo, les experts indépendants doivent téléverser leurs documents officiels pour être autorisés à opérer à Casablanca.
+                  Conformément aux normes réglementaires de BarberGo, les professionnels indépendants doivent téléverser leurs documents officiels pour être autorisés à opérer à Casablanca.
                 </p>
 
                 {/* CIN Upload Box */}
