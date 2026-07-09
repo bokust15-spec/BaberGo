@@ -236,6 +236,8 @@ export default function App() {
         <LandingPage
           onLogin={handleLoginClick}
           theme={theme}
+          profile={profile}
+          onEnterApp={() => setView('app')}
           onRegisterOpen={handleRegisterClick}
           onFindNearby={handleFindNearby}
           onSelectCategory={handleSelectCategory}

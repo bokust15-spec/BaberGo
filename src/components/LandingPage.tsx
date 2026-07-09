@@ -1,12 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Star, MapPin, Calendar, Sparkles, Apple, Play, ShieldCheck, Wallet, Quote, Menu, X } from 'lucide-react';
+import { Star, MapPin, Calendar, Sparkles, Apple, Play, ShieldCheck, Wallet, Quote, Menu, X, User } from 'lucide-react';
 import CategoryRail from './CategoryRail';
 import { SERVICE_CATEGORIES } from '../data/categories';
+import { UserProfile } from '../hooks/useFirebase';
 
 interface LandingPageProps {
   onLogin: () => void;
   theme: 'dark' | 'light';
+  profile: UserProfile | null;
+  onEnterApp: () => void;
   onRegisterOpen: (role?: 'client' | 'barber') => void;
   onFindNearby: () => void;
   onSelectCategory: (categoryId: string) => void;
@@ -103,7 +106,7 @@ const TESTIMONIALS = [
   },
 ];
 
-export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNearby, onSelectCategory }: LandingPageProps) {
+export default function LandingPage({ onLogin, theme, profile, onEnterApp, onRegisterOpen, onFindNearby, onSelectCategory }: LandingPageProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const galleryRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -190,7 +193,10 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
           <a href="#hero" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Accueil</a>
           <a href="#services" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Services</a>
           <button onClick={() => onRegisterOpen('barber')} className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Je suis expert(e) beauté</button>
-          <button onClick={onLogin} className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Se connecter</button>
+          <button onClick={profile ? onEnterApp : onLogin} className="whitespace-nowrap flex items-center gap-1.5 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">
+            {profile && <User size={14} />}
+            {profile ? profile.firstName : 'Se connecter'}
+          </button>
           <a href="#how" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Comment ça marche</a>
           <a href="#avis" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Avis</a>
         </div>
@@ -219,7 +225,10 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
             <a onClick={() => setIsMobileMenuOpen(false)} href="#hero" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Accueil</a>
             <a onClick={() => setIsMobileMenuOpen(false)} href="#services" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Services</a>
             <button onClick={() => { setIsMobileMenuOpen(false); onRegisterOpen('barber'); }} className="py-3 text-left text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Je suis expert(e) beauté</button>
-            <button onClick={() => { setIsMobileMenuOpen(false); onLogin(); }} className="py-3 text-left text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Se connecter</button>
+            <button onClick={() => { setIsMobileMenuOpen(false); profile ? onEnterApp() : onLogin(); }} className="py-3 flex items-center gap-1.5 text-left text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">
+              {profile && <User size={14} />}
+              {profile ? profile.firstName : 'Se connecter'}
+            </button>
             <a onClick={() => setIsMobileMenuOpen(false)} href="#how" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Comment ça marche</a>
             <a onClick={() => setIsMobileMenuOpen(false)} href="#avis" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors">Avis</a>
           </motion.div>
@@ -596,7 +605,7 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
                <ul className="flex flex-col gap-3">
                  <li><a href="#services" className="text-warm-gray text-sm hover:text-white transition-colors">Nos prestations</a></li>
                  <li><button onClick={() => onRegisterOpen('barber')} className="text-warm-gray text-sm hover:text-white transition-colors text-left">Devenir partenaire</button></li>
-                 <li><button onClick={onLogin} className="text-warm-gray text-sm hover:text-white transition-colors text-left">Se connecter</button></li>
+                 <li><button onClick={profile ? onEnterApp : onLogin} className="text-warm-gray text-sm hover:text-white transition-colors text-left">{profile ? profile.firstName : 'Se connecter'}</button></li>
                </ul>
             </div>
             <div>
