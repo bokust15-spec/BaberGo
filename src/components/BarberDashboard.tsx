@@ -30,6 +30,33 @@ import { SERVICE_CATEGORIES } from '../data/categories';
 
 const DAY_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
 
+// Fullscreen photo viewer — reused wherever a cover/avatar/realization photo should
+// be viewable at full size (guests, clients and pros browsing all see the same thing).
+function PhotoLightbox({ src, onClose }: { src: string | null; onClose: () => void }) {
+  return (
+    <AnimatePresence>
+      {src && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm"
+        >
+          <button onClick={onClose} className="absolute top-4 right-4 text-white/70 hover:text-gold transition-colors" aria-label="Fermer">
+            <X size={28} />
+          </button>
+          <motion.img
+            initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+            src={src}
+            alt=""
+            onClick={(e) => e.stopPropagation()}
+            className="max-w-full max-h-full object-contain rounded-sm"
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 interface FeedEntry {
   barber: UserProfile;
   item: PortfolioItem;
@@ -533,6 +560,7 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook }: {
   const [note, setNote] = useState('');
   const [booking, setBooking] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const minPrice = isMock ? entryItem.price : (items.length > 0 ? Math.min(...items.map(i => i.price)) : (barber.basePrice || 80));
   const bookItem = isMock ? { name: entryItem.name, price: entryItem.price } : (items[selectedItemIdx] ? { name: items[selectedItemIdx].name, price: items[selectedItemIdx].price } : { name: 'Séance', price: barber.basePrice || 0 });
@@ -558,16 +586,24 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook }: {
         className={`w-full max-w-lg rounded-xl border text-left max-h-[85vh] overflow-y-auto ${theme === 'dark' ? 'bg-mid-brown border-gold/30' : 'bg-white border-gray-200'}`}
       >
         <div className="relative h-32 md:h-40 bg-gradient-to-br from-mid-brown to-black">
-          {coverUrl && <img src={coverUrl} className="w-full h-full object-cover" alt="" />}
-          <div className={`absolute inset-0 bg-gradient-to-t ${theme === 'dark' ? 'from-mid-brown via-mid-brown/10' : 'from-white via-white/10'} to-transparent`} />
+          <button
+            onClick={() => coverUrl && setLightboxSrc(coverUrl)}
+            className="absolute inset-0 w-full h-full block"
+          >
+            {coverUrl && <img src={coverUrl} className="w-full h-full object-cover" alt="" />}
+            <div className={`absolute inset-0 bg-gradient-to-t ${theme === 'dark' ? 'from-mid-brown via-mid-brown/10' : 'from-white via-white/10'} to-transparent`} />
+          </button>
           <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 z-10"><X size={16} /></button>
         </div>
 
         <div className="p-6 -mt-12 relative">
           <div className="flex gap-5 items-end mb-6">
-            <div className={`w-24 h-24 rounded-full border-4 shrink-0 bg-gold flex items-center justify-center overflow-hidden shadow-xl ${theme === 'dark' ? 'border-mid-brown' : 'border-white'}`}>
+            <button
+              onClick={() => avatarUrl && setLightboxSrc(avatarUrl)}
+              className={`w-24 h-24 rounded-full border-4 shrink-0 bg-gold flex items-center justify-center overflow-hidden shadow-xl ${theme === 'dark' ? 'border-mid-brown' : 'border-white'}`}
+            >
               {avatarUrl ? <img src={avatarUrl} className="w-full h-full object-cover" alt="" /> : <span className="font-bebas text-3xl text-black">{barber.firstName[0]}{barber.lastName[0]}</span>}
-            </div>
+            </button>
             <div className="flex-1 pb-1 min-w-0">
               <h3 className={`text-2xl font-bebas tracking-wider mb-1 uppercase flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                 {barber.firstName} {barber.lastName}
@@ -682,6 +718,7 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook }: {
           )}
         </div>
       </motion.div>
+      <PhotoLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
     </div>
   );
 }
@@ -710,6 +747,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const [city, setCity] = useState(profile.city || 'Casablanca');
   const [savingCity, setSavingCity] = useState(false);
@@ -972,7 +1010,11 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
     <div className="text-left -mx-4 md:-mx-6 -mt-4 md:-mt-6">
       {/* COVER */}
       <div className="relative h-40 md:h-52 bg-gradient-to-br from-mid-brown to-black overflow-hidden">
-        {profile.coverUrl && <img src={profile.coverUrl} className="w-full h-full object-cover" alt="" />}
+        {profile.coverUrl && (
+          <button onClick={() => setLightboxSrc(profile.coverUrl!)} className="absolute inset-0 w-full h-full block">
+            <img src={profile.coverUrl} className="w-full h-full object-cover" alt="" />
+          </button>
+        )}
         <button
           onClick={() => coverInputRef.current?.click()}
           disabled={uploadingCover}
@@ -987,13 +1029,16 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
         {/* AVATAR */}
         <div className="relative -mt-12 mb-4">
           <div className="relative w-24 h-24">
-            <div className={`w-24 h-24 rounded-full border-4 ${theme === 'dark' ? 'border-black' : 'border-gray-50'} bg-gold flex items-center justify-center overflow-hidden shadow-xl`}>
+            <button
+              onClick={() => profile.avatarUrl && setLightboxSrc(profile.avatarUrl)}
+              className={`w-24 h-24 rounded-full border-4 ${theme === 'dark' ? 'border-black' : 'border-gray-50'} bg-gold flex items-center justify-center overflow-hidden shadow-xl block`}
+            >
               {profile.avatarUrl ? (
                 <img src={profile.avatarUrl} className="w-full h-full object-cover" alt="" />
               ) : (
                 <span className="font-bebas text-3xl text-black">{profile.firstName[0]}{profile.lastName[0]}</span>
               )}
-            </div>
+            </button>
             <button
               onClick={() => avatarInputRef.current?.click()}
               disabled={uploadingAvatar}
@@ -1505,6 +1550,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
           </div>
         </section>
       </div>
+      <PhotoLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
     </div>
   );
 }

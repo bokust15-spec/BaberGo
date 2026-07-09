@@ -221,18 +221,23 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
               </div>
 
               {/* COVER */}
-              <div className="h-32 md:h-40 w-full relative overflow-hidden">
+              <button
+                onClick={() => setLightboxSrc((selectedEntry.isMock ? selectedEntry.item.url : selectedBarber.coverUrl) || SALON_COVER_PHOTO)}
+                className="h-32 md:h-40 w-full relative overflow-hidden block"
+              >
                  <img src={(selectedEntry.isMock ? selectedEntry.item.url : selectedBarber.coverUrl) || SALON_COVER_PHOTO} alt="" className="w-full h-full object-cover" />
                  <div className={`absolute inset-0 bg-gradient-to-t ${theme === 'dark' ? 'from-black via-black/20' : 'from-white via-white/10'} to-transparent`} />
-              </div>
+              </button>
 
               <div className="p-6 -mt-12 relative">
                  <div className="flex gap-5 items-end mb-6">
-                    <img
-                      src={selectedBarber.avatarUrl || avatarFor(selectedBarber.uid)}
-                      alt={selectedBarber.firstName}
-                      className={`w-24 h-24 rounded-full object-cover shadow-xl border-4 shrink-0 ${theme === 'dark' ? 'border-black' : 'border-white'}`}
-                    />
+                    <button onClick={() => setLightboxSrc(selectedBarber.avatarUrl || avatarFor(selectedBarber.uid))} className="shrink-0">
+                      <img
+                        src={selectedBarber.avatarUrl || avatarFor(selectedBarber.uid)}
+                        alt={selectedBarber.firstName}
+                        className={`w-24 h-24 rounded-full object-cover shadow-xl border-4 ${theme === 'dark' ? 'border-black' : 'border-white'}`}
+                      />
+                    </button>
                     <div className="flex-1 pb-1">
                        <h2 className={`text-2xl font-bebas tracking-wider mb-1 uppercase flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                          {selectedBarber.firstName} {selectedBarber.lastName}
