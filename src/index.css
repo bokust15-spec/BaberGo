@@ -12,6 +12,7 @@
   --font-bricolage: "Bricolage Grotesque", sans-serif;
   --font-dm-sans: "DM Sans", sans-serif;
   --font-dm-serif: "DM Serif Display", serif;
+  --font-open-sans: "Open Sans", sans-serif;
 }
 
 @layer base {

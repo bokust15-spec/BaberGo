@@ -255,97 +255,91 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
           </div>
         </div>
 
-        <div className="px-6 md:px-16 relative z-10 flex-1">
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className={`font-bricolage tracking-normal text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-[0.95] md:leading-[0.9] mb-4 md:mb-6 md:whitespace-nowrap ${theme === 'dark' ? 'text-white' : 'text-black'}`}
-          >
-            Réservez votre <span className="gold-gradient-text italic">moment de beauté chez vous.</span>
-          </motion.h1>
-        </div>
+        {/* HERO BACKGROUND PHOTO — experiment replacing the photo mosaic to sell the
+            "à domicile" feeling more directly (cozy home setting behind the content). */}
+        <div className="relative flex-1 flex flex-col justify-center overflow-hidden">
+          <img
+            src="https://images.unsplash.com/photo-1608499458674-82a32e0b0934?q=80&w=1600&auto=format&fit=crop"
+            alt="Cliente détendue chez elle, dans son salon"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/40" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
 
-        <div className="px-6 md:px-16 flex flex-col md:flex-row items-center gap-10 md:gap-12 flex-1">
-        <div className="flex-1 min-w-0 relative z-10 w-full">
-          <p className={`font-bold uppercase tracking-widest text-xl md:text-2xl mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Beauté & bien-être à domicile</p>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-            className="mb-4 md:mb-6 w-full"
-          >
-            <p className={`text-[10px] uppercase tracking-widest font-bold mb-2 ${theme === 'dark' ? 'text-warm-gray' : 'text-gray-500'}`}>Parcourir par prestation</p>
-            <CategoryRail selected={null} onSelect={(id) => id ? onSelectCategory(id) : onFindNearby()} theme={theme} />
-          </motion.div>
+          <div className="relative z-10 px-6 md:px-16 py-14 md:py-20 font-open-sans">
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="font-bricolage tracking-normal text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-[0.95] md:leading-[0.9] mb-4 md:mb-6 md:whitespace-nowrap text-white"
+            >
+              Réservez votre <span className="gold-gradient-text italic">moment de beauté chez vous.</span>
+            </motion.h1>
 
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-warm-gray text-sm md:text-lg max-w-lg mb-6 md:mb-10 leading-relaxed font-light"
-          >
-            BarberGo met en relation les meilleurs talents beauté & bien-être avec les clients les plus exigeants.
-            À domicile ou en salon — réservez votre prestation en un clic, partout dans le monde.
-          </motion.p>
+            <p className="font-bold uppercase tracking-widest text-xl md:text-2xl mb-4 text-white">Beauté & bien-être à domicile</p>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+              className="mb-6 md:mb-8 w-full"
+            >
+              <p className="text-xs uppercase tracking-widest font-bold mb-3 text-white/70">Parcourir par prestation</p>
+              <CategoryRail selected={null} onSelect={(id) => id ? onSelectCategory(id) : onFindNearby()} theme="dark" size="lg" />
+            </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="flex flex-col gap-4 w-fit"
-          >
-            <div className="flex flex-wrap gap-3 md:gap-4">
-              <button onClick={onFindNearby} className="btn-primary flex items-center gap-2 md:gap-3 !px-5 !py-3 md:!px-8 md:!py-3 text-[11px] md:text-sm">
-                <MapPin size={16} className="shrink-0" />
-                Trouver un expert autour de moi
-              </button>
-              <button
-                onClick={() => onRegisterOpen('barber')}
-                className={`flex items-center gap-2 md:gap-3 px-5 py-3 md:px-8 md:py-4 text-[11px] md:text-xs font-bold uppercase tracking-widest border transition-all ${theme === 'dark' ? 'border-gold/30 text-warm-gray hover:text-gold hover:border-gold' : 'border-gold/30 text-warm-gray hover:text-gold hover:border-gold'}`}
+            <div className="max-w-2xl">
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-white/80 text-sm md:text-lg max-w-lg mb-6 md:mb-10 leading-relaxed font-light"
               >
-                <Sparkles size={14} className="shrink-0" />
-                Je suis expert(e) beauté
-              </button>
-            </div>
-          </motion.div>
+                BarberGo met en relation les meilleurs talents beauté & bien-être avec les clients les plus exigeants.
+                À domicile ou en salon — réservez votre prestation en un clic, partout dans le monde.
+              </motion.p>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="flex gap-6 sm:gap-8 md:gap-12 mt-8 md:mt-16"
-          >
-            <div className="text-center md:text-left">
-              <div className="text-xl md:text-3xl font-bebas text-gold mb-1">5,000+</div>
-              <div className="text-[9px] md:text-[10px] text-warm-gray uppercase tracking-widest font-bold">Experts</div>
-            </div>
-            <div className="text-center md:text-left">
-              <div className="text-xl md:text-3xl font-bebas text-gold mb-1">50K+</div>
-              <div className="text-[9px] md:text-[10px] text-warm-gray uppercase tracking-widest font-bold">utilisateurs</div>
-            </div>
-            <div className="text-center md:text-left">
-              <div className="text-xl md:text-3xl font-bebas text-gold mb-1">4.9/5</div>
-              <div className="text-[9px] md:text-[10px] text-warm-gray uppercase tracking-widest font-bold">Score</div>
-            </div>
-          </motion.div>
-        </div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="flex flex-col gap-4 w-fit"
+              >
+                <div className="flex flex-wrap gap-3 md:gap-4">
+                  <button onClick={onFindNearby} className="btn-primary flex items-center gap-2 md:gap-3 !px-5 !py-3 md:!px-8 md:!py-3 text-[11px] md:text-sm">
+                    <MapPin size={16} className="shrink-0" />
+                    Trouver un expert autour de moi
+                  </button>
+                  <button
+                    onClick={() => onRegisterOpen('barber')}
+                    className="flex items-center gap-2 md:gap-3 px-5 py-3 md:px-8 md:py-4 text-[11px] md:text-xs font-bold uppercase tracking-widest border border-white/30 text-white/80 hover:text-gold hover:border-gold transition-all"
+                  >
+                    <Sparkles size={14} className="shrink-0" />
+                    Je suis expert(e) beauté
+                  </button>
+                </div>
+              </motion.div>
 
-        {/* HERO MOSAIC */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="flex-1 min-w-0 w-full flex justify-center relative z-10"
-        >
-          <div className="grid grid-cols-3 gap-2.5 sm:gap-3 w-full max-w-[420px]">
-            {HERO_MOSAIC.map((item, i) => (
-              <div key={i} className="overflow-hidden rounded-xl border-2 border-gold/20 shadow-lg aspect-square">
-                <img src={item.src} alt={item.alt} className="w-full h-full object-cover" loading="lazy" />
-              </div>
-            ))}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="flex gap-6 sm:gap-8 md:gap-12 mt-8 md:mt-16"
+              >
+                <div className="text-center md:text-left">
+                  <div className="text-xl md:text-3xl font-bebas text-gold mb-1">5,000+</div>
+                  <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Experts</div>
+                </div>
+                <div className="text-center md:text-left">
+                  <div className="text-xl md:text-3xl font-bebas text-gold mb-1">50K+</div>
+                  <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">utilisateurs</div>
+                </div>
+                <div className="text-center md:text-left">
+                  <div className="text-xl md:text-3xl font-bebas text-gold mb-1">4.9/5</div>
+                  <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Score</div>
+                </div>
+              </motion.div>
+            </div>
           </div>
-        </motion.div>
         </div>
       </section>
 
