@@ -12,51 +12,75 @@ interface LandingPageProps {
   onSelectCategory: (categoryId: string) => void;
 }
 
+// Distinct from WORK_GALLERY / HERO_MOSAIC / CATEGORY_PHOTOS on purpose — every photo
+// on the page should be different so the interface doesn't feel repetitive.
 const WORK_PHOTOS = {
-  heroBeardTrim: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=900&auto=format&fit=crop',
-  salonInterior: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?q=80&w=900&auto=format&fit=crop',
-  preciseFade: 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?q=80&w=700&auto=format&fit=crop',
-  clipperWork: 'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?q=80&w=700&auto=format&fit=crop',
-  bwSalon: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=1200&auto=format&fit=crop',
+  salonInterior: 'https://images.unsplash.com/photo-1643684391140-c5056cfd3436?q=80&w=900&auto=format&fit=crop',
+  preciseFade: 'https://images.unsplash.com/photo-1606158436222-1896b18c5d25?q=80&w=700&auto=format&fit=crop',
+  clipperWork: 'https://images.unsplash.com/photo-1457972729786-0411a3b2b626?q=80&w=700&auto=format&fit=crop',
+  bwSalon: 'https://images.unsplash.com/photo-1630595271375-5073a6c0638b?q=80&w=1200&auto=format&fit=crop',
 };
 
-// One representative shot per category (in SERVICE_CATEGORIES order) — Cheveux,
-// Barbe, Main et pied, Make-up, Esthétique, Soin de visage, Massage, Beauté
-// évènementiel — so the scrolling band actually reflects every prestation offered.
+// Real BarberGo-provided photos (in SERVICE_CATEGORIES order) — Cheveux, Barbe,
+// Main et pied, Make-up, Esthétique, Soin de visage, Massage, Beauté évènementiel.
 const WORK_GALLERY = [
   // Cheveux
-  { src: 'https://images.unsplash.com/photo-1572955304332-bf714bd49add?q=80&w=400&auto=format&fit=crop', alt: "Tresses box braids sur cheveux métissés" },
-  { src: 'https://images.unsplash.com/photo-1645736279976-59f8fd22720c?q=80&w=400&auto=format&fit=crop', alt: "Belle perruque longue sur femme noire" },
-  { src: 'https://images.unsplash.com/photo-1560869713-bf165a9cfac1?q=80&w=400&auto=format&fit=crop', alt: "Boucles soyeuses pour femme" },
-  { src: 'https://images.unsplash.com/photo-1605980766335-d3a41c7332a1?q=80&w=400&auto=format&fit=crop', alt: "Balayage blond pour femme" },
-  { src: 'https://images.unsplash.com/photo-1572863141204-83031c77e65a?q=80&w=400&auto=format&fit=crop', alt: "Coiffure lumineuse pour femme" },
+  { src: '/gallery/806_s-Tendance-coiffure-femme-coupe-Cyril-bazin-coiffeur-createur.jpg', alt: "Coiffeuse réalisant une coupe de précision" },
+  { src: '/gallery/e01366032addce763b9a232f58d3069d.jpg', alt: "Pose de tresses sur cheveux bouclés" },
+  { src: '/gallery/Gemini_Generated_Image_c9yfxcc9yfxcc9yf.png', alt: "Box braids réalisées en salon" },
+  { src: '/gallery/Gemini_Generated_Image_us8qesus8qesus8q.png', alt: "Twists et locks coiffés par un barbier" },
+  { src: '/gallery/tout-savoir-sur-lebrushing.png', alt: "Brushing en cours de réalisation" },
+  { src: '/gallery/wig-bob-rouge.jpg', alt: "Perruque bob colorée sur femme noire" },
+  { src: '/gallery/44b9fa0bfaabbe7fd296d957e74b015a.jpg', alt: "Coupe dégradée précise pour homme" },
+  { src: 'https://images.unsplash.com/photo-1514336937476-a5b961020a5c?q=80&w=400&auto=format&fit=crop', alt: "Dégradé net réalisé à la tondeuse" },
+  { src: 'https://images.unsplash.com/photo-1611431182782-cb1f5acd6e94?q=80&w=400&auto=format&fit=crop', alt: "Barbier coiffant un client en salon" },
+  { src: 'https://images.unsplash.com/photo-1699641975121-5c3f55a553e5?q=80&w=400&auto=format&fit=crop', alt: "Coupe réalisée en barbershop traditionnel" },
+  { src: 'https://images.unsplash.com/photo-1663077639920-f5ebd9a6296c?q=80&w=400&auto=format&fit=crop', alt: "Homme se faisant coiffer chez le barbier" },
+  { src: 'https://images.unsplash.com/photo-1604355240616-5e907f42b431?q=80&w=400&auto=format&fit=crop', alt: "Finitions à la tondeuse sur la nuque" },
   // Barbe
-  { src: 'https://images.unsplash.com/photo-1647140655214-e4a2d914971f?q=80&w=400&auto=format&fit=crop', alt: "Taille de barbe précise pour homme" },
-  { src: 'https://images.unsplash.com/photo-1635273051937-a0ddef9573b6?q=80&w=400&auto=format&fit=crop', alt: "Dégradé homme réalisé par un barbier" },
+  { src: '/gallery/homme-dans-salon-coiffure-se-coupe-cheveux-se-taille-barbe_1303-20953.avif', alt: "Taille de barbe en salon de coiffure" },
   // Main et pied
-  { src: 'https://images.unsplash.com/photo-1632345031435-8727f6897d53?q=80&w=400&auto=format&fit=crop', alt: "Manucure réalisée en salon" },
-  { src: 'https://images.unsplash.com/photo-1457972729786-0411a3b2b626?q=80&w=400&auto=format&fit=crop', alt: "Manucure en cours d'application" },
-  { src: 'https://images.unsplash.com/photo-1690749138086-7422f71dc159?q=80&w=400&auto=format&fit=crop', alt: "Soin des mains minutieux" },
-  { src: 'https://images.unsplash.com/photo-1633526543913-d30e3c230d1f?q=80&w=400&auto=format&fit=crop', alt: "Soin des pieds en institut" },
+  { src: '/gallery/woman-getting-pedicure.jpg', alt: "Pose de vernis sur les ongles de pieds" },
+  { src: '/gallery/manucure-glitter.jpg', alt: "Manucure pailletée réalisée" },
   // Make-up
-  { src: 'https://images.unsplash.com/photo-1709477542149-f4e0e21d590b?q=80&w=400&auto=format&fit=crop', alt: "Maquillage appliqué au pinceau par une professionnelle" },
-  { src: 'https://images.unsplash.com/photo-1606158436222-1896b18c5d25?q=80&w=400&auto=format&fit=crop', alt: "Maquillage glamour, application de gloss sur les lèvres" },
-  { src: 'https://images.unsplash.com/photo-1780504542428-897e4a4a22f2?q=80&w=400&auto=format&fit=crop', alt: "Application de maquillage professionnel" },
+  { src: '/gallery/Makeup-glowup.jpg', alt: "Application de maquillage au pinceau" },
+  { src: '/gallery/Woman-having-her-makeup-done-rs.jpg', alt: "Maquillage coloré en cours d'application" },
   // Esthétique
-  { src: 'https://images.unsplash.com/photo-1531299244174-d247dd4e5a66?q=80&w=400&auto=format&fit=crop', alt: "Soin spa relaxant, concombres sur les yeux" },
-  { src: 'https://images.unsplash.com/photo-1630595271375-5073a6c0638b?q=80&w=400&auto=format&fit=crop', alt: "Moment détente en institut esthétique" },
+  { src: '/gallery/bac-pro-esthetique-voies.jpg', alt: "Soins esthétiques du visage en institut" },
+  { src: '/gallery/cil-a-cil.webp', alt: "Extensions de cils posées un à un" },
   // Soin de visage
-  { src: 'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?q=80&w=400&auto=format&fit=crop', alt: "Soin du visage relaxant en institut" },
-  { src: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=400&auto=format&fit=crop', alt: "Masque facial appliqué en institut" },
-  { src: 'https://images.unsplash.com/photo-1643684391140-c5056cfd3436?q=80&w=400&auto=format&fit=crop', alt: "Massage facial pendant un soin esthétique" },
+  { src: '/gallery/PhotoSoinVisage.jpg', alt: "Masque de soin appliqué au visage" },
   // Massage
-  { src: 'https://images.unsplash.com/photo-1741522509438-a120c0bb5e88?q=80&w=400&auto=format&fit=crop', alt: "Massage relaxant du dos" },
-  { src: 'https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=400&auto=format&fit=crop', alt: "Massage relaxant en institut" },
-  { src: 'https://images.unsplash.com/photo-1639162906614-0603b0ae95fd?q=80&w=400&auto=format&fit=crop', alt: "Massage du dos en institut spa" },
+  { src: '/gallery/GettyImages-1175433234-034014dc5b9c45edaeaf04c7b80ceafc.jpg', alt: "Massage relaxant du dos" },
+  { src: '/gallery/Gemini_Generated_Image_tmrns5tmrns5tmrn.png', alt: "Massage relaxant pour homme" },
   // Beauté évènementiel
-  { src: 'https://images.unsplash.com/photo-1732118400647-a81e3b37be87?q=80&w=400&auto=format&fit=crop', alt: "Mains décorées de motifs au henné" },
+  { src: '/gallery/ceremonie-du-henne-mariage-1536x615.jpg', alt: "Henné de mariage sur les mains" },
+  { src: '/gallery/tatouage-henne-pied.webp', alt: "Application de henné sur le pied" },
+  { src: '/gallery/Gemini_Generated_Image_6p7c2q6p7c2q6p7c.jpg', alt: "Maquillage de mariée avant la cérémonie" },
+];
+
+// Small mosaic of real photos filling the hero's right column, one per key prestation.
+const HERO_MOSAIC = [
+  { src: '/gallery/Gemini_Generated_Image_us8qesus8qesus8q.png', alt: "Twists tressés pour homme par un barbier" },
+  { src: 'https://images.unsplash.com/photo-1690749138086-7422f71dc159?q=80&w=400&auto=format&fit=crop', alt: "Soin des mains minutieux" },
+  { src: 'https://images.unsplash.com/photo-1728949202468-c37fdbd76856?q=80&w=400&auto=format&fit=crop', alt: "Soin du visage appliqué à un homme" },
+  { src: '/gallery/homme-dans-salon-coiffure-se-coupe-cheveux-se-taille-barbe_1303-20953.avif', alt: "Homme se faisant coiffer en salon" },
+  { src: '/gallery/44b9fa0bfaabbe7fd296d957e74b015a.jpg', alt: "Coupe dégradée précise pour homme" },
   { src: 'https://images.unsplash.com/photo-1716672042560-c59ebb0805e6?q=80&w=400&auto=format&fit=crop', alt: "Henné traditionnel sur les mains" },
 ];
+
+// One representative real photo per prestation category, used as the background
+// of the "Nos prestations" tiles so browsing categories feels tangible, not abstract.
+const CATEGORY_PHOTOS: Record<string, string> = {
+  'cheveux': 'https://images.unsplash.com/photo-1629397685944-7073f5589754?q=80&w=500&auto=format&fit=crop',
+  'barbe': 'https://images.unsplash.com/photo-1506029214967-eef911357d1b?q=80&w=500&auto=format&fit=crop',
+  'main-pied': 'https://images.unsplash.com/photo-1632345031435-8727f6897d53?q=80&w=500&auto=format&fit=crop',
+  'makeup': 'https://images.unsplash.com/photo-1709477542149-f4e0e21d590b?q=80&w=500&auto=format&fit=crop',
+  'esthetique': 'https://images.unsplash.com/photo-1531299244174-d247dd4e5a66?q=80&w=500&auto=format&fit=crop',
+  'soin-visage': 'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?q=80&w=500&auto=format&fit=crop',
+  'massage': 'https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=500&auto=format&fit=crop',
+  'beaute-evenementiel': 'https://images.unsplash.com/photo-1732118400647-a81e3b37be87?q=80&w=500&auto=format&fit=crop',
+};
 
 const TESTIMONIALS = [
   {
@@ -231,17 +255,19 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
           </div>
         </div>
 
-        <div className="px-6 md:px-16 flex flex-col md:flex-row items-center flex-1">
-        <div className="flex-1 min-w-0 relative z-10 w-full">
+        <div className="px-6 md:px-16 relative z-10 flex-1">
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className={`font-bricolage tracking-normal text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-[0.95] md:leading-[0.9] mb-3 md:mb-4 ${theme === 'dark' ? 'text-white' : 'text-black'}`}
+            className={`font-bricolage tracking-normal text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-[0.95] md:leading-[0.9] mb-4 md:mb-6 md:whitespace-nowrap ${theme === 'dark' ? 'text-white' : 'text-black'}`}
           >
             Réservez votre <span className="gold-gradient-text italic">moment de beauté.</span>
           </motion.h1>
+        </div>
 
+        <div className="px-6 md:px-16 flex flex-col md:flex-row items-center gap-10 md:gap-12 flex-1">
+        <div className="flex-1 min-w-0 relative z-10 w-full">
           <p className={`font-bold uppercase tracking-widest text-xl md:text-2xl mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Beauté & bien-être à domicile</p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -305,37 +331,40 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
           </motion.div>
         </div>
 
-        {/* HERO PHOTO */}
-        <div className="flex-1 min-w-0 w-full flex flex-col items-center justify-center mt-8 md:mt-0 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="relative w-full max-w-[240px] sm:max-w-[320px] md:max-w-[380px]"
-          >
-            <img
-              src={WORK_PHOTOS.heroBeardTrim}
-              alt="Expert BarberGo réalisant une prestation pour un client"
-              className="w-full aspect-[3/4] object-cover rounded-2xl border-2 border-gold/25 shadow-2xl"
-            />
-            <div className="absolute bottom-0 left-0 right-0 p-4 rounded-b-2xl bg-gradient-to-t from-black/85 via-black/40 to-transparent">
-              <p className="text-gold font-bold italic text-center text-xl md:text-2xl">BarberGo vous fait gagner du temps !</p>
-            </div>
-          </motion.div>
-        </div>
+        {/* HERO MOSAIC */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="flex-1 min-w-0 w-full flex justify-center relative z-10"
+        >
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-3 w-full max-w-[420px]">
+            {HERO_MOSAIC.map((item, i) => (
+              <div key={i} className="overflow-hidden rounded-xl border-2 border-gold/20 shadow-lg aspect-square">
+                <img src={item.src} alt={item.alt} className="w-full h-full object-cover" loading="lazy" />
+              </div>
+            ))}
+          </div>
+        </motion.div>
         </div>
       </section>
 
       {/* SERVICES / PRESTATIONS */}
-      <section id="services" className={`py-24 px-6 md:px-16 relative ${theme === 'dark' ? 'bg-dark-brown/40' : 'bg-gray-50'}`}>
+      <section id="services" className={`py-24 px-6 md:px-16 relative ${theme === 'dark' ? 'bg-dark-brown/40' : 'bg-cream'}`}>
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-16"
+          >
             <span className="text-gold text-xs uppercase tracking-[0.3em] font-medium block mb-4">Nos prestations</span>
             <h2 className={`text-4xl md:text-6xl mb-6 uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
               Tout ce dont vous avez <span className="italic gold-gradient-text">besoin</span>
             </h2>
             <p className="text-warm-gray max-w-2xl mx-auto">Choisissez une prestation pour voir les experts qui la proposent près de chez vous.</p>
-          </div>
+          </motion.div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {SERVICE_CATEGORIES.map((cat) => {
               const Icon = cat.icon;
@@ -343,12 +372,21 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
                 <button
                   key={cat.id}
                   onClick={() => onSelectCategory(cat.id)}
-                  className={`p-6 border rounded-xl text-center transition-all group ${theme === 'dark' ? 'bg-black/30 border-gold/10 hover:border-gold/50' : 'bg-white border-gray-200 hover:border-gold/50 hover:shadow-lg'}`}
+                  className="relative aspect-[4/5] rounded-xl overflow-hidden border-2 border-gold/15 group text-left shadow-md hover:shadow-xl hover:-translate-y-1 hover:border-gold/50 transition-all duration-300"
                 >
-                  <div className="w-12 h-12 mx-auto mb-4 bg-gold/10 border border-gold/20 rounded-full flex items-center justify-center text-gold group-hover:bg-gold group-hover:text-black transition-colors">
-                    <Icon size={20} />
+                  <img
+                    src={CATEGORY_PHOTOS[cat.id]}
+                    alt={cat.label}
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/10" />
+                  <div className="absolute inset-0 p-4 flex flex-col justify-end">
+                    <div className="w-9 h-9 mb-2 bg-gold/90 rounded-full flex items-center justify-center text-black">
+                      <Icon size={16} />
+                    </div>
+                    <h3 className="font-bebas text-lg tracking-widest uppercase text-white">{cat.label}</h3>
                   </div>
-                  <h3 className={`font-bebas text-lg tracking-widest uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{cat.label}</h3>
                 </button>
               );
             })}
@@ -359,7 +397,12 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
       {/* MISSION */}
       <section className={`py-24 px-6 md:px-16 relative ${theme === 'dark' ? 'bg-black' : 'bg-white'}`}>
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
-          <div>
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.6 }}
+          >
             <span className="text-gold text-xs uppercase tracking-[0.3em] font-medium block mb-4">Notre mission</span>
             <h2 className={`text-4xl md:text-6xl mb-6 uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
               On connecte les <span className="italic gold-gradient-text">talents</span> aux clients
@@ -386,41 +429,59 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
                 </div>
               ))}
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <img
-              src={WORK_PHOTOS.salonInterior}
-              alt="Salon partenaire BarberGo"
-              className="col-span-2 h-56 w-full object-cover rounded-lg border border-gold/15"
-            />
-            <img
-              src={WORK_PHOTOS.preciseFade}
-              alt="Prestation de précision réalisée par un expert BarberGo"
-              className="h-48 w-full object-cover rounded-lg border border-gold/15"
-            />
-            <img
-              src={WORK_PHOTOS.clipperWork}
-              alt="Expert BarberGo au travail"
-              className="h-48 w-full object-cover rounded-lg border border-gold/15"
-            />
-          </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.6 }}
+            className="grid grid-cols-2 gap-4"
+          >
+            <div className="col-span-2 h-56 rounded-lg overflow-hidden border border-gold/15 shadow-md hover:shadow-xl transition-shadow duration-300">
+              <img
+                src={WORK_PHOTOS.salonInterior}
+                alt="Soin esthétique réalisé par un expert BarberGo"
+                className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+            <div className="h-48 rounded-lg overflow-hidden border border-gold/15 shadow-md hover:shadow-xl transition-shadow duration-300">
+              <img
+                src={WORK_PHOTOS.preciseFade}
+                alt="Maquillage glamour réalisé par un expert BarberGo"
+                className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+            <div className="h-48 rounded-lg overflow-hidden border border-gold/15 shadow-md hover:shadow-xl transition-shadow duration-300">
+              <img
+                src={WORK_PHOTOS.clipperWork}
+                alt="Manucure réalisée par un expert BarberGo"
+                className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+          </motion.div>
         </div>
       </section>
 
       {/* HOW IT WORKS */}
       <section id="how" className="py-24 px-6 md:px-16 border-y border-gold/10 relative overflow-hidden">
-        <div className={`absolute inset-0 ${theme === 'dark' ? 'bg-dark-brown/70' : 'bg-gray-50'}`} />
+        <div className={`absolute inset-0 ${theme === 'dark' ? 'bg-dark-brown/70' : 'bg-cream'}`} />
         <img
           src={WORK_PHOTOS.bwSalon}
           alt=""
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover opacity-[0.06] pointer-events-none select-none"
         />
-        <div className="max-w-7xl mx-auto text-center mb-20 relative z-10">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.6 }}
+          className="max-w-7xl mx-auto text-center mb-20 relative z-10"
+        >
           <span className="text-gold text-xs uppercase tracking-[0.3em] font-medium block mb-4">Processus simple</span>
           <h2 className={`text-5xl md:text-7xl mb-6 uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Comment <span className="italic gold-gradient-text text-bebas underline decoration-gold/30">trouver votre expert</span></h2>
           <p className="text-warm-gray max-w-2xl mx-auto">Votre moment de beauté n'a jamais été aussi facile à réserver. Trouvez, réservez et profitez de l'expertise d'un pro en quatre étapes.</p>
-        </div>
+        </motion.div>
 
         <div className={`max-w-7xl mx-auto grid md:grid-cols-4 gap-0 border border-gold/10 relative z-10 ${theme === 'dark' ? 'bg-black/20' : 'bg-white'}`}>
           {[
@@ -429,12 +490,19 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
             { num: '03', icon: <Calendar />, title: "Réservation", desc: "Choisissez votre créneau et payez en toute sécurité." },
             { num: '04', icon: <Star />, title: "Satisfaction", desc: "Le prestataire vient à vous ou vous accueille. Notez votre expérience." }
           ].map((item, i) => (
-            <div key={i} className="p-10 border border-gold/5 hover:bg-gold/5 transition-colors relative group overflow-hidden">
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.5, delay: i * 0.1 }}
+              className="p-10 border border-gold/5 hover:bg-gold/5 transition-colors relative group overflow-hidden"
+            >
                <div className="absolute top-[-1rem] right-4 text-9xl font-bebas text-gold/5 select-none leading-none group-hover:text-gold/10 transition-all">{item.num}</div>
                <div className="w-12 h-12 bg-gold/10 border border-gold/20 flex items-center justify-center text-gold mb-6 relative z-10">{item.icon}</div>
                <h3 className={`text-xl mb-4 relative z-10 font-bebas tracking-wider ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{item.title}</h3>
                <p className="text-warm-gray text-sm leading-relaxed relative z-10">{item.desc}</p>
-            </div>
+            </motion.div>
           ))}
         </div>
 
@@ -448,13 +516,26 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
 
       {/* AVIS */}
       <section id="avis" className={`py-24 px-6 md:px-16 ${theme === 'dark' ? 'bg-black' : 'bg-white'}`}>
-        <div className="max-w-7xl mx-auto text-center mb-16">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.6 }}
+          className="max-w-7xl mx-auto text-center mb-16"
+        >
           <span className="text-gold text-xs uppercase tracking-[0.3em] font-medium block mb-4">Ils nous font confiance</span>
           <h2 className={`text-5xl md:text-7xl mb-6 uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Avis de nos <span className="italic gold-gradient-text">utilisateurs</span></h2>
-        </div>
+        </motion.div>
         <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-8">
           {TESTIMONIALS.map((t, i) => (
-            <div key={i} className="luxury-card p-8 relative overflow-hidden">
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.5, delay: i * 0.1 }}
+              className="luxury-card p-8 relative overflow-hidden hover:-translate-y-1 hover:shadow-xl"
+            >
               <Quote className="absolute top-6 right-6 text-gold/10" size={48} />
               <div className="flex gap-1 mb-4 relative z-10">
                 {Array.from({ length: 5 }).map((_, s) => (
@@ -469,32 +550,33 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
                   <div className="text-warm-gray text-[10px] uppercase tracking-widest">{t.role}</div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </section>
 
       {/* CTA SECTION */}
-      <section className={`py-32 relative flex flex-col items-center text-center px-6 overflow-hidden ${theme === 'dark' ? 'bg-black' : 'bg-white'}`}>
+      <section className={`py-32 relative flex flex-col items-center text-center px-6 overflow-hidden ${theme === 'dark' ? 'bg-black' : 'bg-cream'}`}>
          <div className="absolute text-[25vw] font-bebas text-gold/5 leading-none select-none -bottom-10 pointer-events-none">BARBERGO</div>
-         <span className="text-gold text-xs uppercase tracking-[0.3em] font-medium block mb-6 px-4 py-1 border border-gold/20 rounded-full">Rejoignez-nous aujourd'hui</span>
-         <h2 className={`text-6xl md:text-8xl mb-10 max-w-4xl uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Prêt pour votre <br /><span className="gold-gradient-text italic">prochain moment de beauté ?</span></h2>
-         <div className="flex flex-wrap justify-center gap-6 relative z-10">
-            <button className="bg-mid-brown border border-gold/20 px-8 py-4 flex items-center gap-4 rounded-lg hover:border-gold/50 transition-all">
-               <Apple size={24} className="text-white" />
-               <div className="text-left">
-                  <div className="text-[10px] text-warm-gray uppercase tracking-widest leading-none">Download on</div>
-                  <div className="text-lg text-white font-bold">App Store</div>
-               </div>
-            </button>
-            <button className="bg-mid-brown border border-gold/20 px-8 py-4 flex items-center gap-4 rounded-lg hover:border-gold/50 transition-all">
-               <Play size={24} className="text-white" />
-               <div className="text-left">
-                  <div className="text-[10px] text-warm-gray uppercase tracking-widest leading-none">Get it on</div>
-                  <div className="text-lg text-white font-bold">Google Play</div>
-               </div>
-            </button>
-         </div>
+         <motion.div
+           initial={{ opacity: 0, y: 30 }}
+           whileInView={{ opacity: 1, y: 0 }}
+           viewport={{ once: true, amount: 0.3 }}
+           transition={{ duration: 0.6 }}
+           className="relative z-10 flex flex-col items-center"
+         >
+           <span className="text-gold text-xs uppercase tracking-[0.3em] font-medium block mb-6 px-4 py-1 border border-gold/20 rounded-full">Rejoignez-nous aujourd'hui</span>
+           <h2 className={`text-6xl md:text-8xl mb-10 max-w-4xl uppercase ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Prêt pour votre <br /><span className="gold-gradient-text italic">prochain moment de beauté ?</span></h2>
+           <div className="flex flex-col items-center gap-5">
+              <button onClick={onFindNearby} className="btn-primary flex items-center gap-3 !px-10 !py-4">
+                 <MapPin size={18} />
+                 Trouver un expert autour de moi
+              </button>
+              <span className="text-warm-gray text-[10px] uppercase tracking-widest flex items-center gap-2">
+                 <Apple size={14} /> App Store <span className="text-gold">·</span> <Play size={14} /> Google Play — bientôt disponible
+              </span>
+           </div>
+         </motion.div>
       </section>
 
       {/* FOOTER */}
@@ -515,16 +597,22 @@ export default function LandingPage({ onLogin, theme, onRegisterOpen, onFindNear
                  <li><a href="#avis" className="text-warm-gray text-sm hover:text-white transition-colors">Avis</a></li>
                </ul>
             </div>
-            {['Compagnie', 'Support'].map((col, i) => (
-               <div key={i}>
-                  <h4 className="text-gold text-[10px] uppercase font-bold tracking-[0.2em] mb-6">{col}</h4>
-                  <ul className="flex flex-col gap-3">
-                    {['Trouver un expert', 'Réservations', 'Avis'].map((link, j) => (
-                      <li key={j}><a href="#" className="text-warm-gray text-sm hover:text-white transition-colors">{link}</a></li>
-                    ))}
-                  </ul>
-               </div>
-            ))}
+            <div>
+               <h4 className="text-gold text-[10px] uppercase font-bold tracking-[0.2em] mb-6">Compagnie</h4>
+               <ul className="flex flex-col gap-3">
+                 <li><a href="#services" className="text-warm-gray text-sm hover:text-white transition-colors">Nos prestations</a></li>
+                 <li><button onClick={() => onRegisterOpen('barber')} className="text-warm-gray text-sm hover:text-white transition-colors text-left">Devenir partenaire</button></li>
+                 <li><button onClick={onLogin} className="text-warm-gray text-sm hover:text-white transition-colors text-left">Se connecter</button></li>
+               </ul>
+            </div>
+            <div>
+               <h4 className="text-gold text-[10px] uppercase font-bold tracking-[0.2em] mb-6">Support</h4>
+               <ul className="flex flex-col gap-3">
+                 <li><a href="#how" className="text-warm-gray text-sm hover:text-white transition-colors">Comment ça marche</a></li>
+                 <li><a href="#avis" className="text-warm-gray text-sm hover:text-white transition-colors">Avis clients</a></li>
+                 <li><button onClick={onFindNearby} className="text-warm-gray text-sm hover:text-white transition-colors text-left">Trouver un expert</button></li>
+               </ul>
+            </div>
          </div>
          <div className="border-t border-gold/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-warm-gray text-[10px] uppercase tracking-widest">© 2025 BarberGo. Tous droits réservés.</p>

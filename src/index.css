@@ -37,24 +37,24 @@
 }
 
 .light {
-  @apply bg-white text-gray-900;
+  @apply bg-cream text-gray-900;
 }
 
 .gold-gradient-text {
-  @apply bg-linear-to-r from-gold to-gold-light bg-clip-text text-transparent;
+  @apply bg-linear-to-r from-gold via-gold-light to-gold bg-clip-text text-transparent;
 }
 
 .glass-nav {
   @apply transition-all duration-300 border-b;
 }
 .dark .glass-nav { @apply bg-[#0a0a0a]/85 backdrop-blur-xl border-gold/15; }
-.light .glass-nav { @apply bg-white/85 backdrop-blur-xl border-gray-200; }
+.light .glass-nav { @apply bg-cream/85 backdrop-blur-xl border-gold/15; }
 
 .luxury-card {
   @apply transition-all duration-300 rounded-sm border;
 }
 .dark .luxury-card { @apply bg-mid-brown border-gold/15 hover:border-gold/40; }
-.light .luxury-card { @apply bg-gray-50 border-gray-200 hover:border-gold/40; }
+.light .luxury-card { @apply bg-white border-gold/15 hover:border-gold/40; }
 
 .btn-primary {
   @apply bg-gold text-[#0a0a0a] px-8 py-3 font-bold uppercase tracking-wider rounded-sm hover:bg-gold-light transition-all active:scale-95;
@@ -64,7 +64,7 @@
   @apply bg-transparent border px-8 py-3 font-medium uppercase tracking-wider rounded-sm transition-all active:scale-95;
 }
 .dark .btn-outline { @apply text-cream border-cream/20 hover:border-gold hover:text-gold; }
-.light .btn-outline { @apply text-gray-800 border-gray-300 hover:border-gold hover:text-gold; }
+.light .btn-outline { @apply text-gray-800 border-gold/25 hover:border-gold hover:text-gold; }
 
 .scrollbar-hide {
   scrollbar-width: none;
