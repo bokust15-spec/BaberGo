@@ -310,7 +310,8 @@ export default function App() {
           services={services}
           onUpdateStatus={handleUpdateAppointmentStatus}
           onUpdateAppointment={handleUpdateAppointment}
-          onLogout={handleLogoutAll}
+          onLogout={() => setView('landing')}
+          onLogoutFirebase={handleLogoutAll}
           theme={theme}
           onUpdateBio={updateBio}
           onUpdatePhone={updatePhone}

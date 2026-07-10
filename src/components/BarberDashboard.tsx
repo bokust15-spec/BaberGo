@@ -28,6 +28,7 @@ import { db } from '../lib/firebase';
 import CategoryRail from './CategoryRail';
 import { SERVICE_CATEGORIES } from '../data/categories';
 import PhotoGalleryLightbox, { LightboxPhoto } from './PhotoGalleryLightbox';
+import BookingModal from './BookingModal';
 
 const DAY_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
 
@@ -62,6 +63,7 @@ interface BarberDashboardProps {
   onUpdateStatus: (id: string, status: Appointment['status']) => Promise<void>;
   onUpdateAppointment?: (id: string, updates: Partial<Appointment>) => Promise<void>;
   onLogout: () => void;
+  onLogoutFirebase: () => void;
   theme: 'dark' | 'light';
   onUpdateBio: (bio: string) => Promise<void>;
   onUpdatePhone: (phone: string) => Promise<void>;
@@ -83,6 +85,7 @@ export default function BarberDashboard({
   onUpdateStatus,
   onUpdateAppointment,
   onLogout,
+  onLogoutFirebase,
   theme,
   onUpdateBio,
   onUpdatePhone,
@@ -103,10 +106,16 @@ export default function BarberDashboard({
   const [kycSelfieLoaded, setKycSelfieLoaded] = useState(false);
   const [submittingKyc, setSubmittingKyc] = useState(false);
   const [viewingEntry, setViewingEntry] = useState<FeedEntry | null>(null);
-  const [quickBookItemIdx, setQuickBookItemIdx] = useState<number | undefined>(undefined);
+  const [quickBookRequested, setQuickBookRequested] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [phoneInput, setPhoneInput] = useState(profile.phone || '');
   const [savingPhone, setSavingPhone] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+
+  const handleLogoutAll = () => {
+    onLogoutFirebase();
+    onLogout();
+  };
 
   const kycStatus = profile.kycStatus || 'unverified';
   const unpaidCount = profile.unpaidCommissionsCount || 0;
@@ -206,12 +215,20 @@ export default function BarberDashboard({
       {/* Dashboard Nav */}
       <nav className={`fixed top-0 left-0 right-0 z-40 border-b pl-16 pr-6 py-4 flex items-center justify-between backdrop-blur-md ${theme === 'dark' ? 'bg-black/80 border-gold/20' : 'bg-white/80 border-gray-200 shadow-sm'}`}>
         <div className="logo text-2xl text-gold font-bebas tracking-widest leading-none">Partners<span className="text-white">Pro</span></div>
-        <button
-          onClick={onLogout}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 text-warm-gray hover:text-gold transition-colors text-[10px] font-bold uppercase tracking-widest"
-        >
-          <ArrowLeft size={14} /> Retour
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 text-warm-gray hover:text-gold transition-colors text-[10px] font-bold uppercase tracking-widest"
+          >
+            <ArrowLeft size={14} /> Retour
+          </button>
+          <button
+            onClick={() => setShowAccountModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 text-warm-gray hover:text-gold transition-colors text-[10px] font-bold uppercase tracking-widest"
+          >
+            <User size={14} /> {profile.firstName}
+          </button>
+        </div>
       </nav>
 
       <main className="flex-1 p-4 md:p-6 max-w-3xl mx-auto w-full">
@@ -313,12 +330,8 @@ export default function BarberDashboard({
             feedItems={filteredFeedItems}
             selectedCategory={selectedCategory}
             onSelectCategory={setSelectedCategory}
-            onSelectEntry={(entry) => { setQuickBookItemIdx(undefined); setViewingEntry(entry); }}
-            onQuickBook={(entry) => {
-              const idx = (entry.barber.portfolioItems || []).findIndex(i => i.url === entry.item.url);
-              setQuickBookItemIdx(idx >= 0 ? idx : undefined);
-              setViewingEntry(entry);
-            }}
+            onSelectEntry={(entry) => { setQuickBookRequested(false); setViewingEntry(entry); }}
+            onQuickBook={(entry) => { setQuickBookRequested(true); setViewingEntry(entry); }}
             currentBarberUid={profile.uid}
           />
         )}
@@ -421,12 +434,58 @@ export default function BarberDashboard({
         {viewingEntry && (
           <BarberProfileModal
             entry={viewingEntry}
-            initialItemIdx={quickBookItemIdx}
+            initialShowBooking={quickBookRequested}
             theme={theme}
-            onClose={() => { setViewingEntry(null); setQuickBookItemIdx(undefined); }}
+            onClose={() => { setViewingEntry(null); setQuickBookRequested(false); }}
             onBook={onBookBarber}
-            currentBarberUid={profile.uid}
+            viewerProfile={profile}
           />
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: MON COMPTE */}
+      <AnimatePresence>
+        {showAccountModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className={`w-full max-w-sm border rounded-sm overflow-hidden transition-all duration-300 ${theme === 'dark' ? 'bg-mid-brown border-gold/30' : 'bg-white border-gray-200 shadow-2xl'}`}
+            >
+              <div className="p-6 border-b border-gold/10 flex justify-between items-center bg-gold/5">
+                <h3 className="font-bebas text-xl text-gold tracking-widest uppercase">Mon Compte</h3>
+                <button onClick={() => setShowAccountModal(false)} className="text-warm-gray hover:text-gold transition-colors"><X size={20} /></button>
+              </div>
+
+              <div className="p-8 text-center space-y-6">
+                <div className="w-20 h-20 bg-gold/10 rounded-full border-2 border-gold flex items-center justify-center mx-auto">
+                  <User size={40} className="text-gold" />
+                </div>
+                <div>
+                  <h4 className={`text-2xl font-bebas tracking-wider uppercase ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{profile.firstName} {profile.lastName}</h4>
+                  <p className="text-gold text-[10px] font-bold uppercase tracking-widest mt-1">Membre BarberGo</p>
+                </div>
+                <div className="space-y-2">
+                  <div className={`p-4 rounded-sm border flex justify-between items-center ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                    <span className="text-[10px] text-warm-gray uppercase font-bold">Email</span>
+                    <span className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{profile.email}</span>
+                  </div>
+                  <div className={`p-4 rounded-sm border flex justify-between items-center ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                    <span className="text-[10px] text-warm-gray uppercase font-bold">Mobile</span>
+                    <span className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{profile.phone}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={handleLogoutAll}
+                  className="w-full py-4 border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-all rounded-sm text-[10px] font-bold uppercase tracking-widest"
+                >
+                  Déconnexion
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
@@ -523,16 +582,16 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
 // ============================================================
 const MOCK_BIO_TEXT = "Spécialiste du dégradé américain et de la taille de barbe traditionnelle. Plusieurs années d'expérience dans les meilleurs salons de la capitale.";
 
-function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook, currentBarberUid }: {
+function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook, viewerProfile }: {
   entry: FeedEntry;
-  initialItemIdx?: number;
+  initialShowBooking?: boolean;
   theme: 'dark' | 'light';
   onClose: () => void;
   onBook: (barberId: string, item: { name: string; price: number }, dateTime: Date, note?: string) => Promise<void>;
-  currentBarberUid: string;
+  viewerProfile: UserProfile;
 }) {
   const { barber, item: entryItem, isMock, rating, city } = entry;
-  const isSelf = barber.uid === currentBarberUid;
+  const isSelf = barber.uid === viewerProfile.uid;
   const items = isMock ? [] : (barber.portfolioItems || []);
   const galleryPhotos: LightboxPhoto[] = isMock
     ? PORTFOLIO_PHOTOS.map(url => ({ url, name: entryItem.name, price: entryItem.price }))
@@ -541,27 +600,19 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook, cur
   const avatarUrl = barber.avatarUrl || (isMock ? avatarFor(barber.uid) : '');
   const bio = isMock ? MOCK_BIO_TEXT : barber.bio;
 
-  const [showBookingForm, setShowBookingForm] = useState(initialItemIdx !== undefined);
-  const [selectedItemIdx, setSelectedItemIdx] = useState(initialItemIdx ?? 0);
-  const [dateTime, setDateTime] = useState('');
-  const [note, setNote] = useState('');
-  const [booking, setBooking] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
+  const [showBooking, setShowBooking] = useState(!!initialShowBooking);
   const [lightbox, setLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null);
 
   const minPrice = isMock ? entryItem.price : (items.length > 0 ? Math.min(...items.map(i => i.price)) : (barber.basePrice || 80));
-  const bookItem = isMock ? { name: entryItem.name, price: entryItem.price } : (items[selectedItemIdx] ? { name: items[selectedItemIdx].name, price: items[selectedItemIdx].price } : { name: 'Séance', price: barber.basePrice || 0 });
 
-  const handleBook = async () => {
-    if (!dateTime) return;
-    setBooking(true);
-    try {
-      await onBook(barber.uid, bookItem, new Date(dateTime), note.trim() || undefined);
-      setConfirmed(true);
-    } catch (e) {
-      console.error('Booking failed', e);
-    }
-    setBooking(false);
+  // Same menu a client would see: this pro's own prestations list with prices, or the
+  // single realization the viewer clicked into if they haven't configured one yet.
+  const servicesForBooking: Service[] = barber.services && barber.services.length > 0
+    ? barber.services.map(s => ({ ...s, category: '' }))
+    : [{ id: 'entry', name: entryItem.name, price: entryItem.price, duration: 30, category: entryItem.category || '' }];
+
+  const handleBookingModalBook = async (serviceId: string, serviceName: string, dateTime: Date, totalPrice: number) => {
+    await onBook(barber.uid, { name: serviceName, price: totalPrice }, dateTime);
   };
 
   return (
@@ -631,7 +682,7 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook, cur
                 <button
                   key={i}
                   onClick={() => setLightbox({ photos: galleryPhotos, index: i })}
-                  className={`relative aspect-square rounded-sm overflow-hidden border-2 transition-colors ${!isMock && selectedItemIdx === i && showBookingForm ? 'border-gold' : 'border-gold/15'}`}
+                  className="relative aspect-square rounded-sm overflow-hidden border-2 border-gold/15"
                 >
                   <img src={photo.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                 </button>
@@ -645,70 +696,30 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook, cur
             <div className={`p-4 rounded-lg text-center text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'bg-black/30 text-warm-gray' : 'bg-gray-100 text-gray-400'}`}>
               Votre post
             </div>
-          ) : confirmed ? (
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-center text-emerald-400 text-xs font-bold uppercase tracking-widest">
-              Demande de réservation envoyée !
-            </div>
           ) : (
-            <>
-              <button
-                onClick={() => setShowBookingForm(v => !v)}
-                className="w-full btn-primary py-4 mt-2 flex items-center justify-center gap-3 group"
-              >
-                <CalendarDays size={18} />
-                <span className="uppercase font-bold tracking-[0.2em] text-[10px]">Prendre rendez-vous</span>
-                <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-              </button>
-
-              <AnimatePresence>
-                {showBookingForm && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mt-4 p-4 rounded-lg border border-gold/20 bg-black/20 space-y-3">
-                      <div>
-                        <label className="text-[9px] text-warm-gray uppercase font-bold mb-1 block">Style choisi</label>
-                        <div className={`px-3 py-2 rounded-lg text-xs border ${theme === 'dark' ? 'bg-black/40 border-white/10' : 'bg-white border-gray-200'}`}>
-                          {bookItem.name} — <span className="text-gold font-bold">{bookItem.price} DH</span>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-[9px] text-warm-gray uppercase font-bold mb-1 block">Date et heure</label>
-                        <input
-                          type="datetime-local"
-                          value={dateTime}
-                          onChange={(e) => setDateTime(e.target.value)}
-                          className={`w-full px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] text-warm-gray uppercase font-bold mb-1 block">Note (optionnel)</label>
-                        <textarea
-                          value={note}
-                          onChange={(e) => setNote(e.target.value)}
-                          rows={2}
-                          placeholder="Précisez vos attentes..."
-                          className={`w-full px-3 py-2 rounded-lg text-xs outline-none border resize-none ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
-                        />
-                      </div>
-                      <button
-                        onClick={handleBook}
-                        disabled={booking || !dateTime}
-                        className="w-full py-2.5 bg-emerald-500 text-black text-[10px] font-bold uppercase tracking-widest rounded-lg disabled:opacity-40"
-                      >
-                        {booking ? 'Envoi en cours...' : 'Confirmer la réservation'}
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </>
+            <button
+              onClick={() => setShowBooking(true)}
+              className="w-full btn-primary py-4 mt-2 flex items-center justify-center gap-3 group"
+            >
+              <CalendarDays size={18} />
+              <span className="uppercase font-bold tracking-[0.2em] text-[10px]">Prendre rendez-vous</span>
+              <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+            </button>
           )}
         </div>
       </motion.div>
+      {!isSelf && (
+        <BookingModal
+          isOpen={showBooking}
+          onClose={() => setShowBooking(false)}
+          barber={barber}
+          services={servicesForBooking}
+          onBook={handleBookingModalBook}
+          profile={viewerProfile}
+          onGuestRegisterAndBook={async () => {}}
+          theme={theme}
+        />
+      )}
       {lightbox && (
         <PhotoGalleryLightbox photos={lightbox.photos} initialIndex={lightbox.index} onClose={() => setLightbox(null)} />
       )}
