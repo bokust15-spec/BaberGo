@@ -345,6 +345,7 @@ export default function BarberDashboard({
               setQuickBookItemIdx(idx >= 0 ? idx : undefined);
               setViewingEntry(entry);
             }}
+            currentBarberUid={profile.uid}
           />
         )}
 
@@ -450,6 +451,7 @@ export default function BarberDashboard({
             theme={theme}
             onClose={() => { setViewingEntry(null); setQuickBookItemIdx(undefined); }}
             onBook={onBookBarber}
+            currentBarberUid={profile.uid}
           />
         )}
       </AnimatePresence>
@@ -460,13 +462,14 @@ export default function BarberDashboard({
 // ============================================================
 // TAB: ACCUEIL — feed of every other barber's realizations
 // ============================================================
-function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelectEntry, onQuickBook }: {
+function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelectEntry, onQuickBook, currentBarberUid }: {
   theme: 'dark' | 'light';
   feedItems: FeedEntry[];
   selectedCategory: string | null;
   onSelectCategory: (id: string | null) => void;
   onSelectEntry: (entry: FeedEntry) => void;
   onQuickBook: (entry: FeedEntry) => void;
+  currentBarberUid: string;
 }) {
   return (
     <div className="space-y-6 text-left">
@@ -515,12 +518,18 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
                     </div>
                   </div>
                 </button>
-                <button
-                  onClick={() => onQuickBook(entry)}
-                  className="w-full bg-gold text-black py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-gold-light transition-colors"
-                >
-                  Réserver
-                </button>
+                {barber.uid !== currentBarberUid ? (
+                  <button
+                    onClick={() => onQuickBook(entry)}
+                    className="w-full bg-gold text-black py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-gold-light transition-colors"
+                  >
+                    Réserver
+                  </button>
+                ) : (
+                  <div className={`w-full py-2 text-[10px] font-bold uppercase tracking-widest text-center ${theme === 'dark' ? 'bg-black/30 text-warm-gray' : 'bg-gray-100 text-gray-400'}`}>
+                    Votre réalisation
+                  </div>
+                )}
               </div>
             );
           })}
@@ -540,14 +549,16 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
 // ============================================================
 const MOCK_BIO_TEXT = "Spécialiste du dégradé américain et de la taille de barbe traditionnelle. Plusieurs années d'expérience dans les meilleurs salons de la capitale.";
 
-function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook }: {
+function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook, currentBarberUid }: {
   entry: FeedEntry;
   initialItemIdx?: number;
   theme: 'dark' | 'light';
   onClose: () => void;
   onBook: (barberId: string, item: { name: string; price: number }, dateTime: Date, note?: string) => Promise<void>;
+  currentBarberUid: string;
 }) {
   const { barber, item: entryItem, isMock, rating, city } = entry;
+  const isSelf = barber.uid === currentBarberUid;
   const items = isMock ? [] : (barber.portfolioItems || []);
   const galleryPhotos = isMock ? PORTFOLIO_PHOTOS : items.map(i => i.url);
   const coverUrl = isMock ? entryItem.url : barber.coverUrl;
@@ -643,7 +654,7 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook }: {
               {galleryPhotos.map((url, i) => (
                 <button
                   key={i}
-                  onClick={() => { if (!isMock) { setSelectedItemIdx(i); setShowBookingForm(true); } }}
+                  onClick={() => { if (!isMock && !isSelf) { setSelectedItemIdx(i); setShowBookingForm(true); } }}
                   className={`relative aspect-square rounded-sm overflow-hidden border-2 transition-colors ${!isMock && selectedItemIdx === i && showBookingForm ? 'border-gold' : 'border-gold/15'}`}
                 >
                   <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
@@ -654,7 +665,11 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook }: {
             <p className="text-xs text-warm-gray/50 uppercase tracking-widest text-center py-6">Aucune photo publiée pour le moment</p>
           )}
 
-          {confirmed ? (
+          {isSelf ? (
+            <div className={`p-4 rounded-lg text-center text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'bg-black/30 text-warm-gray' : 'bg-gray-100 text-gray-400'}`}>
+              Vous ne pouvez pas réserver chez vous-même
+            </div>
+          ) : confirmed ? (
             <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-center text-emerald-400 text-xs font-bold uppercase tracking-widest">
               Demande de réservation envoyée !
             </div>

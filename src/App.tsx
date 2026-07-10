@@ -224,7 +224,7 @@ export default function App() {
   };
 
   const handleBookBarber = async (barberId: string, item: { name: string; price: number }, dateTime: Date, note?: string) => {
-    if (!user) return;
+    if (!user || barberId === user.uid) return;
     await createAppointment({
       clientId: user.uid,
       clientName: profile ? `${profile.firstName} ${profile.lastName}` : 'Client Anonyme',
