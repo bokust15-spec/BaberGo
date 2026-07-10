@@ -61,6 +61,18 @@ export default function App() {
     document.body.className = theme;
   }, [theme]);
 
+  // Auto-dismiss the login/register error toast after a few seconds, in addition to
+  // the manual close button — it had no way to go away on its own before.
+  useEffect(() => {
+    if (!loginError) return;
+    const timer = setTimeout(() => clearLoginError(), 6000);
+    return () => clearTimeout(timer);
+    // clearLoginError is a fresh function identity every render (defined inline in
+    // useFirebase's return object) — depending on it would reset this timer on every
+    // re-render before it ever fires, so intentionally track loginError's value only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loginError]);
+
   // Fetch appointments relative to the role
   useEffect(() => {
     const fetchApps = async () => {
