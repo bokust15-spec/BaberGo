@@ -667,7 +667,7 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook, cur
 
           {isSelf ? (
             <div className={`p-4 rounded-lg text-center text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'bg-black/30 text-warm-gray' : 'bg-gray-100 text-gray-400'}`}>
-              Vous ne pouvez pas réserver chez vous-même
+              Votre post
             </div>
           ) : confirmed ? (
             <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-center text-emerald-400 text-xs font-bold uppercase tracking-widest">
