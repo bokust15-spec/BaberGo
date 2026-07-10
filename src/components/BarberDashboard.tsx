@@ -27,35 +27,9 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import CategoryRail from './CategoryRail';
 import { SERVICE_CATEGORIES } from '../data/categories';
+import PhotoGalleryLightbox, { LightboxPhoto } from './PhotoGalleryLightbox';
 
 const DAY_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-
-// Fullscreen photo viewer — reused wherever a cover/avatar/realization photo should
-// be viewable at full size (guests, clients and pros browsing all see the same thing).
-function PhotoLightbox({ src, onClose }: { src: string | null; onClose: () => void }) {
-  return (
-    <AnimatePresence>
-      {src && (
-        <motion.div
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm"
-        >
-          <button onClick={onClose} className="absolute top-4 right-4 text-white/70 hover:text-gold transition-colors" aria-label="Fermer">
-            <X size={28} />
-          </button>
-          <motion.img
-            initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-            src={src}
-            alt=""
-            onClick={(e) => e.stopPropagation()}
-            className="max-w-full max-h-full object-contain rounded-sm"
-          />
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
 
 interface FeedEntry {
   barber: UserProfile;
@@ -560,7 +534,9 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook, cur
   const { barber, item: entryItem, isMock, rating, city } = entry;
   const isSelf = barber.uid === currentBarberUid;
   const items = isMock ? [] : (barber.portfolioItems || []);
-  const galleryPhotos = isMock ? PORTFOLIO_PHOTOS : items.map(i => i.url);
+  const galleryPhotos: LightboxPhoto[] = isMock
+    ? PORTFOLIO_PHOTOS.map(url => ({ url, name: entryItem.name, price: entryItem.price }))
+    : items.map(i => ({ url: i.url, name: i.name, price: i.price }));
   const coverUrl = isMock ? entryItem.url : barber.coverUrl;
   const avatarUrl = barber.avatarUrl || (isMock ? avatarFor(barber.uid) : '');
   const bio = isMock ? MOCK_BIO_TEXT : barber.bio;
@@ -571,7 +547,7 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook, cur
   const [note, setNote] = useState('');
   const [booking, setBooking] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null);
 
   const minPrice = isMock ? entryItem.price : (items.length > 0 ? Math.min(...items.map(i => i.price)) : (barber.basePrice || 80));
   const bookItem = isMock ? { name: entryItem.name, price: entryItem.price } : (items[selectedItemIdx] ? { name: items[selectedItemIdx].name, price: items[selectedItemIdx].price } : { name: 'Séance', price: barber.basePrice || 0 });
@@ -598,7 +574,7 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook, cur
       >
         <div className="relative h-32 md:h-40 bg-gradient-to-br from-mid-brown to-black">
           <button
-            onClick={() => coverUrl && setLightboxSrc(coverUrl)}
+            onClick={() => coverUrl && setLightbox({ photos: [{ url: coverUrl }], index: 0 })}
             className="absolute inset-0 w-full h-full block"
           >
             {coverUrl && <img src={coverUrl} className="w-full h-full object-cover" alt="" />}
@@ -610,7 +586,7 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook, cur
         <div className="p-6 -mt-12 relative">
           <div className="flex gap-5 items-end mb-6">
             <button
-              onClick={() => avatarUrl && setLightboxSrc(avatarUrl)}
+              onClick={() => avatarUrl && setLightbox({ photos: [{ url: avatarUrl }], index: 0 })}
               className={`w-24 h-24 rounded-full border-4 shrink-0 bg-gold flex items-center justify-center overflow-hidden shadow-xl ${theme === 'dark' ? 'border-mid-brown' : 'border-white'}`}
             >
               {avatarUrl ? <img src={avatarUrl} className="w-full h-full object-cover" alt="" /> : <span className="font-bebas text-3xl text-black">{barber.firstName[0]}{barber.lastName[0]}</span>}
@@ -651,13 +627,13 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook, cur
           <div className="text-[10px] text-warm-gray uppercase tracking-widest font-bold mb-3">Réalisations</div>
           {galleryPhotos.length > 0 ? (
             <div className="grid grid-cols-4 gap-2 mb-4">
-              {galleryPhotos.map((url, i) => (
+              {galleryPhotos.map((photo, i) => (
                 <button
                   key={i}
-                  onClick={() => setLightboxSrc(url)}
+                  onClick={() => setLightbox({ photos: galleryPhotos, index: i })}
                   className={`relative aspect-square rounded-sm overflow-hidden border-2 transition-colors ${!isMock && selectedItemIdx === i && showBookingForm ? 'border-gold' : 'border-gold/15'}`}
                 >
-                  <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  <img src={photo.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                 </button>
               ))}
             </div>
@@ -733,7 +709,9 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook, cur
           )}
         </div>
       </motion.div>
-      <PhotoLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      {lightbox && (
+        <PhotoGalleryLightbox photos={lightbox.photos} initialIndex={lightbox.index} onClose={() => setLightbox(null)} />
+      )}
     </div>
   );
 }
@@ -762,7 +740,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null);
 
   const [city, setCity] = useState(profile.city || 'Casablanca');
   const [savingCity, setSavingCity] = useState(false);
@@ -1026,7 +1004,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
       {/* COVER */}
       <div className="relative h-40 md:h-52 bg-gradient-to-br from-mid-brown to-black overflow-hidden">
         {profile.coverUrl && (
-          <button onClick={() => setLightboxSrc(profile.coverUrl!)} className="absolute inset-0 w-full h-full block">
+          <button onClick={() => setLightbox({ photos: [{ url: profile.coverUrl! }], index: 0 })} className="absolute inset-0 w-full h-full block">
             <img src={profile.coverUrl} className="w-full h-full object-cover" alt="" />
           </button>
         )}
@@ -1045,7 +1023,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
         <div className="relative -mt-12 mb-4">
           <div className="relative w-24 h-24">
             <button
-              onClick={() => profile.avatarUrl && setLightboxSrc(profile.avatarUrl)}
+              onClick={() => profile.avatarUrl && setLightbox({ photos: [{ url: profile.avatarUrl }], index: 0 })}
               className={`w-24 h-24 rounded-full border-4 ${theme === 'dark' ? 'border-black' : 'border-gray-50'} bg-gold flex items-center justify-center overflow-hidden shadow-xl block`}
             >
               {profile.avatarUrl ? (
@@ -1542,8 +1520,13 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
               <div className="grid grid-cols-3 gap-2">
                 {profile.portfolioItems.map((item, i) => (
                   <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-gold/15 group">
-                    <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
-                    <div className="absolute inset-x-0 bottom-0 p-1.5 bg-black/70">
+                    <button
+                      onClick={() => setLightbox({ photos: profile.portfolioItems!.map(p => ({ url: p.url, name: p.name, price: p.price })), index: i })}
+                      className="absolute inset-0 w-full h-full"
+                    >
+                      <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
+                    </button>
+                    <div className="absolute inset-x-0 bottom-0 p-1.5 bg-black/70 pointer-events-none">
                       <p className="text-white text-[8px] truncate">{item.name}</p>
                       <p className="text-gold text-[8px] font-bold">{item.price} DH</p>
                     </div>
@@ -1565,7 +1548,9 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
           </div>
         </section>
       </div>
-      <PhotoLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      {lightbox && (
+        <PhotoGalleryLightbox photos={lightbox.photos} initialIndex={lightbox.index} onClose={() => setLightbox(null)} />
+      )}
     </div>
   );
 }

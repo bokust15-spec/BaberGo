@@ -5,6 +5,7 @@ import { UserProfile, useFirebase, Appointment } from '../hooks/useFirebase';
 import { STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, SALON_COVER_PHOTO, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
 import BookingModal from './BookingModal';
 import CategoryRail from './CategoryRail';
+import PhotoGalleryLightbox, { LightboxPhoto } from './PhotoGalleryLightbox';
 
 // A single bookable "look": either a real barber's own uploaded realization, or one
 // of the mock style-feed posts. Unified so the client search shows both the same way.
@@ -47,7 +48,16 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   const selectedBarber = selectedEntry?.barber ?? null;
   const [showBooking, setShowBooking] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null);
+  const openLightbox = (photos: LightboxPhoto[], index: number) => setLightbox({ photos, index });
+
+  // The gallery shown in "Réalisations", with each photo's own name/price when known
+  // (real portfolio items) so the fullscreen viewer can display it while browsing.
+  const realizationPhotos: LightboxPhoto[] = selectedEntry
+    ? (selectedEntry.isMock
+        ? PORTFOLIO_PHOTOS.map(url => ({ url, name: selectedEntry.item.name, price: selectedEntry.item.price }))
+        : (selectedBarber?.portfolioItems || []).map(i => ({ url: i.url, name: i.name, price: i.price })))
+    : [];
 
   // The list a client picks from when booking: the barber's own prestations menu when
   // they've prepared one, otherwise the single realization the client clicked into.
@@ -222,7 +232,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
 
               {/* COVER */}
               <button
-                onClick={() => setLightboxSrc((selectedEntry.isMock ? selectedEntry.item.url : selectedBarber.coverUrl) || SALON_COVER_PHOTO)}
+                onClick={() => openLightbox([{ url: (selectedEntry.isMock ? selectedEntry.item.url : selectedBarber.coverUrl) || SALON_COVER_PHOTO }], 0)}
                 className="h-32 md:h-40 w-full relative overflow-hidden block"
               >
                  <img src={(selectedEntry.isMock ? selectedEntry.item.url : selectedBarber.coverUrl) || SALON_COVER_PHOTO} alt="" className="w-full h-full object-cover" />
@@ -231,7 +241,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
 
               <div className="p-6 -mt-12 relative">
                  <div className="flex gap-5 items-end mb-6">
-                    <button onClick={() => setLightboxSrc(selectedBarber.avatarUrl || avatarFor(selectedBarber.uid))} className="shrink-0">
+                    <button onClick={() => openLightbox([{ url: selectedBarber.avatarUrl || avatarFor(selectedBarber.uid) }], 0)} className="shrink-0">
                       <img
                         src={selectedBarber.avatarUrl || avatarFor(selectedBarber.uid)}
                         alt={selectedBarber.firstName}
@@ -278,9 +288,9 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                  <div className="mb-8">
                    <div className="text-[10px] text-warm-gray uppercase tracking-widest font-bold mb-4">Réalisations</div>
                    <div className="grid grid-cols-4 gap-2">
-                     {(selectedEntry.isMock ? PORTFOLIO_PHOTOS : (selectedBarber.portfolioItems || []).map(i => i.url)).map((src, i) => (
-                       <button key={i} onClick={() => setLightboxSrc(src)} className="aspect-square rounded-sm overflow-hidden border border-gold/15">
-                         <img src={src} alt="" className="w-full h-full object-cover" loading="lazy" />
+                     {realizationPhotos.map((photo, i) => (
+                       <button key={i} onClick={() => openLightbox(realizationPhotos, i)} className="aspect-square rounded-sm overflow-hidden border border-gold/15">
+                         <img src={photo.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                        </button>
                      ))}
                    </div>
@@ -469,30 +479,9 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
       )}
 
       {/* FULLSCREEN PHOTO VIEWER */}
-      <AnimatePresence>
-        {lightboxSrc && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={() => setLightboxSrc(null)}
-            className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm"
-          >
-            <button
-              onClick={() => setLightboxSrc(null)}
-              className="absolute top-4 right-4 text-white/70 hover:text-gold transition-colors"
-              aria-label="Fermer"
-            >
-              <X size={28} />
-            </button>
-            <motion.img
-              initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-              src={lightboxSrc}
-              alt=""
-              onClick={(e) => e.stopPropagation()}
-              className="max-w-full max-h-full object-contain rounded-sm"
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {lightbox && (
+        <PhotoGalleryLightbox photos={lightbox.photos} initialIndex={lightbox.index} onClose={() => setLightbox(null)} />
+      )}
 
       {/* PROFILE MODAL */}
       <AnimatePresence>
