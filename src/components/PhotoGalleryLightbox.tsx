@@ -19,6 +19,8 @@ interface PhotoGalleryLightboxProps {
 // Fullscreen photo viewer with left/right navigation through the rest of the set —
 // used for cover/avatar photos (single-item) and "Réalisations" galleries (multi-item)
 // alike, for guests, clients and pros browsing any profile, including their own.
+const SWIPE_THRESHOLD = 60;
+
 export default function PhotoGalleryLightbox({ photos, initialIndex, onClose }: PhotoGalleryLightboxProps) {
   const [index, setIndex] = useState(initialIndex);
 
@@ -26,17 +28,29 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose }: 
     setIndex(initialIndex);
   }, [initialIndex]);
 
-  if (photos.length === 0) return null;
-  const current = photos[Math.min(index, photos.length - 1)];
   const hasMultiple = photos.length > 1;
 
-  const goPrev = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIndex(i => (i - 1 + photos.length) % photos.length);
-  };
-  const goNext = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIndex(i => (i + 1) % photos.length);
+  const goPrev = () => setIndex(i => (i - 1 + photos.length) % photos.length);
+  const goNext = () => setIndex(i => (i + 1) % photos.length);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'ArrowLeft' && hasMultiple) goPrev();
+      else if (e.key === 'ArrowRight' && hasMultiple) goNext();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMultiple, onClose]);
+
+  if (photos.length === 0) return null;
+  const current = photos[Math.min(index, photos.length - 1)];
+
+  const handleDragEnd = (_e: any, info: { offset: { x: number } }) => {
+    if (!hasMultiple) return;
+    if (info.offset.x > SWIPE_THRESHOLD) goPrev();
+    else if (info.offset.x < -SWIPE_THRESHOLD) goNext();
   };
 
   return (
@@ -52,7 +66,7 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose }: 
 
         {hasMultiple && (
           <button
-            onClick={goPrev}
+            onClick={(e) => { e.stopPropagation(); goPrev(); }}
             className="absolute left-2 md:left-6 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:text-gold transition-colors z-10"
             aria-label="Photo précédente"
           >
@@ -66,7 +80,11 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose }: 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.15 }}
             src={current.url}
             alt=""
-            className="max-w-full max-h-[70vh] md:max-h-[75vh] object-contain rounded-sm"
+            drag={hasMultiple ? 'x' : false}
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.7}
+            onDragEnd={handleDragEnd}
+            className="max-w-full max-h-[70vh] md:max-h-[75vh] object-contain rounded-sm cursor-grab active:cursor-grabbing touch-pan-y"
           />
           {(current.name || current.price !== undefined) && (
             <div className="flex items-center gap-3 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full">
@@ -84,7 +102,7 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose }: 
 
         {hasMultiple && (
           <button
-            onClick={goNext}
+            onClick={(e) => { e.stopPropagation(); goNext(); }}
             className="absolute right-2 md:right-6 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:text-gold transition-colors z-10"
             aria-label="Photo suivante"
           >

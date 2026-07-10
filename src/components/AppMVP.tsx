@@ -181,7 +181,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
       {/* APP TOP BAR */}
       <div className={`border-b px-4 py-3 flex items-center justify-between z-40 transition-colors duration-300 ${theme === 'dark' ? 'bg-mid-brown border-gold/20' : 'bg-white border-gray-200 shadow-sm'}`}>
          <button
-           onClick={onLogout}
+           onClick={() => { if (selectedEntry) { setSelectedEntry(null); } else { onLogout(); } }}
            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm border transition-colors text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'border-white/10 text-warm-gray hover:text-gold hover:border-gold/30' : 'border-gray-200 text-gray-500 hover:text-gold hover:border-gold/30'}`}
          >
            <ArrowLeft size={14} />
