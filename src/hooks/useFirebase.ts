@@ -142,6 +142,7 @@ export function useFirebase() {
   const [services, setServices] = useState<Service[]>([]);
   const [barbers, setBarbers] = useState<UserProfile[]>([]);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [dayVisitors, setDayVisitors] = useState(0);
   const [monthVisitors, setMonthVisitors] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -202,28 +203,40 @@ export function useFirebase() {
     return () => unsubscribeBarbers();
   }, []);
 
-  // Real monthly visitor count — one Firestore doc per month (stats/visits_YYYY-MM),
-  // counted once per browser per month via a localStorage flag, live via onSnapshot so
-  // the landing page number updates for everyone as new people arrive.
+  // Real visitor counts — one Firestore doc per day (stats/visits_YYYY-MM-DD) and one
+  // per month (stats/visits_YYYY-MM), each counted once per browser via its own
+  // localStorage flag, live via onSnapshot so both numbers update for everyone as new
+  // people arrive.
   useEffect(() => {
     const now = new Date();
+    const dayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const statsDocRef = doc(db, 'stats', `visits_${monthKey}`);
 
-    const unsubscribeVisits = onSnapshot(statsDocRef, (snap) => {
-      setMonthVisitors(snap.exists() ? (snap.data().count || 0) : 0);
-    }, (error) => {
-      console.error("Error fetching visitor count:", error);
-    });
+    const trackPeriod = (key: string, setCount: (n: number) => void) => {
+      const statsDocRef = doc(db, 'stats', `visits_${key}`);
+      const unsubscribe = onSnapshot(statsDocRef, (snap) => {
+        setCount(snap.exists() ? (snap.data().count || 0) : 0);
+      }, (error) => {
+        console.error("Error fetching visitor count:", error);
+      });
 
-    const alreadyCountedKey = `bg_visited_${monthKey}`;
-    if (!localStorage.getItem(alreadyCountedKey)) {
-      setDoc(statsDocRef, { count: increment(1) }, { merge: true })
-        .then(() => localStorage.setItem(alreadyCountedKey, '1'))
-        .catch((error) => console.error("Error registering visit:", error));
-    }
+      const alreadyCountedKey = `bg_visited_${key}`;
+      if (!localStorage.getItem(alreadyCountedKey)) {
+        setDoc(statsDocRef, { count: increment(1) }, { merge: true })
+          .then(() => localStorage.setItem(alreadyCountedKey, '1'))
+          .catch((error) => console.error("Error registering visit:", error));
+      }
 
-    return () => unsubscribeVisits();
+      return unsubscribe;
+    };
+
+    const unsubscribeDay = trackPeriod(dayKey, setDayVisitors);
+    const unsubscribeMonth = trackPeriod(monthKey, setMonthVisitors);
+
+    return () => {
+      unsubscribeDay();
+      unsubscribeMonth();
+    };
   }, []);
 
   // Seed default services/barbers on first run (demo data) — writing requires being
@@ -588,6 +601,7 @@ export function useFirebase() {
     loading,
     services,
     barbers,
+    dayVisitors,
     monthVisitors,
     isAdmin,
     loginWithEmail,

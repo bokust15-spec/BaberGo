@@ -13,6 +13,7 @@ interface LandingPageProps {
   onRegisterOpen: (role?: 'client' | 'barber') => void;
   onFindNearby: () => void;
   onSelectCategory: (categoryId: string) => void;
+  dayVisitors: number;
   monthVisitors: number;
 }
 
@@ -107,7 +108,7 @@ const TESTIMONIALS = [
   },
 ];
 
-export default function LandingPage({ onLogin, theme, profile, onEnterApp, onRegisterOpen, onFindNearby, onSelectCategory, monthVisitors }: LandingPageProps) {
+export default function LandingPage({ onLogin, theme, profile, onEnterApp, onRegisterOpen, onFindNearby, onSelectCategory, dayVisitors, monthVisitors }: LandingPageProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const galleryRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -353,10 +354,16 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
-                className="mt-6 md:mt-8 text-center"
+                className="mt-6 md:mt-8 flex justify-center gap-10 sm:gap-14"
               >
-                <div className="text-2xl md:text-4xl font-bebas text-gold leading-none mb-1">{monthVisitors.toLocaleString('fr-FR')}</div>
-                <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Visiteurs ce mois-ci</div>
+                <div className="text-center">
+                  <div className="text-2xl md:text-4xl font-bebas text-gold leading-none mb-1">{dayVisitors.toLocaleString('fr-FR')}</div>
+                  <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Visiteurs aujourd'hui</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl md:text-4xl font-bebas text-gold leading-none mb-1">{monthVisitors.toLocaleString('fr-FR')}</div>
+                  <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Visiteurs ce mois-ci</div>
+                </div>
               </motion.div>
             </div>
           </div>
