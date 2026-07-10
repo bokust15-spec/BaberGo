@@ -654,7 +654,7 @@ function BarberProfileModal({ entry, initialItemIdx, theme, onClose, onBook, cur
               {galleryPhotos.map((url, i) => (
                 <button
                   key={i}
-                  onClick={() => { if (!isMock && !isSelf) { setSelectedItemIdx(i); setShowBookingForm(true); } }}
+                  onClick={() => setLightboxSrc(url)}
                   className={`relative aspect-square rounded-sm overflow-hidden border-2 transition-colors ${!isMock && selectedItemIdx === i && showBookingForm ? 'border-gold' : 'border-gold/15'}`}
                 >
                   <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
