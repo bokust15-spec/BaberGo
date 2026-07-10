@@ -48,7 +48,6 @@ export default function App() {
     getKycSubmission,
     approveBarberKyc,
     rejectBarberKyc,
-    settleCommission,
     addPortfolioItem,
     removePortfolioItem,
     updateAvailability,
@@ -291,7 +290,6 @@ export default function App() {
           getKycSubmission={getKycSubmission}
           approveBarberKyc={approveBarberKyc}
           rejectBarberKyc={rejectBarberKyc}
-          settleCommission={settleCommission}
         />
       );
     }

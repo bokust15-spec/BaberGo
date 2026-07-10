@@ -103,12 +103,10 @@ export default function BarberDashboard({
   onSubmitKycDossier
 }: BarberDashboardProps) {
   const [activeTab, setActiveTab] = useState<'home' | 'profile' | 'bookings'>('home');
-  const [showPayModal, setShowPayModal] = useState(false);
   const [kycCinUrl, setKycCinUrl] = useState<string | null>(null);
   const [kycSelfieUrl, setKycSelfieUrl] = useState<string | null>(null);
   const [uploadingCin, setUploadingCin] = useState(false);
   const [uploadingSelfie, setUploadingSelfie] = useState(false);
-  const [submittingKyc, setSubmittingKyc] = useState(false);
   const [viewingEntry, setViewingEntry] = useState<FeedEntry | null>(null);
   const [quickBookRequested, setQuickBookRequested] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -122,12 +120,9 @@ export default function BarberDashboard({
   };
 
   const kycStatus = profile.kycStatus || 'unverified';
-  const unpaidCount = profile.unpaidCommissionsCount || 0;
-  const commissionsOwed = profile.totalCommissionsOwed || 0;
-  const isBlockedByCommissions = unpaidCount > 3;
   const hasPhone = !!profile.phone;
   const profileIncomplete = !hasPhone || kycStatus !== 'verified';
-  const isBlocked = isBlockedByCommissions || profileIncomplete;
+  const isBlocked = profileIncomplete;
 
   const handleSavePhone = async () => {
     if (!phoneInput.trim()) return;
@@ -290,20 +285,6 @@ export default function BarberDashboard({
           </div>
         )}
 
-        {isBlockedByCommissions && (
-          <div className="mb-6 p-5 bg-red-500/10 border border-red-500/20 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-warm-gray leading-relaxed">
-              Solde de commissions dû : <strong className="text-red-400">{commissionsOwed} DH</strong>. Réglez-le pour débloquer l'acceptation de réservations.
-            </p>
-            <button
-              onClick={() => setShowPayModal(true)}
-              className="px-5 py-2.5 bg-gold text-black text-[10px] font-bold uppercase tracking-widest rounded-lg shrink-0"
-            >
-              Régler ma facture
-            </button>
-          </div>
-        )}
-
         {activeTab === 'home' && (
           <HomeTab
             theme={theme}
@@ -363,41 +344,6 @@ export default function BarberDashboard({
           ))}
         </div>
       </nav>
-
-      {/* MODAL: PAY COMMISSION */}
-      <AnimatePresence>
-        {showPayModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className={`w-full max-w-sm p-6 rounded-xl border text-left ${theme === 'dark' ? 'bg-mid-brown border-gold/30' : 'bg-white border-gray-200'}`}
-            >
-              <h3 className="font-bebas text-xl text-gold uppercase tracking-widest mb-2">Règlement de commission</h3>
-              <p className="text-xs text-warm-gray leading-relaxed mb-4">
-                Le paiement en ligne n'est pas encore disponible. Contactez l'équipe BarberGo pour régulariser votre solde ; votre compte sera débloqué dès réception du règlement.
-              </p>
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between text-xs border-b border-white/5 pb-2">
-                  <span>Séances impayées :</span>
-                  <strong>{unpaidCount} interventions</strong>
-                </div>
-                <div className="flex justify-between text-sm font-bold">
-                  <span>Montant :</span>
-                  <span className="text-gold">{commissionsOwed} DH</span>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowPayModal(false)}
-                className="w-full py-3 border border-white/10 text-warm-gray text-[10px] font-bold uppercase tracking-widest rounded-lg"
-              >
-                Fermer
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* MODAL: VIEW BARBER PROFILE + BOOK */}
       <AnimatePresence>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, ShieldCheck, FileImage, Check, X as XIcon, Banknote } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, FileImage, Check, X as XIcon } from 'lucide-react';
 import { UserProfile } from '../hooks/useFirebase';
 
 interface KycSubmission {
@@ -15,15 +15,13 @@ interface AdminPanelProps {
   getKycSubmission: (barberUid: string) => Promise<KycSubmission | null>;
   approveBarberKyc: (barberUid: string) => Promise<void>;
   rejectBarberKyc: (barberUid: string) => Promise<void>;
-  settleCommission: (barberUid: string) => Promise<void>;
 }
 
-export default function AdminPanel({ barbers, theme, onClose, getKycSubmission, approveBarberKyc, rejectBarberKyc, settleCommission }: AdminPanelProps) {
+export default function AdminPanel({ barbers, theme, onClose, getKycSubmission, approveBarberKyc, rejectBarberKyc }: AdminPanelProps) {
   const [dossiers, setDossiers] = useState<Record<string, KycSubmission | null>>({});
   const [busyUid, setBusyUid] = useState<string | null>(null);
 
   const pendingKyc = barbers.filter(b => b.kycStatus === 'pending');
-  const owingCommission = barbers.filter(b => (b.unpaidCommissionsCount || 0) > 0);
 
   useEffect(() => {
     pendingKyc.forEach(b => {
@@ -43,12 +41,6 @@ export default function AdminPanel({ barbers, theme, onClose, getKycSubmission, 
   const handleReject = async (uid: string) => {
     setBusyUid(uid);
     try { await rejectBarberKyc(uid); } catch (e) { console.error(e); }
-    setBusyUid(null);
-  };
-
-  const handleSettle = async (uid: string) => {
-    setBusyUid(uid);
-    try { await settleCommission(uid); } catch (e) { console.error(e); }
     setBusyUid(null);
   };
 
@@ -119,31 +111,6 @@ export default function AdminPanel({ barbers, theme, onClose, getKycSubmission, 
                   </div>
                 );
               })}
-            </div>
-          )}
-        </section>
-
-        <section>
-          <h2 className="font-bebas text-lg tracking-widest text-gold uppercase mb-4">Commissions dues ({owingCommission.length})</h2>
-          {owingCommission.length === 0 ? (
-            <p className="text-xs text-warm-gray">Aucun solde en attente.</p>
-          ) : (
-            <div className="space-y-3">
-              {owingCommission.map(b => (
-                <div key={b.uid} className={`p-4 rounded-xl border flex items-center justify-between ${cardClass}`}>
-                  <div>
-                    <p className="text-sm font-bold">{b.firstName} {b.lastName}</p>
-                    <p className="text-[10px] text-warm-gray">{b.unpaidCommissionsCount || 0} interventions — <span className="text-gold font-bold">{b.totalCommissionsOwed || 0} DH</span></p>
-                  </div>
-                  <button
-                    disabled={busyUid === b.uid}
-                    onClick={() => handleSettle(b.uid)}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-gold text-black text-[9px] font-bold uppercase tracking-widest rounded-lg hover:bg-gold-light disabled:opacity-40"
-                  >
-                    <Banknote size={12} /> Marquer comme payé
-                  </button>
-                </div>
-              ))}
             </div>
           )}
         </section>

@@ -53,8 +53,6 @@ export interface UserProfile {
   kycStatus?: 'unverified' | 'pending' | 'verified';
   kycCinUrl?: string;
   kycSelfieUrl?: string;
-  unpaidCommissionsCount?: number;
-  totalCommissionsOwed?: number;
   bio?: string;
   city?: string;
   avatarUrl?: string;
@@ -526,10 +524,6 @@ export function useFirebase() {
     await updateDoc(doc(db, 'users', barberUid), { kycStatus: 'unverified' });
   };
 
-  const settleCommission = async (barberUid: string) => {
-    await updateDoc(doc(db, 'users', barberUid), { unpaidCommissionsCount: 0, totalCommissionsOwed: 0 });
-  };
-
   const addPortfolioItem = async (file: File, name: string, price: number, category?: string) => {
     if (!user) return;
     const path = `portfolios/${user.uid}/${Date.now()}-${file.name}`;
@@ -617,7 +611,6 @@ export function useFirebase() {
     getKycSubmission,
     approveBarberKyc,
     rejectBarberKyc,
-    settleCommission,
     addPortfolioItem,
     removePortfolioItem,
     updateAvailability,

@@ -55,20 +55,15 @@ service cloud.firestore {
         && (!('nightEnabled' in data) || data.nightEnabled is bool)
         && (!('nightStartHour' in data) || isNum(data.nightStartHour))
         && (!('nightPrice' in data) || isNum(data.nightPrice))
-        && (!('kycStatus' in data) || data.kycStatus in ['unverified', 'pending', 'verified'])
-        && (!('unpaidCommissionsCount' in data) || isNum(data.unpaidCommissionsCount))
-        && (!('totalCommissionsOwed' in data) || isNum(data.totalCommissionsOwed));
+        && (!('kycStatus' in data) || data.kycStatus in ['unverified', 'pending', 'verified']);
       // Note: the CIN/selfie file URLs live in kycSubmissions/{uid}, not here — this
       // users document is publicly readable (guests browse profiles), so it must never
       // hold a link to someone's identity documents.
     }
 
-    // A brand new account may only self-declare as unverified/pending (never
-    // 'verified') and must start with zero commission debt.
+    // A brand new account may only self-declare as unverified/pending, never 'verified'.
     function isValidKycOnCreate(data) {
-      return (!('kycStatus' in data) || data.kycStatus in ['unverified', 'pending'])
-        && (!('unpaidCommissionsCount' in data) || data.unpaidCommissionsCount == 0)
-        && (!('totalCommissionsOwed' in data) || data.totalCommissionsOwed == 0);
+      return !('kycStatus' in data) || data.kycStatus in ['unverified', 'pending'];
     }
 
     function isValidNewUser(data) {
@@ -125,18 +120,17 @@ service cloud.firestore {
       allow list: if isSignedIn() || resource.data.role == 'barber';
       allow create: if isOwner(userId) && isValidNewUser(request.resource.data);
 
-      // The owner can update everything about their own profile EXCEPT KYC/commission
-      // fields, which they can only move from unverified/none -> pending (submitting a
-      // dossier) — never to 'verified', and never touch the commission fields at all.
-      // Only an admin (see isAdmin() above) can grant 'verified' or settle a commission
-      // balance, which is what makes the "vérifié" badge and commission debt trustworthy.
+      // The owner can update everything about their own profile EXCEPT kycStatus, which
+      // they can only move from unverified/none -> pending (submitting a dossier) —
+      // never to 'verified'. Only an admin (see isAdmin() above) can grant 'verified',
+      // which is what makes the "vérifié" badge trustworthy.
       allow update: if
         (isOwner(userId)
           && isValidUserFields(request.resource.data)
           && request.resource.data.role == resource.data.role
           && request.resource.data.createdAt == resource.data.createdAt
           && (
-            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['kycStatus', 'unpaidCommissionsCount', 'totalCommissionsOwed'])
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['kycStatus'])
             || (
               request.resource.data.diff(resource.data).affectedKeys().hasOnly(['kycStatus'])
               && isSubmittingKyc(resource.data, request.resource.data)
@@ -145,10 +139,8 @@ service cloud.firestore {
         )
         || (isAdmin()
           && resource.data.role == 'barber'
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['kycStatus', 'unpaidCommissionsCount', 'totalCommissionsOwed'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['kycStatus'])
           && request.resource.data.kycStatus in ['unverified', 'pending', 'verified']
-          && isNum(request.resource.data.unpaidCommissionsCount)
-          && isNum(request.resource.data.totalCommissionsOwed)
         );
     }
 

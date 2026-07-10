@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, X, Users, Scissors, Phone, Mail, Lock, ChevronRight, Check, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, X, Users, Scissors, Phone, Mail, Lock, ChevronRight, AlertTriangle } from 'lucide-react';
 
 interface RegisterModalProps {
   isOpen: boolean;
@@ -21,8 +21,6 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
     confirmPassword: '',
     role: 'client' as 'client' | 'barber'
   });
-  const [cinFile, setCinFile] = useState<string | null>(null);
-  const [selfieFile, setSelfieFile] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,17 +47,7 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
     setLoading(true);
     try {
       const { confirmPassword, ...rest } = formData;
-      const payload = {
-        ...rest,
-        ...(formData.role === 'barber' ? {
-          kycStatus: cinFile && selfieFile ? 'pending' : 'unverified',
-          kycCinUrl: cinFile ? 'https://barbergo.ma/simulated/cin.jpg' : '',
-          kycSelfieUrl: selfieFile ? 'https://barbergo.ma/simulated/selfie.jpg' : '',
-          unpaidCommissionsCount: 0,
-          totalCommissionsOwed: 0,
-        } : {})
-      };
-      await onRegister(payload);
+      await onRegister(rest);
     } catch (err) {
       console.error(err);
       setError("L'inscription a échoué. Vérifiez vos informations et réessayez.");
@@ -198,7 +186,7 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
                   </div>
                   {roleLocked && (
                     <p className="text-[9px] text-warm-gray/60 mt-1 leading-relaxed">
-                      À renseigner avant d'accepter une réservation, comme la CIN et le selfie de vérification.
+                      À renseigner depuis ton tableau de bord avant de pouvoir accepter des réservations, avec ta CIN et un selfie de vérification.
                     </p>
                   )}
                 </div>
@@ -261,55 +249,6 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
                 <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
-            )}
-
-            {formData.role === 'barber' && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`p-4 rounded-xl border space-y-3 ${theme === 'dark' ? 'bg-black/40 border-gold/20' : 'bg-gray-50 border-gray-200'}`}
-              >
-                <h4 className="text-[10px] text-gold uppercase tracking-widest font-bold flex items-center gap-2">
-                  <ShieldCheck size={14} /> Vérification KYC obligatoire (Maroc)
-                </h4>
-                <p className="text-[9px] text-warm-gray leading-relaxed">
-                  Conformément aux normes réglementaires de BarberGo, les professionnels indépendants doivent téléverser leurs documents officiels pour être autorisés à opérer à Casablanca.
-                </p>
-
-                {/* CIN Upload Box */}
-                <div className="space-y-1">
-                  <span className="text-[9px] text-warm-gray uppercase font-bold block">1. Pièce d'identité (CIN recto/verso)</span>
-                  <button
-                    type="button"
-                    onClick={() => setCinFile('CIN_Maroc_CNIE.pdf')}
-                    className={`w-full p-3 border border-dashed rounded-lg flex items-center justify-between text-xs transition-colors ${
-                      cinFile
-                        ? 'border-emerald-500 bg-emerald-500/5 text-emerald-400 font-semibold'
-                        : 'border-white/10 hover:border-gold/50 text-warm-gray'
-                    }`}
-                  >
-                    <span className="truncate">{cinFile || 'Glisser ou cliquer pour charger la CIN (.pdf, .jpg)'}</span>
-                    {cinFile && <Check size={14} className="shrink-0 text-emerald-400" />}
-                  </button>
-                </div>
-
-                {/* Selfie Upload Box */}
-                <div className="space-y-1">
-                  <span className="text-[9px] text-warm-gray uppercase font-bold block">2. Selfie de validation en direct</span>
-                  <button
-                    type="button"
-                    onClick={() => setSelfieFile('selfie_validation.jpg')}
-                    className={`w-full p-3 border border-dashed rounded-lg flex items-center justify-between text-xs transition-colors ${
-                      selfieFile
-                        ? 'border-emerald-500 bg-emerald-500/5 text-emerald-400 font-semibold'
-                        : 'border-white/10 hover:border-gold/50 text-warm-gray'
-                    }`}
-                  >
-                    <span className="truncate">{selfieFile || 'Prendre ou charger un Selfie de validation'}</span>
-                    {selfieFile && <Check size={14} className="shrink-0 text-emerald-400" />}
-                  </button>
-                </div>
-              </motion.div>
             )}
 
             <button
