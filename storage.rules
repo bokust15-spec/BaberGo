@@ -32,6 +32,23 @@ service firebase.storage {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // KYC documents (CIN + selfie) — identity documents, never public.
+    // Storage rules can only cross-check the *default* Firestore database, and this
+    // project uses a named database, so we can't verify admin status here the way
+    // firestore.rules does for the admins/{uid} collection. As a floor, at least
+    // require sign-in (unlike the fully public portfolio/avatar/cover paths above);
+    // the real protection is that the download URL itself is only ever exposed via
+    // the private kycSubmissions/{uid} Firestore doc, readable solely by the owning
+    // barber and admins — so nobody else ever learns this file's URL to begin with.
+    match /kyc/{userId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Deny everything else by default.
     match /{allPaths=**} {
       allow read, write: if false;

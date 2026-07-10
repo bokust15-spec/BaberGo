@@ -15,6 +15,12 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // A user is an admin if they own a document in admins/{uid} — that document can
+    // only be created manually in the Firebase Console, never by client code.
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -27,7 +33,7 @@ service cloud.firestore {
     // since on update createdAt must stay equal to its original value, not "now").
     function isValidUserFields(data) {
       return data.keys().hasAll(['firstName', 'lastName', 'gender', 'phone', 'email', 'role', 'createdAt'])
-        && data.keys().size() >= 7 && data.keys().size() <= 28
+        && data.keys().size() >= 7 && data.keys().size() <= 30
         && data.firstName is string && data.firstName.size() >= 1 && data.firstName.size() <= 100
         // lastName may be empty — a guest completing a booking only has to give a first name and email.
         && data.lastName is string && data.lastName.size() <= 100
@@ -48,11 +54,40 @@ service cloud.firestore {
         && (!('basePrice' in data) || isNum(data.basePrice))
         && (!('nightEnabled' in data) || data.nightEnabled is bool)
         && (!('nightStartHour' in data) || isNum(data.nightStartHour))
-        && (!('nightPrice' in data) || isNum(data.nightPrice));
+        && (!('nightPrice' in data) || isNum(data.nightPrice))
+        && (!('kycStatus' in data) || data.kycStatus in ['unverified', 'pending', 'verified'])
+        && (!('unpaidCommissionsCount' in data) || isNum(data.unpaidCommissionsCount))
+        && (!('totalCommissionsOwed' in data) || isNum(data.totalCommissionsOwed));
+      // Note: the CIN/selfie file URLs live in kycSubmissions/{uid}, not here — this
+      // users document is publicly readable (guests browse profiles), so it must never
+      // hold a link to someone's identity documents.
+    }
+
+    // A brand new account may only self-declare as unverified/pending (never
+    // 'verified') and must start with zero commission debt.
+    function isValidKycOnCreate(data) {
+      return (!('kycStatus' in data) || data.kycStatus in ['unverified', 'pending'])
+        && (!('unpaidCommissionsCount' in data) || data.unpaidCommissionsCount == 0)
+        && (!('totalCommissionsOwed' in data) || data.totalCommissionsOwed == 0);
     }
 
     function isValidNewUser(data) {
-      return isValidUserFields(data) && data.createdAt == request.time;
+      return isValidUserFields(data) && data.createdAt == request.time && isValidKycOnCreate(data);
+    }
+
+    // The owner may submit a KYC dossier (unverified/none -> pending) but can never
+    // grant themselves 'verified' status this way.
+    function isSubmittingKyc(before, after) {
+      return (!('kycStatus' in before) || before.kycStatus != 'verified')
+        && after.kycStatus == 'pending';
+    }
+
+    function isValidKycSubmission(data) {
+      return data.keys().hasAll(['cinUrl', 'selfieUrl', 'submittedAt'])
+        && data.keys().size() == 3
+        && data.cinUrl is string && data.cinUrl.size() > 0
+        && data.selfieUrl is string && data.selfieUrl.size() > 0
+        && data.submittedAt == request.time;
     }
 
     function isValidService(data) {
@@ -89,10 +124,48 @@ service cloud.firestore {
       allow get: if isSignedIn() || resource.data.role == 'barber';
       allow list: if isSignedIn() || resource.data.role == 'barber';
       allow create: if isOwner(userId) && isValidNewUser(request.resource.data);
-      allow update: if isOwner(userId)
-        && isValidUserFields(request.resource.data)
-        && request.resource.data.role == resource.data.role
-        && request.resource.data.createdAt == resource.data.createdAt;
+
+      // The owner can update everything about their own profile EXCEPT KYC/commission
+      // fields, which they can only move from unverified/none -> pending (submitting a
+      // dossier) — never to 'verified', and never touch the commission fields at all.
+      // Only an admin (see isAdmin() above) can grant 'verified' or settle a commission
+      // balance, which is what makes the "vérifié" badge and commission debt trustworthy.
+      allow update: if
+        (isOwner(userId)
+          && isValidUserFields(request.resource.data)
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.createdAt == resource.data.createdAt
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['kycStatus', 'unpaidCommissionsCount', 'totalCommissionsOwed'])
+            || (
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['kycStatus'])
+              && isSubmittingKyc(resource.data, request.resource.data)
+            )
+          )
+        )
+        || (isAdmin()
+          && resource.data.role == 'barber'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['kycStatus', 'unpaidCommissionsCount', 'totalCommissionsOwed'])
+          && request.resource.data.kycStatus in ['unverified', 'pending', 'verified']
+          && isNum(request.resource.data.unpaidCommissionsCount)
+          && isNum(request.resource.data.totalCommissionsOwed)
+        );
+    }
+
+    // Admin allowlist — one document per admin UID, created manually in the Firebase
+    // Console only (never writable by client code). A user may read their own doc to
+    // decide whether to show the admin panel, but cannot list others or write at all.
+    match /admins/{adminId} {
+      allow get: if isOwner(adminId);
+      allow list, write: if false;
+    }
+
+    // KYC dossiers (CIN + selfie URLs) — kept out of the public users/ document on
+    // purpose. Only the barber themself and admins can read it.
+    match /kycSubmissions/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update: if isOwner(userId) && isValidKycSubmission(request.resource.data);
     }
 
     // Services (Menu) — public so guests can browse prestations before signing in.

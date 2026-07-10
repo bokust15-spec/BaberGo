@@ -23,8 +23,6 @@ import {
 } from 'lucide-react';
 import { Appointment, UserProfile, Service, PortfolioItem, BarberService } from '../hooks/useFirebase';
 import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, mockBarberFromPost, CITY_COORDS } from '../data/mockBarberFeed';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import CategoryRail from './CategoryRail';
 import { SERVICE_CATEGORIES } from '../data/categories';
 import PhotoGalleryLightbox, { LightboxPhoto } from './PhotoGalleryLightbox';
@@ -77,6 +75,8 @@ interface BarberDashboardProps {
   onUpdateCategories: (categories: string[]) => Promise<void>;
   onUpdateServices: (services: BarberService[]) => Promise<void>;
   onBookBarber: (barberId: string, item: { name: string; price: number }, dateTime: Date, note?: string) => Promise<void>;
+  onUploadKycFile: (file: File, type: 'cin' | 'selfie') => Promise<string | undefined>;
+  onSubmitKycDossier: (cinUrl: string, selfieUrl: string) => Promise<void>;
 }
 
 export default function BarberDashboard({
@@ -98,13 +98,16 @@ export default function BarberDashboard({
   onUpdateAvailability,
   onUpdateCategories,
   onUpdateServices,
-  onBookBarber
+  onBookBarber,
+  onUploadKycFile,
+  onSubmitKycDossier
 }: BarberDashboardProps) {
   const [activeTab, setActiveTab] = useState<'home' | 'profile' | 'bookings'>('home');
   const [showPayModal, setShowPayModal] = useState(false);
-  const [isPaying, setIsPaying] = useState(false);
-  const [kycCinLoaded, setKycCinLoaded] = useState(false);
-  const [kycSelfieLoaded, setKycSelfieLoaded] = useState(false);
+  const [kycCinUrl, setKycCinUrl] = useState<string | null>(null);
+  const [kycSelfieUrl, setKycSelfieUrl] = useState<string | null>(null);
+  const [uploadingCin, setUploadingCin] = useState(false);
+  const [uploadingSelfie, setUploadingSelfie] = useState(false);
   const [submittingKyc, setSubmittingKyc] = useState(false);
   const [viewingEntry, setViewingEntry] = useState<FeedEntry | null>(null);
   const [quickBookRequested, setQuickBookRequested] = useState(false);
@@ -137,52 +140,31 @@ export default function BarberDashboard({
     setSavingPhone(false);
   };
 
-  const handleUpdateProfile = async (updates: Partial<UserProfile>) => {
+  const handleKycFileSelected = async (type: 'cin' | 'selfie', file: File) => {
+    const setUploading = type === 'cin' ? setUploadingCin : setUploadingSelfie;
+    const setUrl = type === 'cin' ? setKycCinUrl : setKycSelfieUrl;
+    setUploading(true);
     try {
-      const ref = doc(db, 'users', profile.uid);
-      await updateDoc(ref, updates);
-      window.location.reload();
+      const url = await onUploadKycFile(file, type);
+      if (url) {
+        setUrl(url);
+        const otherUrl = type === 'cin' ? kycSelfieUrl : kycCinUrl;
+        if (otherUrl) {
+          await onSubmitKycDossier(type === 'cin' ? url : otherUrl, type === 'cin' ? otherUrl : url);
+        }
+      }
     } catch (e) {
-      console.error('Error updating profile: ', e);
+      console.error('Error uploading KYC file:', e);
     }
+    setUploading(false);
   };
 
-  const handlePayBalance = async () => {
-    setIsPaying(true);
-    setTimeout(async () => {
-      await handleUpdateProfile({
-        unpaidCommissionsCount: 0,
-        totalCommissionsOwed: 0
-      });
-      setIsPaying(false);
-      setShowPayModal(false);
-    }, 1500);
-  };
-
-  const handleUploadKycFiles = async () => {
-    setSubmittingKyc(true);
-    setTimeout(async () => {
-      await handleUpdateProfile({
-        kycStatus: 'pending',
-        kycCinUrl: 'https://barbergo.ma/simulated/cnie_maroc.jpg',
-        kycSelfieUrl: 'https://barbergo.ma/simulated/selfie_maroc.jpg'
-      });
-      setSubmittingKyc(false);
-    }, 1500);
-  };
-
-  const handleSimulateAdminApprove = async () => {
-    await handleUpdateProfile({ kycStatus: 'verified' });
-  };
-
+  // Commission tracking (calcul automatique à la fin d'une prestation) sera géré côté
+  // serveur par une Cloud Function dans une prochaine phase — les règles Firestore
+  // interdisent désormais au barbier de modifier ses propres champs de commission.
   const handleCompleteSession = async (app: Appointment) => {
     if (!onUpdateAppointment) return;
-    const commission = Math.round(app.totalPrice * 0.08);
     await onUpdateAppointment(app.id, { status: 'completed' });
-    await handleUpdateProfile({
-      unpaidCommissionsCount: unpaidCount + 1,
-      totalCommissionsOwed: commissionsOwed + commission
-    });
   };
 
   // The Accueil feed shows every real barber's uploaded work — including the
@@ -271,41 +253,38 @@ export default function BarberDashboard({
 
             {kycStatus === 'unverified' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <button
-                  onClick={() => setKycCinLoaded(true)}
-                  className={`p-3 border border-dashed rounded-lg text-left flex items-center justify-between text-xs transition-colors ${
-                    kycCinLoaded ? 'border-emerald-500 text-emerald-400 bg-emerald-500/5' : 'border-white/10 hover:border-gold/30 text-warm-gray'
+                <label
+                  className={`p-3 border border-dashed rounded-lg text-left flex items-center justify-between text-xs transition-colors cursor-pointer ${
+                    kycCinUrl ? 'border-emerald-500 text-emerald-400 bg-emerald-500/5' : 'border-white/10 hover:border-gold/30 text-warm-gray'
                   }`}
                 >
-                  <span>{kycCinLoaded ? '✔ CIN chargée' : '📁 Téléverser votre CIN'}</span>
-                </button>
-                <button
-                  onClick={() => setKycSelfieLoaded(true)}
-                  className={`p-3 border border-dashed rounded-lg text-left flex items-center justify-between text-xs transition-colors ${
-                    kycSelfieLoaded ? 'border-emerald-500 text-emerald-400 bg-emerald-500/5' : 'border-white/10 hover:border-gold/30 text-warm-gray'
+                  <span>{uploadingCin ? 'Envoi en cours...' : kycCinUrl ? '✔ CIN téléversée' : '📁 Téléverser votre CIN'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploadingCin}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleKycFileSelected('cin', f); }}
+                  />
+                </label>
+                <label
+                  className={`p-3 border border-dashed rounded-lg text-left flex items-center justify-between text-xs transition-colors cursor-pointer ${
+                    kycSelfieUrl ? 'border-emerald-500 text-emerald-400 bg-emerald-500/5' : 'border-white/10 hover:border-gold/30 text-warm-gray'
                   }`}
                 >
-                  <span>{kycSelfieLoaded ? '✔ Selfie chargé' : '📁 Prendre un Selfie'}</span>
-                </button>
-                {kycCinLoaded && kycSelfieLoaded && (
-                  <button
-                    onClick={handleUploadKycFiles}
-                    disabled={submittingKyc}
-                    className="md:col-span-2 py-3 bg-gold text-black text-[10px] uppercase font-bold tracking-widest hover:bg-gold-light rounded-lg font-sans"
-                  >
-                    {submittingKyc ? 'Enregistrement en cours...' : "Soumettre mon dossier d'identité"}
-                  </button>
-                )}
+                  <span>{uploadingSelfie ? 'Envoi en cours...' : kycSelfieUrl ? '✔ Selfie téléversé' : '📁 Téléverser un Selfie'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploadingSelfie}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleKycFileSelected('selfie', f); }}
+                  />
+                </label>
               </div>
             ) : kycStatus === 'pending' ? (
-              <div className="flex flex-col sm:flex-row items-center gap-3 bg-amber-500/5 p-3 rounded-lg border border-amber-500/10">
-                <p className="text-xs text-warm-gray">Dossier à l'examen. Statut : <strong>Examen instantané</strong>.</p>
-                <button
-                  onClick={handleSimulateAdminApprove}
-                  className="w-full sm:w-auto px-4 py-2 bg-emerald-500 text-black text-[9px] uppercase font-bold tracking-widest rounded-lg hover:bg-emerald-600 transition-colors"
-                >
-                  Simuler la validation admin
-                </button>
+              <div className="flex items-center gap-3 bg-amber-500/5 p-3 rounded-lg border border-amber-500/10">
+                <p className="text-xs text-warm-gray">Dossier en cours d'examen par l'équipe BarberGo (24–48h).</p>
               </div>
             ) : null}
           </div>
@@ -397,7 +376,7 @@ export default function BarberDashboard({
             >
               <h3 className="font-bebas text-xl text-gold uppercase tracking-widest mb-2">Règlement de commission</h3>
               <p className="text-xs text-warm-gray leading-relaxed mb-4">
-                Payez vos frais (8%) par carte pour débloquer immédiatement votre compte.
+                Le paiement en ligne n'est pas encore disponible. Contactez l'équipe BarberGo pour régulariser votre solde ; votre compte sera débloqué dès réception du règlement.
               </p>
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-xs border-b border-white/5 pb-2">
@@ -409,22 +388,12 @@ export default function BarberDashboard({
                   <span className="text-gold">{commissionsOwed} DH</span>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button
-                  disabled={isPaying}
-                  onClick={handlePayBalance}
-                  className="flex-1 py-3 bg-gold text-black text-[10px] font-bold uppercase tracking-widest hover:bg-gold-light transition-all rounded-lg font-sans"
-                >
-                  {isPaying ? 'Transaction en cours...' : `Payer ${commissionsOwed} DH`}
-                </button>
-                <button
-                  disabled={isPaying}
-                  onClick={() => setShowPayModal(false)}
-                  className="px-4 py-3 border border-white/10 text-warm-gray text-[10px] font-bold uppercase tracking-widest rounded-lg"
-                >
-                  Annuler
-                </button>
-              </div>
+              <button
+                onClick={() => setShowPayModal(false)}
+                className="w-full py-3 border border-white/10 text-warm-gray text-[10px] font-bold uppercase tracking-widest rounded-lg"
+              >
+                Fermer
+              </button>
             </motion.div>
           </div>
         )}
@@ -649,7 +618,7 @@ function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook,
             <div className="flex-1 pb-1 min-w-0">
               <h3 className={`text-2xl font-bebas tracking-wider mb-1 uppercase flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                 {barber.firstName} {barber.lastName}
-                <BadgeCheck size={18} className="text-gold shrink-0" />
+                {barber.kycStatus === 'verified' && <BadgeCheck size={18} className="text-gold shrink-0" />}
               </h3>
               <p className="text-gold text-xs uppercase tracking-widest font-bold mb-1">{barber.gender === 'femme' ? 'Professionnelle Beauté' : 'Professionnel Beauté'}</p>
               <p className="text-warm-gray text-[10px] uppercase tracking-widest flex items-center gap-1">

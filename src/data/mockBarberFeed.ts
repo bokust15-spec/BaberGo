@@ -233,5 +233,8 @@ export function mockBarberFromPost(post: StylePost): UserProfile {
     email: 'contact@barbergo.ma',
     role: 'barber',
     createdAt: null,
+    // Demo/showcase profiles, not real user accounts — shown as verified since they're
+    // curated content, unlike real barbers whose badge depends on an actual KYC review.
+    kycStatus: 'verified',
   };
 }

@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Sun, Moon, AlertTriangle, X } from 'lucide-react';
+import { Sun, Moon, AlertTriangle, X, ShieldCheck } from 'lucide-react';
 import LandingPage from './components/LandingPage';
 import AppMVP from './components/AppMVP';
 import RegisterModal from './components/RegisterModal';
 import LoginModal from './components/LoginModal';
 import ProfilePage from './components/ProfilePage';
 import BarberDashboard from './components/BarberDashboard';
+import AdminPanel from './components/AdminPanel';
 import { useFirebase, Appointment } from './hooks/useFirebase';
 
 export default function App() {
-  const [view, setView] = useState<'landing' | 'app' | 'profile'>('landing');
+  const [view, setView] = useState<'landing' | 'app' | 'profile' | 'admin'>('landing');
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -26,6 +27,7 @@ export default function App() {
     services,
     barbers,
     todayVisitors,
+    isAdmin,
     loginWithEmail,
     loginError,
     clearLoginError,
@@ -40,6 +42,12 @@ export default function App() {
     updateCity,
     uploadAvatar,
     uploadCover,
+    uploadKycFile,
+    submitKycDossier,
+    getKycSubmission,
+    approveBarberKyc,
+    rejectBarberKyc,
+    settleCommission,
     addPortfolioItem,
     removePortfolioItem,
     updateAvailability,
@@ -273,6 +281,20 @@ export default function App() {
   };
 
   const renderCurrentView = () => {
+    if (view === 'admin' && isAdmin) {
+      return (
+        <AdminPanel
+          barbers={barbers}
+          theme={theme}
+          onClose={() => setView('landing')}
+          getKycSubmission={getKycSubmission}
+          approveBarberKyc={approveBarberKyc}
+          rejectBarberKyc={rejectBarberKyc}
+          settleCommission={settleCommission}
+        />
+      );
+    }
+
     if (view === 'landing') {
       return (
         <LandingPage
@@ -326,6 +348,8 @@ export default function App() {
           onUpdateCategories={updateCategories}
           onUpdateServices={updateServices}
           onBookBarber={handleBookBarber}
+          onUploadKycFile={uploadKycFile}
+          onSubmitKycDossier={submitKycDossier}
         />
       );
     }
@@ -352,6 +376,20 @@ export default function App() {
   return (
     <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-black text-white' : 'bg-gray-50 text-gray-900'}`}>
       {renderCurrentView()}
+
+      {/* Accès admin — visible uniquement pour les comptes listés dans admins/{uid} */}
+      {isAdmin && view !== 'admin' && (
+        <button
+          onClick={() => setView('admin')}
+          aria-label="Panneau admin"
+          title="Panneau admin"
+          className={`fixed z-[100] p-2.5 rounded-full shadow-lg backdrop-blur-md transition-colors ${
+            view === 'landing' || (view === 'app' && profile?.role !== 'barber') ? 'top-4 right-16 md:right-24' : 'top-3 left-14'
+          } ${theme === 'dark' ? 'bg-white/10 text-gold hover:bg-white/20' : 'bg-black/10 text-gold hover:bg-black/20'}`}
+        >
+          <ShieldCheck size={18} />
+        </button>
+      )}
 
       {/* Toggle de thème toujours accessible, sur toutes les pages */}
       <button

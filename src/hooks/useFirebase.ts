@@ -144,6 +144,7 @@ export function useFirebase() {
   const [barbers, setBarbers] = useState<UserProfile[]>([]);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [todayVisitors, setTodayVisitors] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -160,8 +161,15 @@ export function useFirebase() {
         } catch (error) {
           console.error("Error fetching profile:", error);
         }
+        try {
+          const adminSnap = await getDoc(doc(db, 'admins', firebaseUser.uid));
+          setIsAdmin(adminSnap.exists());
+        } catch (error) {
+          setIsAdmin(false);
+        }
       } else {
         setProfile(null);
+        setIsAdmin(false);
       }
       setLoading(false);
     });
@@ -461,6 +469,54 @@ export function useFirebase() {
     return url;
   };
 
+  // Uploads a CIN or selfie photo to Storage only — does NOT touch Firestore, since
+  // the dossier (both file URLs) is written together via submitKycDossier once both
+  // uploads finish, keeping the users/{uid} doc free of identity-document links.
+  const uploadKycFile = async (file: File, type: 'cin' | 'selfie') => {
+    if (!user) return;
+    const path = `kyc/${user.uid}/${type}-${Date.now()}-${file.name}`;
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, file);
+    return await getDownloadURL(storageRef);
+  };
+
+  // Stores the KYC dossier in the private kycSubmissions/{uid} doc, then flips the
+  // public kycStatus to 'pending' — only an admin can move it to 'verified' afterward.
+  const submitKycDossier = async (cinUrl: string, selfieUrl: string) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'kycSubmissions', user.uid), {
+        cinUrl,
+        selfieUrl,
+        submittedAt: serverTimestamp()
+      });
+      const docRef = doc(db, 'users', user.uid);
+      await updateDoc(docRef, { kycStatus: 'pending' });
+      setProfile(prev => prev ? { ...prev, kycStatus: 'pending' } : prev);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+    }
+  };
+
+  // Admin-only actions — enforced server-side by firestore.rules (isAdmin()), these
+  // simply fail with a permission error if the caller isn't in the admins/{uid} collection.
+  const getKycSubmission = async (barberUid: string) => {
+    const snap = await getDoc(doc(db, 'kycSubmissions', barberUid));
+    return snap.exists() ? (snap.data() as { cinUrl: string; selfieUrl: string; submittedAt: any }) : null;
+  };
+
+  const approveBarberKyc = async (barberUid: string) => {
+    await updateDoc(doc(db, 'users', barberUid), { kycStatus: 'verified' });
+  };
+
+  const rejectBarberKyc = async (barberUid: string) => {
+    await updateDoc(doc(db, 'users', barberUid), { kycStatus: 'unverified' });
+  };
+
+  const settleCommission = async (barberUid: string) => {
+    await updateDoc(doc(db, 'users', barberUid), { unpaidCommissionsCount: 0, totalCommissionsOwed: 0 });
+  };
+
   const addPortfolioItem = async (file: File, name: string, price: number, category?: string) => {
     if (!user) return;
     const path = `portfolios/${user.uid}/${Date.now()}-${file.name}`;
@@ -526,6 +582,7 @@ export function useFirebase() {
     services,
     barbers,
     todayVisitors,
+    isAdmin,
     loginWithEmail,
     loginError,
     clearLoginError: () => setLoginError(null),
@@ -541,6 +598,12 @@ export function useFirebase() {
     updateCity,
     uploadAvatar,
     uploadCover,
+    uploadKycFile,
+    submitKycDossier,
+    getKycSubmission,
+    approveBarberKyc,
+    rejectBarberKyc,
+    settleCommission,
     addPortfolioItem,
     removePortfolioItem,
     updateAvailability,

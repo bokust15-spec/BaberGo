@@ -252,7 +252,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                     <div className="flex-1 pb-1">
                        <h2 className={`text-2xl font-bebas tracking-wider mb-1 uppercase flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                          {selectedBarber.firstName} {selectedBarber.lastName}
-                         <BadgeCheck size={18} className="text-gold" />
+                         {selectedBarber.kycStatus === 'verified' && <BadgeCheck size={18} className="text-gold" />}
                        </h2>
                        <p className="text-gold text-xs uppercase tracking-widest font-bold mb-1">{selectedBarber.gender === 'femme' ? 'Professionnelle Beauté' : 'Professionnel Beauté'}</p>
                        <p className="text-warm-gray text-[10px] uppercase tracking-widest flex items-center gap-1">
