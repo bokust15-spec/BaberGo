@@ -29,6 +29,7 @@ export default function App() {
     todayVisitors,
     isAdmin,
     loginWithEmail,
+    resetPassword,
     loginError,
     clearLoginError,
     logout,
@@ -431,6 +432,7 @@ export default function App() {
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
         onLogin={handleLoginSubmit}
+        onResetPassword={resetPassword}
         theme={theme}
       />
     </div>

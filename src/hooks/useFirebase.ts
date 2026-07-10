@@ -4,6 +4,7 @@ import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   signOut,
+  sendPasswordResetEmail,
   User as FirebaseUser
 } from 'firebase/auth';
 import {
@@ -284,6 +285,18 @@ export function useFirebase() {
       return true;
     } catch (error) {
       console.error("Login failed:", error);
+      setLoginError(describeAuthError(error));
+      return false;
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    setLoginError(null);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      return true;
+    } catch (error) {
+      console.error("Password reset failed:", error);
       setLoginError(describeAuthError(error));
       return false;
     }
@@ -584,6 +597,7 @@ export function useFirebase() {
     todayVisitors,
     isAdmin,
     loginWithEmail,
+    resetPassword,
     loginError,
     clearLoginError: () => setLoginError(null),
     logout,
