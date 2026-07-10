@@ -340,6 +340,16 @@ export function useFirebase() {
       const docRef = doc(db, 'users', uid);
       await setDoc(docRef, profileData);
       setProfile({ ...profileData, uid, createdAt: new Date() } as UserProfile);
+
+      const roleMessage = profileFields.role === 'barber'
+        ? "Votre compte professionnel est prêt. Complétez votre profil (téléphone, dossier d'identité, prestations) depuis votre tableau de bord pour commencer à recevoir des réservations."
+        : "Vous pouvez dès maintenant parcourir les professionnels beauté & bien-être près de chez vous et réserver votre prochain rendez-vous.";
+      queueEmail(
+        profileFields.email,
+        'Bienvenue chez BarberGo !',
+        `<p>Bonjour ${profileFields.firstName},</p><p>Bienvenue chez <strong>BarberGo</strong> ! Votre compte a bien été créé.</p><p>${roleMessage}</p>`
+      );
+
       return uid;
     } catch (error) {
       console.error("Registration failed:", error);
