@@ -87,6 +87,7 @@ export interface Appointment {
   totalPrice: number;
   clientName?: string;
   clientGender?: 'homme' | 'femme' | 'autre';
+  clientEmail?: string;
   serviceName?: string;
   proposedPrice?: number;
   counterPriceByBarber?: number;
@@ -347,6 +348,24 @@ export function useFirebase() {
     }
   };
 
+  // Writes a doc to mail/ — the "Trigger Email from Firestore" Firebase Extension
+  // picks it up and actually sends it. Never throws: a failed notification shouldn't
+  // block the booking action that triggered it.
+  const queueEmail = async (to: string | undefined, subject: string, html: string) => {
+    if (!to) return;
+    try {
+      await addDoc(collection(db, 'mail'), { to: [to], message: { subject, html } });
+    } catch (error) {
+      console.error('Error queueing email:', error);
+    }
+  };
+
+  const formatEmailDate = (value: any): string => {
+    const date = value?.toDate ? value.toDate() : new Date(value);
+    if (isNaN(date.getTime())) return '';
+    return `${date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à ${date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
   const createAppointment = async (appointment: Omit<Appointment, 'id' | 'status'>) => {
     try {
       const rawData = {
@@ -361,6 +380,18 @@ export function useFirebase() {
         }
       });
       await addDoc(collection(db, 'appointments'), data);
+
+      if (appointment.barberId !== 'dummy_barber') {
+        const barber = barbers.find(b => b.uid === appointment.barberId);
+        if (barber?.email) {
+          const dateStr = formatEmailDate(appointment.dateTime);
+          await queueEmail(
+            barber.email,
+            'Nouvelle demande de réservation — BarberGo',
+            `<p>Bonjour ${barber.firstName},</p><p><strong>${appointment.clientName || 'Un client'}</strong> souhaite réserver <strong>${appointment.serviceName || 'une prestation'}</strong> le <strong>${dateStr}</strong> pour <strong>${appointment.totalPrice} DH</strong>.</p><p>Connectez-vous à votre tableau de bord BarberGo pour répondre.</p>`
+          );
+        }
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'appointments');
     }
@@ -404,6 +435,43 @@ export function useFirebase() {
     try {
       const docRef = doc(db, 'appointments', id);
       await updateDoc(docRef, updates);
+
+      const needsNotification = updates.status === 'confirmed' || updates.status === 'cancelled' || updates.negotiationStatus === 'barber_countered';
+      if (needsNotification) {
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const appt = snap.data() as Appointment;
+          const barber = barbers.find(b => b.uid === appt.barberId);
+          const dateStr = formatEmailDate(appt.dateTime);
+
+          if (updates.status === 'confirmed') {
+            await queueEmail(
+              appt.clientEmail,
+              'Réservation confirmée — BarberGo',
+              `<p>Bonne nouvelle !</p><p><strong>${barber?.firstName || 'Le professionnel'}</strong> a confirmé votre réservation pour <strong>${appt.serviceName || 'votre prestation'}</strong> le <strong>${dateStr}</strong>.</p>`
+            );
+          }
+          if (updates.status === 'cancelled') {
+            await queueEmail(
+              appt.clientEmail,
+              'Réservation annulée — BarberGo',
+              `<p>Votre réservation pour <strong>${appt.serviceName || 'la prestation'}</strong> le <strong>${dateStr}</strong> a été annulée.</p>`
+            );
+            await queueEmail(
+              barber?.email,
+              'Réservation annulée — BarberGo',
+              `<p>La réservation de <strong>${appt.clientName || 'votre client'}</strong> pour <strong>${appt.serviceName || 'la prestation'}</strong> le <strong>${dateStr}</strong> a été annulée.</p>`
+            );
+          }
+          if (updates.negotiationStatus === 'barber_countered') {
+            await queueEmail(
+              appt.clientEmail,
+              'Nouvelle proposition du prestataire — BarberGo',
+              `<p><strong>${barber?.firstName || 'Le professionnel'}</strong> vous propose un nouveau créneau ou tarif pour <strong>${appt.serviceName || 'votre prestation'}</strong>. Connectez-vous à BarberGo pour l'accepter ou le refuser.</p>`
+            );
+          }
+        }
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `appointments/${id}`);
     }

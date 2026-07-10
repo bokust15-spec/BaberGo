@@ -104,6 +104,15 @@ service cloud.firestore {
         && isNum(data.totalPrice);
     }
 
+    function isValidMail(data) {
+      return data.keys().hasOnly(['to', 'message'])
+        && data.to is list && data.to.size() == 1 && data.to[0] is string && data.to[0].size() <= 200
+        && data.message is map
+        && data.message.keys().hasOnly(['subject', 'html'])
+        && data.message.subject is string && data.message.subject.size() <= 200
+        && data.message.html is string && data.message.html.size() <= 5000;
+    }
+
     function isValidReview(data) {
       return data.keys().hasAll(['clientId', 'barberId', 'appointmentId', 'rating', 'comment', 'createdAt'])
         && data.keys().size() == 6
@@ -190,6 +199,15 @@ service cloud.firestore {
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['barberId'])
           || (resource.data.barberId == 'dummy_barber' && request.resource.data.barberId == request.auth.uid)
         );
+    }
+
+    // Transactional email queue — the "Trigger Email from Firestore" extension (running
+    // with Admin SDK privileges, so it bypasses these rules) reads docs here and sends
+    // them, then marks them delivered. The client may only create well-formed docs, and
+    // can never read back anyone's queued email (could contain another user's address).
+    match /mail/{mailId} {
+      allow create: if isSignedIn() && isValidMail(request.resource.data);
+      allow read, update, delete: if false;
     }
 
     // Reviews
