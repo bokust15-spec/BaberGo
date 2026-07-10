@@ -19,7 +19,8 @@ import {
   updateDoc,
   arrayUnion,
   arrayRemove,
-  onSnapshot
+  onSnapshot,
+  increment
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { auth, db, storage, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -142,6 +143,7 @@ export function useFirebase() {
   const [services, setServices] = useState<Service[]>([]);
   const [barbers, setBarbers] = useState<UserProfile[]>([]);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [todayVisitors, setTodayVisitors] = useState(0);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -191,6 +193,30 @@ export function useFirebase() {
     });
 
     return () => unsubscribeBarbers();
+  }, []);
+
+  // Real daily visitor count — one Firestore doc per day (stats/visits_YYYY-MM-DD),
+  // counted once per browser per day via a localStorage flag, live via onSnapshot so
+  // the landing page number updates for everyone as new people arrive.
+  useEffect(() => {
+    const now = new Date();
+    const dateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const statsDocRef = doc(db, 'stats', `visits_${dateKey}`);
+
+    const unsubscribeVisits = onSnapshot(statsDocRef, (snap) => {
+      setTodayVisitors(snap.exists() ? (snap.data().count || 0) : 0);
+    }, (error) => {
+      console.error("Error fetching visitor count:", error);
+    });
+
+    const alreadyCountedKey = `bg_visited_${dateKey}`;
+    if (!localStorage.getItem(alreadyCountedKey)) {
+      setDoc(statsDocRef, { count: increment(1) }, { merge: true })
+        .then(() => localStorage.setItem(alreadyCountedKey, '1'))
+        .catch((error) => console.error("Error registering visit:", error));
+    }
+
+    return () => unsubscribeVisits();
   }, []);
 
   // Seed default services/barbers on first run (demo data) — writing requires being
@@ -499,6 +525,7 @@ export function useFirebase() {
     loading,
     services,
     barbers,
+    todayVisitors,
     loginWithEmail,
     loginError,
     clearLoginError: () => setLoginError(null),

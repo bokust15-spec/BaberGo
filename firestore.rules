@@ -101,6 +101,19 @@ service cloud.firestore {
       allow write: if isSignedIn(); // For now allow write to seed, should be restricted later
     }
 
+    // Real daily visitor counter — public (guests must be counted too), but write is
+    // restricted to a strict +1 delta on a single 'count' field so it can never be
+    // tampered into an arbitrary number even without auth.
+    match /stats/{statId} {
+      allow read: if true;
+      allow create: if statId.matches('^visits_[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.keys().hasOnly(['count'])
+        && request.resource.data.count == 1;
+      allow update: if statId.matches('^visits_[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count'])
+        && request.resource.data.count == resource.data.count + 1;
+    }
+
     // Appointments
     match /appointments/{appointmentId} {
       allow read: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber');

@@ -13,6 +13,7 @@ interface LandingPageProps {
   onRegisterOpen: (role?: 'client' | 'barber') => void;
   onFindNearby: () => void;
   onSelectCategory: (categoryId: string) => void;
+  todayVisitors: number;
 }
 
 // Distinct from WORK_GALLERY / HERO_MOSAIC / CATEGORY_PHOTOS on purpose — every photo
@@ -106,7 +107,7 @@ const TESTIMONIALS = [
   },
 ];
 
-export default function LandingPage({ onLogin, theme, profile, onEnterApp, onRegisterOpen, onFindNearby, onSelectCategory }: LandingPageProps) {
+export default function LandingPage({ onLogin, theme, profile, onEnterApp, onRegisterOpen, onFindNearby, onSelectCategory, todayVisitors }: LandingPageProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const galleryRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -346,6 +347,16 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
                   <div className="text-xl md:text-3xl font-bebas text-gold mb-1">4.9/5</div>
                   <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Score</div>
                 </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="mt-6 md:mt-8 text-center"
+              >
+                <div className="text-2xl md:text-4xl font-bebas text-gold leading-none mb-1">{todayVisitors.toLocaleString('fr-FR')}</div>
+                <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Visiteurs aujourd'hui</div>
               </motion.div>
             </div>
           </div>

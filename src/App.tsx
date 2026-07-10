@@ -25,6 +25,7 @@ export default function App() {
     loading,
     services,
     barbers,
+    todayVisitors,
     loginWithEmail,
     loginError,
     clearLoginError,
@@ -282,6 +283,7 @@ export default function App() {
           onRegisterOpen={handleRegisterClick}
           onFindNearby={handleFindNearby}
           onSelectCategory={handleSelectCategory}
+          todayVisitors={todayVisitors}
         />
       );
     }
