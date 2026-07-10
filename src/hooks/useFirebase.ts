@@ -54,6 +54,7 @@ export interface UserProfile {
   kycCinUrl?: string;
   kycSelfieUrl?: string;
   bio?: string;
+  ageRange?: '18-25' | '26-35' | '36-45' | '46-55' | '56+'; // pro only, shown on their public profile
   city?: string;
   avatarUrl?: string;
   coverUrl?: string;
@@ -547,6 +548,17 @@ export function useFirebase() {
     }
   };
 
+  const updateAgeRange = async (ageRange: UserProfile['ageRange']) => {
+    if (!user) return;
+    try {
+      const docRef = doc(db, 'users', user.uid);
+      await updateDoc(docRef, { ageRange });
+      setProfile(prev => prev ? { ...prev, ageRange } : prev);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+    }
+  };
+
   const uploadAvatar = async (file: File) => {
     if (!user) return;
     const path = `avatars/${user.uid}/${Date.now()}-${file.name}`;
@@ -696,6 +708,7 @@ export function useFirebase() {
     updateBio,
     updatePhone,
     updateCity,
+    updateAgeRange,
     uploadAvatar,
     uploadCover,
     uploadKycFile,

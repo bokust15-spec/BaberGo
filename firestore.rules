@@ -42,6 +42,7 @@ service cloud.firestore {
         && data.email is string && data.email.size() <= 200
         && data.role in ['client', 'barber']
         && (!('bio' in data) || (data.bio is string && data.bio.size() <= 500))
+        && (!('ageRange' in data) || data.ageRange in ['18-25', '26-35', '36-45', '46-55', '56+'])
         && (!('city' in data) || (data.city is string && data.city.size() <= 50))
         && (!('avatarUrl' in data) || data.avatarUrl is string)
         && (!('coverUrl' in data) || data.coverUrl is string)
@@ -94,6 +95,12 @@ service cloud.firestore {
         && data.category is string;
     }
 
+    // A full price-catalog cross-check (matching a specific service's real price on the
+    // barber's profile) isn't reliably expressible in rules — services live in a list,
+    // and rules can't search inside one the way they can look up a single document by
+    // ID. This bounds check is a real but partial mitigation; closing the gap fully
+    // needs either a services subcollection (so get() can look up one by ID) or a
+    // Cloud Function, both bigger changes than a rules tweak.
     function isValidAppointment(data) {
       return data.keys().hasAll(['clientId', 'barberId', 'serviceId', 'dateTime', 'status', 'totalPrice'])
         && data.keys().size() >= 6 && data.keys().size() <= 14
@@ -101,7 +108,8 @@ service cloud.firestore {
         && data.barberId is string
         && data.serviceId is string
         && data.status in ['pending', 'confirmed', 'cancelled', 'completed']
-        && isNum(data.totalPrice);
+        && isNum(data.totalPrice) && data.totalPrice > 0 && data.totalPrice <= 20000
+        && (!('proposedPrice' in data) || (isNum(data.proposedPrice) && data.proposedPrice > 0 && data.proposedPrice <= 20000));
     }
 
     function isValidMail(data) {
@@ -123,10 +131,11 @@ service cloud.firestore {
     }
 
     // User profiles — barber profiles are public (clients browse prestations/profiles
-    // without an account) but non-barber profiles (other clients) stay signed-in-only.
+    // without an account); a client's own profile is readable only by themself (not by
+    // every other signed-in account — a client can never list/read another client's).
     match /users/{userId} {
-      allow get: if isSignedIn() || resource.data.role == 'barber';
-      allow list: if isSignedIn() || resource.data.role == 'barber';
+      allow get: if resource.data.role == 'barber' || isOwner(userId) || isAdmin();
+      allow list: if resource.data.role == 'barber' || isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && isValidNewUser(request.resource.data);
 
       // The owner can update everything about their own profile EXCEPT kycStatus, which
@@ -169,10 +178,15 @@ service cloud.firestore {
       allow create, update: if isOwner(userId) && isValidKycSubmission(request.resource.data);
     }
 
-    // Services (Menu) — public so guests can browse prestations before signing in.
+    // Services (Menu) — public so guests can browse prestations before signing in. This
+    // is the legacy shared catalog (seed data + the client "Annonce" flow); real booking
+    // now runs on each barber's own services list on their profile. Writes are limited
+    // to barber accounts, not just any signed-in user.
     match /services/{serviceId} {
       allow read: if true;
-      allow write: if isSignedIn(); // For now allow write to seed, should be restricted later
+      allow write: if isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'barber'
+        && isValidService(request.resource.data);
     }
 
     // Real visitor counters (daily + monthly) — public (guests must be counted too),
@@ -195,6 +209,9 @@ service cloud.firestore {
       allow create: if isSignedIn() && isValidAppointment(request.resource.data);
       allow update: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber')
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'totalPrice', 'proposedPrice', 'counterPriceByBarber', 'counterDateTime', 'dateTime', 'negotiationStatus', 'clientLocationShared', 'clientNotes', 'barberId'])
+        && (!('totalPrice' in request.resource.data) || (isNum(request.resource.data.totalPrice) && request.resource.data.totalPrice > 0 && request.resource.data.totalPrice <= 20000))
+        && (!('proposedPrice' in request.resource.data) || (isNum(request.resource.data.proposedPrice) && request.resource.data.proposedPrice > 0 && request.resource.data.proposedPrice <= 20000))
+        && (!('counterPriceByBarber' in request.resource.data) || (isNum(request.resource.data.counterPriceByBarber) && request.resource.data.counterPriceByBarber > 0 && request.resource.data.counterPriceByBarber <= 20000))
         && (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['barberId'])
           || (resource.data.barberId == 'dummy_barber' && request.resource.data.barberId == request.auth.uid)

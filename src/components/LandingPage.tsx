@@ -191,7 +191,7 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
       {/* NAV */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass-nav px-6 md:px-16 py-4 grid grid-cols-3 items-center">
         <a href="#hero" className="logo text-2xl text-gold shrink-0 justify-self-start">Barber<span className={theme === 'dark' ? 'text-white' : 'text-black'}>Go</span></a>
-        <div className="hidden md:flex gap-5 lg:gap-8 items-center justify-self-center">
+        <div className="hidden lg:flex gap-5 lg:gap-8 items-center justify-self-center">
           <a href="#hero" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Accueil</a>
           <a href="#services" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Services</a>
           <button onClick={() => onRegisterOpen('barber')} className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Je suis professionnel(le) beauté</button>
@@ -207,7 +207,7 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
             onClick={() => setIsMobileMenuOpen(prev => !prev)}
             aria-label="Ouvrir le menu"
             aria-expanded={isMobileMenuOpen}
-            className={`md:hidden mr-14 p-2 rounded-full transition-colors ${theme === 'dark' ? 'text-gold hover:bg-white/10' : 'text-gold hover:bg-black/5'}`}
+            className={`lg:hidden mr-14 p-2 rounded-full transition-colors ${theme === 'dark' ? 'text-gold hover:bg-white/10' : 'text-gold hover:bg-black/5'}`}
           >
             {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
@@ -222,7 +222,7 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.2 }}
-            className={`md:hidden fixed top-[64px] left-0 right-0 z-40 glass-nav border-t-0 flex flex-col px-6 py-4 gap-1`}
+            className={`lg:hidden fixed top-[64px] left-0 right-0 z-40 glass-nav border-t-0 flex flex-col px-6 py-4 gap-1`}
           >
             <a onClick={() => setIsMobileMenuOpen(false)} href="#hero" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Accueil</a>
             <a onClick={() => setIsMobileMenuOpen(false)} href="#services" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Services</a>

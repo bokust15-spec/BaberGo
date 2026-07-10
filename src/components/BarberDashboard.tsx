@@ -26,6 +26,7 @@ import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, mockBarberFromPost
 import CategoryRail from './CategoryRail';
 import { SERVICE_CATEGORIES } from '../data/categories';
 import PhotoGalleryLightbox, { LightboxPhoto } from './PhotoGalleryLightbox';
+import SearchBar from './SearchBar';
 import BookingModal from './BookingModal';
 import { formatRelativeTime } from '../utils/relativeTime';
 
@@ -37,6 +38,7 @@ interface FeedEntry {
   isMock: boolean;
   rating: number;
   city: string;
+  availableDays: number[];
 }
 
 function toDate(value: any): Date {
@@ -67,6 +69,7 @@ interface BarberDashboardProps {
   onUpdateBio: (bio: string) => Promise<void>;
   onUpdatePhone: (phone: string) => Promise<void>;
   onUpdateCity: (city: string) => Promise<void>;
+  onUpdateAgeRange: (ageRange: UserProfile['ageRange']) => Promise<void>;
   onUploadAvatar: (file: File) => Promise<string | undefined>;
   onUploadCover: (file: File) => Promise<string | undefined>;
   onAddPortfolioItem: (file: File, name: string, price: number, category?: string) => Promise<PortfolioItem | undefined>;
@@ -91,6 +94,7 @@ export default function BarberDashboard({
   onUpdateBio,
   onUpdatePhone,
   onUpdateCity,
+  onUpdateAgeRange,
   onUploadAvatar,
   onUploadCover,
   onAddPortfolioItem,
@@ -110,6 +114,11 @@ export default function BarberDashboard({
   const [viewingEntry, setViewingEntry] = useState<FeedEntry | null>(null);
   const [quickBookRequested, setQuickBookRequested] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [searchGender, setSearchGender] = useState<'' | 'homme' | 'femme'>('');
+  const [searchCity, setSearchCity] = useState('');
+  const [searchDateTime, setSearchDateTime] = useState('');
+  const [searchStyle, setSearchStyle] = useState('');
+  const moroccanCities = useMemo(() => Object.keys(CITY_COORDS).sort(), []);
   const [phoneInput, setPhoneInput] = useState(profile.phone || '');
   const [savingPhone, setSavingPhone] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
@@ -168,7 +177,23 @@ export default function BarberDashboard({
   const feedItems = useMemo(() => {
     const items: FeedEntry[] = [];
     barbers.forEach(b => {
-      (b.portfolioItems || []).forEach(item => items.push({ barber: b, item, isMock: false, rating: 4.9, city: b.city || 'Casablanca' }));
+      const availableDays = b.workingDays && b.workingDays.length > 0 ? b.workingDays : [1, 2, 3, 4, 5, 6];
+      if (b.portfolioItems && b.portfolioItems.length > 0) {
+        b.portfolioItems.forEach(item => items.push({ barber: b, item, isMock: false, rating: 4.9, city: b.city || 'Casablanca', availableDays }));
+      } else if (b.categories && b.categories.length > 0) {
+        const image = b.avatarUrl || b.coverUrl || avatarFor(b.uid);
+        const startingPrice = b.services && b.services.length > 0 ? Math.min(...b.services.map(s => s.price)) : 0;
+        b.categories.forEach(categoryId => {
+          items.push({
+            barber: b,
+            item: { url: image, name: `${b.firstName} ${b.lastName}`.trim(), price: startingPrice, category: categoryId },
+            isMock: false,
+            rating: 4.9,
+            city: b.city || 'Casablanca',
+            availableDays
+          });
+        });
+      }
     });
     STYLE_POSTS.forEach(post => {
       items.push({
@@ -176,23 +201,37 @@ export default function BarberDashboard({
         item: { url: post.photo, name: post.style, price: post.priceFrom, category: post.category, createdAt: post.createdAt },
         isMock: true,
         rating: post.rating,
-        city: post.city
+        city: post.city,
+        availableDays: post.availableDays
       });
     });
     return items;
   }, [barbers]);
 
   const filteredFeedItems = useMemo(() => {
-    if (!selectedCategory) return feedItems;
-    return feedItems.filter(e => (e.item.category || 'cheveux') === selectedCategory);
-  }, [feedItems, selectedCategory]);
+    const selectedDay = searchDateTime ? new Date(searchDateTime).getDay() : null;
+    const results = feedItems.filter(e => {
+      if (selectedCategory && (e.item.category || 'cheveux') !== selectedCategory) return false;
+      if (searchGender && e.barber.gender !== searchGender) return false;
+      if (searchCity && e.city !== searchCity) return false;
+      if (selectedDay !== null && !e.availableDays.includes(selectedDay)) return false;
+      return true;
+    });
+    const style = searchStyle.trim().toLowerCase();
+    if (!style) return results;
+    return [...results].sort((a, b) => {
+      const aMatch = a.item.name.toLowerCase().includes(style) ? 0 : 1;
+      const bMatch = b.item.name.toLowerCase().includes(style) ? 0 : 1;
+      return aMatch - bMatch;
+    });
+  }, [feedItems, selectedCategory, searchGender, searchCity, searchDateTime, searchStyle]);
 
   return (
     <div className={`min-h-screen pt-20 pb-24 flex flex-col font-dm-sans transition-colors duration-300 ${theme === 'dark' ? 'bg-black text-white' : 'bg-gray-50 text-gray-900'}`}>
 
       {/* Dashboard Nav */}
       <nav className={`fixed top-0 left-0 right-0 z-40 border-b pl-16 pr-6 py-4 flex items-center justify-between backdrop-blur-md ${theme === 'dark' ? 'bg-black/80 border-gold/20' : 'bg-white/80 border-gray-200 shadow-sm'}`}>
-        <div className="logo text-2xl text-gold font-bebas tracking-widest leading-none">Partners<span className="text-white">Pro</span></div>
+        <div className="logo text-2xl text-gold font-bebas tracking-widest leading-none">PRO</div>
         <div className="flex items-center gap-2">
           <button
             onClick={onLogout}
@@ -294,6 +333,15 @@ export default function BarberDashboard({
             onSelectEntry={(entry) => { setQuickBookRequested(false); setViewingEntry(entry); }}
             onQuickBook={(entry) => { setQuickBookRequested(true); setViewingEntry(entry); }}
             currentBarberUid={profile.uid}
+            searchGender={searchGender}
+            onSearchGenderChange={setSearchGender}
+            searchCity={searchCity}
+            onSearchCityChange={setSearchCity}
+            moroccanCities={moroccanCities}
+            searchDateTime={searchDateTime}
+            onSearchDateTimeChange={setSearchDateTime}
+            searchStyle={searchStyle}
+            onSearchStyleChange={setSearchStyle}
           />
         )}
 
@@ -303,6 +351,7 @@ export default function BarberDashboard({
             theme={theme}
             onUpdateBio={onUpdateBio}
             onUpdateCity={onUpdateCity}
+            onUpdateAgeRange={onUpdateAgeRange}
             onUploadAvatar={onUploadAvatar}
             onUploadCover={onUploadCover}
             onAddPortfolioItem={onAddPortfolioItem}
@@ -411,7 +460,7 @@ export default function BarberDashboard({
 // ============================================================
 // TAB: ACCUEIL — feed of every other barber's realizations
 // ============================================================
-function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelectEntry, onQuickBook, currentBarberUid }: {
+function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelectEntry, onQuickBook, currentBarberUid, searchGender, onSearchGenderChange, searchCity, onSearchCityChange, moroccanCities, searchDateTime, onSearchDateTimeChange, searchStyle, onSearchStyleChange }: {
   theme: 'dark' | 'light';
   feedItems: FeedEntry[];
   selectedCategory: string | null;
@@ -419,6 +468,15 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
   onSelectEntry: (entry: FeedEntry) => void;
   onQuickBook: (entry: FeedEntry) => void;
   currentBarberUid: string;
+  searchGender: '' | 'homme' | 'femme';
+  onSearchGenderChange: (v: '' | 'homme' | 'femme') => void;
+  searchCity: string;
+  onSearchCityChange: (v: string) => void;
+  moroccanCities: string[];
+  searchDateTime: string;
+  onSearchDateTimeChange: (v: string) => void;
+  searchStyle: string;
+  onSearchStyleChange: (v: string) => void;
 }) {
   return (
     <div className="space-y-6 text-left">
@@ -428,6 +486,23 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
       </div>
 
       <CategoryRail selected={selectedCategory} onSelect={onSelectCategory} theme={theme} />
+
+      <SearchBar
+        theme={theme}
+        searchGender={searchGender}
+        onSearchGenderChange={onSearchGenderChange}
+        searchCity={searchCity}
+        onSearchCityChange={onSearchCityChange}
+        moroccanCities={moroccanCities}
+        searchDateTime={searchDateTime}
+        onSearchDateTimeChange={onSearchDateTimeChange}
+        searchStyle={searchStyle}
+        onSearchStyleChange={onSearchStyleChange}
+        onSearch={() => {}}
+      />
+      <p className="text-warm-gray text-[10px] uppercase tracking-widest">
+        {feedItems.length} professionnel{feedItems.length > 1 ? 's' : ''} disponible{feedItems.length > 1 ? 's' : ''}
+      </p>
 
       {feedItems.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -566,7 +641,10 @@ function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook,
                 {barber.firstName} {barber.lastName}
                 {barber.kycStatus === 'verified' && <BadgeCheck size={18} className="text-gold shrink-0" />}
               </h3>
-              <p className="text-gold text-xs uppercase tracking-widest font-bold mb-1">{barber.gender === 'femme' ? 'Professionnelle Beauté' : 'Professionnel Beauté'}</p>
+              <p className="text-gold text-xs uppercase tracking-widest font-bold mb-1">
+                {barber.gender === 'femme' ? 'Professionnelle Beauté' : 'Professionnel Beauté'}
+                {barber.ageRange && ` · ${barber.ageRange} ans`}
+              </p>
               <p className="text-warm-gray text-[10px] uppercase tracking-widest flex items-center gap-1">
                 <MapPin size={10} /> {city}
               </p>
@@ -654,6 +732,7 @@ interface MyProfileTabProps {
   theme: 'dark' | 'light';
   onUpdateBio: (bio: string) => Promise<void>;
   onUpdateCity: (city: string) => Promise<void>;
+  onUpdateAgeRange: (ageRange: UserProfile['ageRange']) => Promise<void>;
   onUploadAvatar: (file: File) => Promise<string | undefined>;
   onUploadCover: (file: File) => Promise<string | undefined>;
   onAddPortfolioItem: (file: File, name: string, price: number, category?: string) => Promise<PortfolioItem | undefined>;
@@ -663,10 +742,13 @@ interface MyProfileTabProps {
   onUpdateServices: (services: BarberService[]) => Promise<void>;
 }
 
-function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvatar, onUploadCover, onAddPortfolioItem, onRemovePortfolioItem, onUpdateAvailability, onUpdateCategories, onUpdateServices }: MyProfileTabProps) {
+const AGE_RANGES: NonNullable<UserProfile['ageRange']>[] = ['18-25', '26-35', '36-45', '46-55', '56+'];
+
+function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRange, onUploadAvatar, onUploadCover, onAddPortfolioItem, onRemovePortfolioItem, onUpdateAvailability, onUpdateCategories, onUpdateServices }: MyProfileTabProps) {
   const [bio, setBio] = useState(profile.bio || '');
   const [savingBio, setSavingBio] = useState(false);
   const [isEditingBio, setIsEditingBio] = useState(!profile.bio);
+  const [savingAgeRange, setSavingAgeRange] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -747,6 +829,16 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
       setError("Impossible d'enregistrer la ville pour le moment.");
     }
     setSavingCity(false);
+  };
+
+  const handleChangeAgeRange = async (next: string) => {
+    setSavingAgeRange(true);
+    try {
+      await onUpdateAgeRange(next ? (next as UserProfile['ageRange']) : undefined);
+    } catch {
+      setError("Impossible d'enregistrer la tranche d'âge pour le moment.");
+    }
+    setSavingAgeRange(false);
   };
 
   const handleAvatarSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -974,7 +1066,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
         </div>
 
         <h2 className="font-bebas text-2xl uppercase tracking-widest">{profile.firstName} {profile.lastName}</h2>
-        <p className="text-[10px] text-gold uppercase tracking-widest font-bold mb-6 flex items-center gap-1">
+        <p className="text-[10px] text-gold uppercase tracking-widest font-bold mb-6 flex items-center gap-1 flex-wrap justify-center">
           {profile.gender === 'femme' ? 'Professionnelle' : 'Professionnel'} ·
           <select
             value={city}
@@ -984,6 +1076,18 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
           >
             {moroccanCities.map(c => (
               <option key={c} value={c} className={theme === 'dark' ? 'bg-mid-brown' : ''}>{c}</option>
+            ))}
+          </select>
+          ·
+          <select
+            value={profile.ageRange || ''}
+            onChange={(e) => handleChangeAgeRange(e.target.value)}
+            disabled={savingAgeRange}
+            className="bg-transparent border-none outline-none text-gold uppercase tracking-widest font-bold text-[10px] cursor-pointer disabled:opacity-50"
+          >
+            <option value="" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Âge non précisé</option>
+            {AGE_RANGES.map(a => (
+              <option key={a} value={a} className={theme === 'dark' ? 'bg-mid-brown' : ''}>{a} ans</option>
             ))}
           </select>
         </p>

@@ -42,6 +42,7 @@ export default function App() {
     updateBio,
     updatePhone,
     updateCity,
+    updateAgeRange,
     uploadAvatar,
     uploadCover,
     uploadKycFile,
@@ -357,6 +358,7 @@ export default function App() {
           onUpdateBio={updateBio}
           onUpdatePhone={updatePhone}
           onUpdateCity={updateCity}
+          onUpdateAgeRange={updateAgeRange}
           onUploadAvatar={uploadAvatar}
           onUploadCover={uploadCover}
           onAddPortfolioItem={addPortfolioItem}

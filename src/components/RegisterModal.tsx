@@ -19,7 +19,8 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'client' as 'client' | 'barber'
+    role: 'client' as 'client' | 'barber',
+    ageRange: '' as '' | '18-25' | '26-35' | '36-45' | '46-55' | '56+'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,8 +47,8 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
 
     setLoading(true);
     try {
-      const { confirmPassword, ...rest } = formData;
-      await onRegister(rest);
+      const { confirmPassword, ageRange, ...rest } = formData;
+      await onRegister(ageRange ? { ...rest, ageRange } : rest);
     } catch (err) {
       console.error(err);
       setError("L'inscription a échoué. Vérifiez vos informations et réessayez.");
@@ -165,6 +166,24 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
                   <option value="femme">Femme</option>
                 </select>
               </div>
+
+              {formData.role === 'barber' && (
+                <div className="mt-4">
+                  <label className="text-[10px] text-warm-gray uppercase font-bold mb-1 block">Tranche d'âge</label>
+                  <select
+                    value={formData.ageRange}
+                    onChange={e => setFormData({...formData, ageRange: e.target.value as any})}
+                    className={`w-full border px-4 py-2.5 text-xs outline-none rounded-lg transition-all focus:ring-2 focus:ring-gold/30 ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white focus:border-gold/60' : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-gold/60'}`}
+                  >
+                    <option value="">Préférer ne pas préciser</option>
+                    <option value="18-25">18-25 ans</option>
+                    <option value="26-35">26-35 ans</option>
+                    <option value="36-45">36-45 ans</option>
+                    <option value="46-55">46-55 ans</option>
+                    <option value="56+">56 ans et plus</option>
+                  </select>
+                </div>
+              )}
             </div>
 
             <div>

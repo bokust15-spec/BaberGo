@@ -4,6 +4,7 @@ import { MapPin, Search, Scissors, Star, User, Users, ChevronRight, ChevronDown,
 import { UserProfile, useFirebase, Appointment } from '../hooks/useFirebase';
 import { STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, SALON_COVER_PHOTO, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
 import BookingModal from './BookingModal';
+import SearchBar from './SearchBar';
 import CategoryRail from './CategoryRail';
 import PhotoGalleryLightbox, { LightboxPhoto } from './PhotoGalleryLightbox';
 import { formatRelativeTime } from '../utils/relativeTime';
@@ -76,7 +77,6 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   const [searchGender, setSearchGender] = useState<'' | 'homme' | 'femme'>('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory ?? null);
   const [searchDateTime, setSearchDateTime] = useState('');
-  const dateTimeInputRef = useRef<HTMLInputElement>(null);
   const [searchStyle, setSearchStyle] = useState('');
   const [searchCity, setSearchCity] = useState('');
   const moroccanCities = useMemo(() => Object.keys(CITY_COORDS).sort(), []);
@@ -98,16 +98,36 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   const feedEntries = useMemo<FeedEntry[]>(() => {
     const real: FeedEntry[] = [];
     barbers.forEach(b => {
-      (b.portfolioItems || []).forEach(item => {
-        real.push({
-          barber: b,
-          item,
-          isMock: false,
-          rating: 4.9,
-          city: b.city || 'Casablanca',
-          availableDays: b.workingDays && b.workingDays.length > 0 ? b.workingDays : [1, 2, 3, 4, 5, 6]
+      if (b.portfolioItems && b.portfolioItems.length > 0) {
+        b.portfolioItems.forEach(item => {
+          real.push({
+            barber: b,
+            item,
+            isMock: false,
+            rating: 4.9,
+            city: b.city || 'Casablanca',
+            availableDays: b.workingDays && b.workingDays.length > 0 ? b.workingDays : [1, 2, 3, 4, 5, 6]
+          });
         });
-      });
+      } else if (b.categories && b.categories.length > 0) {
+        // No photos published yet, but the pro has picked categories — make them
+        // discoverable by category anyway (search shouldn't require a portfolio),
+        // using their profile photo in place of a specific realization.
+        const image = b.avatarUrl || b.coverUrl || avatarFor(b.uid);
+        const startingPrice = b.services && b.services.length > 0
+          ? Math.min(...b.services.map(s => s.price))
+          : 0;
+        b.categories.forEach(categoryId => {
+          real.push({
+            barber: b,
+            item: { url: image, name: `${b.firstName} ${b.lastName}`.trim(), price: startingPrice, category: categoryId },
+            isMock: false,
+            rating: 4.9,
+            city: b.city || 'Casablanca',
+            availableDays: b.workingDays && b.workingDays.length > 0 ? b.workingDays : [1, 2, 3, 4, 5, 6]
+          });
+        });
+      }
     });
     const mock: FeedEntry[] = STYLE_POSTS.map(post => ({
       barber: mockBarberFromPost(post),
@@ -254,7 +274,10 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                          {selectedBarber.firstName} {selectedBarber.lastName}
                          {selectedBarber.kycStatus === 'verified' && <BadgeCheck size={18} className="text-gold" />}
                        </h2>
-                       <p className="text-gold text-xs uppercase tracking-widest font-bold mb-1">{selectedBarber.gender === 'femme' ? 'Professionnelle Beauté' : 'Professionnel Beauté'}</p>
+                       <p className="text-gold text-xs uppercase tracking-widest font-bold mb-1">
+                         {selectedBarber.gender === 'femme' ? 'Professionnelle Beauté' : 'Professionnel Beauté'}
+                         {selectedBarber.ageRange && ` · ${selectedBarber.ageRange} ans`}
+                       </p>
                        <p className="text-warm-gray text-[10px] uppercase tracking-widest flex items-center gap-1">
                          <MapPin size={10} /> {selectedEntry.city}
                        </p>
@@ -321,66 +344,19 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
               <CategoryRail selected={selectedCategory} onSelect={setSelectedCategory} theme={theme} />
 
               {/* BOOKING-STYLE SEARCH BAR */}
-              <div className={`flex flex-col md:flex-row rounded-lg md:rounded-full border-2 border-gold overflow-hidden shadow-lg mb-3 ${theme === 'dark' ? 'bg-mid-brown' : 'bg-white'}`}>
-                 <div className={`flex-1 flex items-center gap-2 px-4 py-3 border-b md:border-b-0 md:border-r ${theme === 'dark' ? 'border-gold/15' : 'border-gray-200'}`}>
-                    <Users size={16} className="text-gold shrink-0" />
-                    <select
-                      value={searchGender}
-                      onChange={(e) => setSearchGender(e.target.value as '' | 'homme' | 'femme')}
-                      className={`bg-transparent border-none outline-none text-xs w-full ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
-                    >
-                      <option value="" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Un professionnel ou une professionnelle</option>
-                      <option value="homme" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Un professionnel</option>
-                      <option value="femme" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Une professionnelle</option>
-                    </select>
-                 </div>
-                 <div className={`flex-1 flex items-center gap-2 px-4 py-3 border-b md:border-b-0 md:border-r ${theme === 'dark' ? 'border-gold/15' : 'border-gray-200'}`}>
-                    <MapPin size={16} className="text-gold shrink-0" />
-                    <select
-                      value={searchCity}
-                      onChange={(e) => setSearchCity(e.target.value)}
-                      className={`bg-transparent border-none outline-none text-xs w-full ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
-                    >
-                      <option value="" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Toutes les villes</option>
-                      {moroccanCities.map(city => (
-                        <option key={city} value={city} className={theme === 'dark' ? 'bg-mid-brown' : ''}>{city}</option>
-                      ))}
-                    </select>
-                 </div>
-                 <div className={`flex-1 flex items-center gap-2 px-4 py-3 border-b md:border-b-0 md:border-r ${theme === 'dark' ? 'border-gold/15' : 'border-gray-200'}`}>
-                    <button
-                      type="button"
-                      onClick={() => dateTimeInputRef.current?.showPicker?.()}
-                      className="text-gold shrink-0 hover:opacity-70 transition-opacity"
-                      aria-label="Choisir la date et l'heure"
-                    >
-                      <CalendarDays size={24} />
-                    </button>
-                    <input
-                      ref={dateTimeInputRef}
-                      type="datetime-local"
-                      value={searchDateTime}
-                      onChange={(e) => setSearchDateTime(e.target.value)}
-                      className={`bg-transparent border-none outline-none text-xs w-full [&::-webkit-calendar-picker-indicator]:opacity-0 ${theme === 'dark' ? 'text-white [color-scheme:dark]' : 'text-gray-900'}`}
-                    />
-                 </div>
-                 <div className="flex-1 flex items-center gap-2 px-4 py-3">
-                    <Scissors size={16} className="text-gold shrink-0" />
-                    <input
-                      value={searchStyle}
-                      onChange={(e) => setSearchStyle(e.target.value)}
-                      placeholder="Style ou prestation recherchée"
-                      className={`bg-transparent border-none outline-none text-xs w-full ${theme === 'dark' ? 'text-white placeholder:text-warm-gray' : 'text-gray-900 placeholder:text-gray-400'}`}
-                    />
-                 </div>
-                 <button
-                   onClick={handleSearch}
-                   className="btn-primary md:rounded-none px-8 py-4 flex items-center justify-center gap-2 shrink-0"
-                 >
-                   <Search size={16} />
-                   Rechercher
-                 </button>
-              </div>
+              <SearchBar
+                theme={theme}
+                searchGender={searchGender}
+                onSearchGenderChange={setSearchGender}
+                searchCity={searchCity}
+                onSearchCityChange={setSearchCity}
+                moroccanCities={moroccanCities}
+                searchDateTime={searchDateTime}
+                onSearchDateTimeChange={setSearchDateTime}
+                searchStyle={searchStyle}
+                onSearchStyleChange={setSearchStyle}
+                onSearch={handleSearch}
+              />
               <p className="text-warm-gray text-[10px] uppercase tracking-widest mb-10">
                 {filteredEntries.length} professionnel{filteredEntries.length > 1 ? 's' : ''} disponible{filteredEntries.length > 1 ? 's' : ''}
               </p>

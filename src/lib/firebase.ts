@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
@@ -8,6 +9,16 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+
+// Anti-bot/anti-abuse protection (blocks scripted signups and traffic that isn't a real
+// browser). No-op until a reCAPTCHA v3 site key is set in firebase-applet-config.json —
+// safe to deploy before that's configured, it just won't do anything yet.
+if (firebaseConfig.recaptchaSiteKey) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(firebaseConfig.recaptchaSiteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
+}
 
 export enum OperationType {
   CREATE = 'create',
