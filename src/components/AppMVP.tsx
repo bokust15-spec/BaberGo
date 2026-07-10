@@ -56,8 +56,8 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   // (real portfolio items) so the fullscreen viewer can display it while browsing.
   const realizationPhotos: LightboxPhoto[] = selectedEntry
     ? (selectedEntry.isMock
-        ? PORTFOLIO_PHOTOS.map(url => ({ url, name: selectedEntry.item.name, price: selectedEntry.item.price, createdAt: selectedEntry.item.createdAt }))
-        : (selectedBarber?.portfolioItems || []).map(i => ({ url: i.url, name: i.name, price: i.price, createdAt: i.createdAt })))
+        ? PORTFOLIO_PHOTOS.map(url => ({ url, name: selectedEntry.item.name, price: selectedEntry.item.price, createdAt: selectedEntry.item.createdAt || selectedBarber?.createdAt }))
+        : (selectedBarber?.portfolioItems || []).map(i => ({ url: i.url, name: i.name, price: i.price, createdAt: i.createdAt || selectedBarber?.createdAt })))
     : [];
 
   // The list a client picks from when booking: the barber's own prestations menu when
@@ -416,8 +416,8 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                             </div>
                             <div className="text-warm-gray text-[10px]">Dès <span className="text-gold font-bold">{entry.item.price} DH</span></div>
                           </div>
-                          {entry.item.createdAt && (
-                            <div className="text-warm-gray/60 text-[9px] mt-1">{formatRelativeTime(entry.item.createdAt)}</div>
+                          {(entry.item.createdAt || entry.barber.createdAt) && (
+                            <div className="text-warm-gray/60 text-[9px] mt-1">{formatRelativeTime(entry.item.createdAt || entry.barber.createdAt)}</div>
                           )}
                           {getDistance(entry.city) !== null && (
                             <div className="flex items-center gap-1 text-warm-gray text-[10px] mt-1">
