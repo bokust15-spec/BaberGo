@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatRelativeTime } from '../utils/relativeTime';
 
 export interface LightboxPhoto {
   url: string;
   name?: string;
   price?: number;
+  createdAt?: number;
 }
 
 interface PhotoGalleryLightboxProps {
@@ -71,6 +73,9 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose }: 
               {current.name && <span className="text-white text-xs font-bold uppercase tracking-widest">{current.name}</span>}
               {current.price !== undefined && <span className="text-gold text-xs font-bold">{current.price} DH</span>}
             </div>
+          )}
+          {current.createdAt && (
+            <span className="text-white/50 text-[10px] uppercase tracking-widest">{formatRelativeTime(current.createdAt)}</span>
           )}
           {hasMultiple && (
             <span className="text-white/50 text-[10px] uppercase tracking-widest">{index + 1} / {photos.length}</span>

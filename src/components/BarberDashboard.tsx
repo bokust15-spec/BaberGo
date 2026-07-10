@@ -29,6 +29,7 @@ import CategoryRail from './CategoryRail';
 import { SERVICE_CATEGORIES } from '../data/categories';
 import PhotoGalleryLightbox, { LightboxPhoto } from './PhotoGalleryLightbox';
 import BookingModal from './BookingModal';
+import { formatRelativeTime } from '../utils/relativeTime';
 
 const DAY_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
 
@@ -195,7 +196,7 @@ export default function BarberDashboard({
     STYLE_POSTS.forEach(post => {
       items.push({
         barber: mockBarberFromPost(post),
-        item: { url: post.photo, name: post.style, price: post.priceFrom, category: post.category },
+        item: { url: post.photo, name: post.style, price: post.priceFrom, category: post.category, createdAt: post.createdAt },
         isMock: true,
         rating: post.rating,
         city: post.city
@@ -549,6 +550,9 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
                       </div>
                       <div className="text-warm-gray text-[10px]">Dès <span className="text-gold font-bold">{item.price} DH</span></div>
                     </div>
+                    {item.createdAt && (
+                      <div className="text-warm-gray/60 text-[9px] mt-1">{formatRelativeTime(item.createdAt)}</div>
+                    )}
                   </div>
                 </button>
                 {barber.uid !== currentBarberUid ? (
@@ -594,8 +598,8 @@ function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook,
   const isSelf = barber.uid === viewerProfile.uid;
   const items = isMock ? [] : (barber.portfolioItems || []);
   const galleryPhotos: LightboxPhoto[] = isMock
-    ? PORTFOLIO_PHOTOS.map(url => ({ url, name: entryItem.name, price: entryItem.price }))
-    : items.map(i => ({ url: i.url, name: i.name, price: i.price }));
+    ? PORTFOLIO_PHOTOS.map(url => ({ url, name: entryItem.name, price: entryItem.price, createdAt: entryItem.createdAt }))
+    : items.map(i => ({ url: i.url, name: i.name, price: i.price, createdAt: i.createdAt }));
   const coverUrl = isMock ? entryItem.url : barber.coverUrl;
   const avatarUrl = barber.avatarUrl || (isMock ? avatarFor(barber.uid) : '');
   const bio = isMock ? MOCK_BIO_TEXT : barber.bio;
@@ -1532,7 +1536,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
                 {profile.portfolioItems.map((item, i) => (
                   <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-gold/15 group">
                     <button
-                      onClick={() => setLightbox({ photos: profile.portfolioItems!.map(p => ({ url: p.url, name: p.name, price: p.price })), index: i })}
+                      onClick={() => setLightbox({ photos: profile.portfolioItems!.map(p => ({ url: p.url, name: p.name, price: p.price, createdAt: p.createdAt })), index: i })}
                       className="absolute inset-0 w-full h-full"
                     >
                       <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
@@ -1540,6 +1544,9 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUploadAvata
                     <div className="absolute inset-x-0 bottom-0 p-1.5 bg-black/70 pointer-events-none">
                       <p className="text-white text-[8px] truncate">{item.name}</p>
                       <p className="text-gold text-[8px] font-bold">{item.price} DH</p>
+                      {item.createdAt && (
+                        <p className="text-white/50 text-[7px]">{formatRelativeTime(item.createdAt)}</p>
+                      )}
                     </div>
                     <button
                       onClick={() => handleDeleteItem(item)}

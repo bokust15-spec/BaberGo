@@ -29,6 +29,7 @@ export interface PortfolioItem {
   name: string;
   price: number;
   category?: string; // one of SERVICE_CATEGORIES ids (src/data/categories.ts)
+  createdAt?: number; // client timestamp (ms) — arrayUnion doesn't support serverTimestamp()
 }
 
 export interface BarberService {
@@ -440,7 +441,7 @@ export function useFirebase() {
     const storageRef = ref(storage, path);
     await uploadBytes(storageRef, file);
     const url = await getDownloadURL(storageRef);
-    const item: PortfolioItem = category ? { url, name, price, category } : { url, name, price };
+    const item: PortfolioItem = category ? { url, name, price, category, createdAt: Date.now() } : { url, name, price, createdAt: Date.now() };
     const docRef = doc(db, 'users', user.uid);
     await updateDoc(docRef, { portfolioItems: arrayUnion(item) });
     setProfile(prev => prev ? { ...prev, portfolioItems: [...(prev.portfolioItems || []), item] } : prev);

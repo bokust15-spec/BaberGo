@@ -6,12 +6,13 @@ import { STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, SALON_COVER_PHOTO, mockBarber
 import BookingModal from './BookingModal';
 import CategoryRail from './CategoryRail';
 import PhotoGalleryLightbox, { LightboxPhoto } from './PhotoGalleryLightbox';
+import { formatRelativeTime } from '../utils/relativeTime';
 
 // A single bookable "look": either a real barber's own uploaded realization, or one
 // of the mock style-feed posts. Unified so the client search shows both the same way.
 interface FeedEntry {
   barber: UserProfile;
-  item: { url: string; name: string; price: number; category?: string };
+  item: { url: string; name: string; price: number; category?: string; createdAt?: number };
   isMock: boolean;
   rating: number;
   city: string;
@@ -55,8 +56,8 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   // (real portfolio items) so the fullscreen viewer can display it while browsing.
   const realizationPhotos: LightboxPhoto[] = selectedEntry
     ? (selectedEntry.isMock
-        ? PORTFOLIO_PHOTOS.map(url => ({ url, name: selectedEntry.item.name, price: selectedEntry.item.price }))
-        : (selectedBarber?.portfolioItems || []).map(i => ({ url: i.url, name: i.name, price: i.price })))
+        ? PORTFOLIO_PHOTOS.map(url => ({ url, name: selectedEntry.item.name, price: selectedEntry.item.price, createdAt: selectedEntry.item.createdAt }))
+        : (selectedBarber?.portfolioItems || []).map(i => ({ url: i.url, name: i.name, price: i.price, createdAt: i.createdAt })))
     : [];
 
   // The list a client picks from when booking: the barber's own prestations menu when
@@ -110,7 +111,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
     });
     const mock: FeedEntry[] = STYLE_POSTS.map(post => ({
       barber: mockBarberFromPost(post),
-      item: { url: post.photo, name: post.style, price: post.priceFrom, category: post.category },
+      item: { url: post.photo, name: post.style, price: post.priceFrom, category: post.category, createdAt: post.createdAt },
       isMock: true,
       rating: post.rating,
       city: post.city,
@@ -415,6 +416,9 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                             </div>
                             <div className="text-warm-gray text-[10px]">Dès <span className="text-gold font-bold">{entry.item.price} DH</span></div>
                           </div>
+                          {entry.item.createdAt && (
+                            <div className="text-warm-gray/60 text-[9px] mt-1">{formatRelativeTime(entry.item.createdAt)}</div>
+                          )}
                           {getDistance(entry.city) !== null && (
                             <div className="flex items-center gap-1 text-warm-gray text-[10px] mt-1">
                               <Navigation size={10} className="text-gold shrink-0" /> {getDistance(entry.city)} km

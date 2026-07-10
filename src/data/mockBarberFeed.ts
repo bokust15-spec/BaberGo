@@ -45,6 +45,7 @@ export interface StylePost {
   availableDays: number[];
   // One of SERVICE_CATEGORIES ids (src/data/categories.ts)
   category: string;
+  createdAt: number;
 }
 
 const MOROCCAN_CITIES = ['Casablanca', 'Rabat', 'Marrakech', 'Fès', 'Tanger', 'Meknès', 'Agadir', 'Oujda', 'Kénitra', 'Tétouan', 'Salé', 'Mohammedia'];
@@ -97,6 +98,9 @@ function buildPosts(ids: string[], styles: string[], gender: 'homme' | 'femme', 
       priceFrom: PRICE_OPTIONS[n % PRICE_OPTIONS.length],
       availableDays: [n % 7, (n + 2) % 7, (n + 4) % 7],
       category,
+      // Deterministic spread over the last ~4 months so the feed reads naturally
+      // ("il y a 2h", "il y a 3 semaines"...) without changing on every reload.
+      createdAt: Date.now() - (((n * 37 + 5) % 120) * 24 * 60 * 60 * 1000) - ((n * 13) % 24) * 60 * 60 * 1000,
     };
   });
 }
