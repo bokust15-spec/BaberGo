@@ -28,6 +28,7 @@ export default function App() {
     barbers,
     dayVisitors,
     monthVisitors,
+    totalUsers,
     isAdmin,
     loginWithEmail,
     resetPassword,
@@ -324,6 +325,8 @@ export default function App() {
           onSelectCategory={handleSelectCategory}
           dayVisitors={dayVisitors}
           monthVisitors={monthVisitors}
+          totalPros={barbers.length}
+          totalUsers={totalUsers}
         />
       );
     }

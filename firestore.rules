@@ -202,6 +202,18 @@ service cloud.firestore {
         && request.resource.data.count == resource.data.count + 1;
     }
 
+    // Real total user count (clients + pros) — one doc, incremented by exactly +1 right
+    // after a new account is created, so the caller is always freshly signed in.
+    match /stats/totalUsers {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['count'])
+        && request.resource.data.count == 1;
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count'])
+        && request.resource.data.count == resource.data.count + 1;
+    }
+
     // Appointments
     match /appointments/{appointmentId} {
       allow read: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber');

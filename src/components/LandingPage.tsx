@@ -15,6 +15,8 @@ interface LandingPageProps {
   onSelectCategory: (categoryId: string) => void;
   dayVisitors: number;
   monthVisitors: number;
+  totalPros: number;
+  totalUsers: number;
 }
 
 // Distinct from WORK_GALLERY / HERO_MOSAIC / CATEGORY_PHOTOS on purpose — every photo
@@ -108,7 +110,7 @@ const TESTIMONIALS = [
   },
 ];
 
-export default function LandingPage({ onLogin, theme, profile, onEnterApp, onRegisterOpen, onFindNearby, onSelectCategory, dayVisitors, monthVisitors }: LandingPageProps) {
+export default function LandingPage({ onLogin, theme, profile, onEnterApp, onRegisterOpen, onFindNearby, onSelectCategory, dayVisitors, monthVisitors, totalPros, totalUsers }: LandingPageProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const galleryRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -337,11 +339,11 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
                 className="flex gap-6 sm:gap-8 md:gap-12 mt-8 md:mt-16"
               >
                 <div className="text-center md:text-left">
-                  <div className="text-xl md:text-3xl font-bebas text-gold mb-1">5,000+</div>
+                  <div className="text-xl md:text-3xl font-bebas text-gold mb-1">{totalPros.toLocaleString('fr-FR')}</div>
                   <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Professionnels</div>
                 </div>
                 <div className="text-center md:text-left">
-                  <div className="text-xl md:text-3xl font-bebas text-gold mb-1">50K+</div>
+                  <div className="text-xl md:text-3xl font-bebas text-gold mb-1">{totalUsers.toLocaleString('fr-FR')}</div>
                   <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">utilisateurs</div>
                 </div>
                 <div className="text-center md:text-left">

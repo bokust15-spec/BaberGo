@@ -146,6 +146,7 @@ export function useFirebase() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [dayVisitors, setDayVisitors] = useState(0);
   const [monthVisitors, setMonthVisitors] = useState(0);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -239,6 +240,19 @@ export function useFirebase() {
       unsubscribeDay();
       unsubscribeMonth();
     };
+  }, []);
+
+  // Real total user count (clients + pros combined) — a single doc incremented once
+  // per new account (see registerProfile), read live so the landing page number is
+  // never a made-up figure.
+  useEffect(() => {
+    const statsDocRef = doc(db, 'stats', 'totalUsers');
+    const unsubscribe = onSnapshot(statsDocRef, (snap) => {
+      setTotalUsers(snap.exists() ? (snap.data().count || 0) : 0);
+    }, (error) => {
+      console.error("Error fetching total user count:", error);
+    });
+    return () => unsubscribe();
   }, []);
 
   // Seed default services/barbers on first run (demo data) — writing requires being
@@ -341,6 +355,9 @@ export function useFirebase() {
       const docRef = doc(db, 'users', uid);
       await setDoc(docRef, profileData);
       setProfile({ ...profileData, uid, createdAt: new Date() } as UserProfile);
+
+      setDoc(doc(db, 'stats', 'totalUsers'), { count: increment(1) }, { merge: true })
+        .catch((error) => console.error("Error incrementing total user count:", error));
 
       const roleMessage = profileFields.role === 'barber'
         ? "Votre compte professionnel est prêt. Complétez votre profil (téléphone, dossier d'identité, prestations) depuis votre tableau de bord pour commencer à recevoir des réservations."
@@ -693,6 +710,7 @@ export function useFirebase() {
     barbers,
     dayVisitors,
     monthVisitors,
+    totalUsers,
     isAdmin,
     loginWithEmail,
     resetPassword,
