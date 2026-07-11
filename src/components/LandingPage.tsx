@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Star, MapPin, Calendar, Sparkles, Apple, Play, ShieldCheck, Wallet, Quote, Menu, X, User } from 'lucide-react';
+import { Star, MapPin, Calendar, Sparkles, Apple, Play, ShieldCheck, Wallet, Quote, Menu, X, User, LayoutDashboard } from 'lucide-react';
 import CategoryRail from './CategoryRail';
 import { SERVICE_CATEGORIES } from '../data/categories';
 import { UserProfile } from '../hooks/useFirebase';
@@ -310,6 +310,20 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
                   >
                     Salut, {profile.firstName} !
                   </motion.p>
+
+                  {profile.role === 'barber' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.25 }}
+                      className="flex justify-center mb-4"
+                    >
+                      <button onClick={onEnterApp} className="flex items-center gap-2 md:gap-3 !px-5 !py-3 md:!px-8 md:!py-3 text-[11px] md:text-sm font-bold uppercase tracking-widest border border-gold/40 text-gold hover:bg-gold/10 transition-colors rounded-sm">
+                        <LayoutDashboard size={16} className="shrink-0" />
+                        Mon espace
+                      </button>
+                    </motion.div>
+                  )}
 
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
