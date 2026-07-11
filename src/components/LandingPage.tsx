@@ -327,7 +327,7 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.5 }}
-                    className="flex justify-center mt-8 md:mt-16"
+                    className="flex justify-center gap-10 sm:gap-14 mt-8 md:mt-16"
                   >
                     {profile.role === 'client' ? (
                       <div className="text-center">
@@ -340,6 +340,10 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
                         <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">utilisateurs</div>
                       </div>
                     )}
+                    <div className="text-center">
+                      <div className="text-xl md:text-3xl font-bebas text-gold mb-1">{dayVisitors.toLocaleString('fr-FR')}</div>
+                      <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Visiteurs aujourd'hui</div>
+                    </div>
                   </motion.div>
                 </>
               ) : (
