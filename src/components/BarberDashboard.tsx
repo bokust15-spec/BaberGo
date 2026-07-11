@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Home,
@@ -21,7 +21,7 @@ import {
   Star,
   BadgeCheck
 } from 'lucide-react';
-import { Appointment, UserProfile, Service, PortfolioItem, BarberService } from '../hooks/useFirebase';
+import { Appointment, UserProfile, Service, PortfolioItem, BarberService, Review } from '../hooks/useFirebase';
 import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, mockBarberFromPost, CITY_COORDS } from '../data/mockBarberFeed';
 import CategoryRail from './CategoryRail';
 import { SERVICE_CATEGORIES } from '../data/categories';
@@ -80,6 +80,7 @@ interface BarberDashboardProps {
   onBookBarber: (barberId: string, item: { name: string; price: number }, dateTime: Date, note?: string) => Promise<void>;
   onUploadKycFile: (file: File, type: 'cin' | 'selfie') => Promise<string | undefined>;
   onSubmitKycDossier: (cinUrl: string, selfieUrl: string) => Promise<void>;
+  onGetBarberReviews: (barberId: string) => Promise<Review[]>;
 }
 
 export default function BarberDashboard({
@@ -104,7 +105,8 @@ export default function BarberDashboard({
   onUpdateServices,
   onBookBarber,
   onUploadKycFile,
-  onSubmitKycDossier
+  onSubmitKycDossier,
+  onGetBarberReviews
 }: BarberDashboardProps) {
   const [activeTab, setActiveTab] = useState<'home' | 'profile' | 'bookings'>('home');
   const [kycCinUrl, setKycCinUrl] = useState<string | null>(null);
@@ -404,6 +406,7 @@ export default function BarberDashboard({
             onClose={() => { setViewingEntry(null); setQuickBookRequested(false); }}
             onBook={onBookBarber}
             viewerProfile={profile}
+            onGetBarberReviews={onGetBarberReviews}
           />
         )}
       </AnimatePresence>
@@ -578,17 +581,36 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
 // ============================================================
 const MOCK_BIO_TEXT = "Spécialiste du dégradé américain et de la taille de barbe traditionnelle. Plusieurs années d'expérience dans les meilleurs salons de la capitale.";
 
-function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook, viewerProfile }: {
+function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook, viewerProfile, onGetBarberReviews }: {
   entry: FeedEntry;
   initialShowBooking?: boolean;
   theme: 'dark' | 'light';
   onClose: () => void;
   onBook: (barberId: string, item: { name: string; price: number }, dateTime: Date, note?: string) => Promise<void>;
   viewerProfile: UserProfile;
+  onGetBarberReviews: (barberId: string) => Promise<Review[]>;
 }) {
   const { barber, item: entryItem, isMock, rating, city } = entry;
   const isSelf = barber.uid === viewerProfile.uid;
   const items = isMock ? [] : (barber.portfolioItems || []);
+
+  // Real average rating, computed from actual reviews instead of a flat hardcoded
+  // number — null while loading or for mock (demo) entries with no real backing account.
+  const [reviewStats, setReviewStats] = useState<{ avg: number; count: number } | null>(null);
+  useEffect(() => {
+    if (isMock) {
+      setReviewStats(null);
+      return;
+    }
+    let cancelled = false;
+    onGetBarberReviews(barber.uid).then(reviews => {
+      if (cancelled) return;
+      setReviewStats(reviews.length > 0
+        ? { avg: reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length, count: reviews.length }
+        : { avg: 0, count: 0 });
+    });
+    return () => { cancelled = true; };
+  }, [barber.uid, isMock, onGetBarberReviews]);
   const galleryPhotos: LightboxPhoto[] = isMock
     ? PORTFOLIO_PHOTOS.map(url => ({ url, name: entryItem.name, price: entryItem.price, createdAt: entryItem.createdAt || barber.createdAt }))
     : items.map(i => ({ url: i.url, name: i.name, price: i.price, createdAt: i.createdAt || barber.createdAt }));
@@ -657,8 +679,10 @@ function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook,
           <div className="grid grid-cols-4 gap-3 mb-6">
             {[
               { val: '5+', label: 'Ans' },
-              { val: '1k+', label: 'Clients' },
-              { val: `${rating}★`, label: 'Note' },
+              isMock ? { val: '1k+', label: 'Clients' } : { val: `${barber.completedCount || 0}`, label: 'Clients' },
+              isMock
+                ? { val: `${rating}★`, label: 'Note' }
+                : { val: reviewStats && reviewStats.count > 0 ? `${reviewStats.avg.toFixed(1)}★` : 'Nouveau', label: reviewStats && reviewStats.count > 0 ? `${reviewStats.count} avis` : 'Note' },
               { val: `${minPrice} DH`, label: 'Dès' }
             ].map((stat, i) => (
               <div key={i} className={`text-center p-2 rounded-sm border ${theme === 'dark' ? 'bg-black/20 border-gold/10' : 'bg-gray-50 border-gray-200'}`}>

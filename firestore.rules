@@ -56,7 +56,8 @@ service cloud.firestore {
         && (!('nightEnabled' in data) || data.nightEnabled is bool)
         && (!('nightStartHour' in data) || isNum(data.nightStartHour))
         && (!('nightPrice' in data) || isNum(data.nightPrice))
-        && (!('kycStatus' in data) || data.kycStatus in ['unverified', 'pending', 'verified']);
+        && (!('kycStatus' in data) || data.kycStatus in ['unverified', 'pending', 'verified'])
+        && (!('completedCount' in data) || (isNum(data.completedCount) && data.completedCount >= 0));
       // Note: the CIN/selfie file URLs live in kycSubmissions/{uid}, not here — this
       // users document is publicly readable (guests browse profiles), so it must never
       // hold a link to someone's identity documents.
@@ -152,6 +153,17 @@ service cloud.firestore {
             || (
               request.resource.data.diff(resource.data).affectedKeys().hasOnly(['kycStatus'])
               && isSubmittingKyc(resource.data, request.resource.data)
+            )
+          )
+          && (
+            // completedCount ("clients servis" shown on the public profile) can only move
+            // by exactly +1 in its own isolated write — the app does this right after the
+            // barber marks a booking completed, never bundled with any other field change,
+            // so it can't be self-inflated to an arbitrary number.
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['completedCount'])
+            || (
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completedCount'])
+              && request.resource.data.completedCount == (('completedCount' in resource.data) ? resource.data.completedCount : 0) + 1
             )
           )
         )

@@ -56,7 +56,8 @@ export default function App() {
     updateAvailability,
     updateCategories,
     updateServices,
-    addReview
+    addReview,
+    getBarberReviews
   } = useFirebase();
 
   useEffect(() => {
@@ -371,6 +372,7 @@ export default function App() {
           onBookBarber={handleBookBarber}
           onUploadKycFile={uploadKycFile}
           onSubmitKycDossier={submitKycDossier}
+          onGetBarberReviews={getBarberReviews}
         />
       );
     }
@@ -390,6 +392,7 @@ export default function App() {
         onGuestRegisterAndBook={handleGuestRegisterAndBook}
         initialCategory={initialCategory}
         onLogin={handleLoginClick}
+        onGetBarberReviews={getBarberReviews}
       />
     );
   };

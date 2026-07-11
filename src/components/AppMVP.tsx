@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, Search, Scissors, Star, User, Users, ChevronRight, ChevronDown, X, ArrowLeft, BadgeCheck, CalendarDays, CalendarCheck, Navigation, Clock, AlertTriangle, Check } from 'lucide-react';
-import { UserProfile, useFirebase, Appointment } from '../hooks/useFirebase';
+import { UserProfile, useFirebase, Appointment, Review } from '../hooks/useFirebase';
 import { STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, SALON_COVER_PHOTO, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
 import BookingModal from './BookingModal';
 import SearchBar from './SearchBar';
@@ -42,9 +42,10 @@ interface AppMVPProps {
     clientNotes?: string
   ) => Promise<void>;
   initialCategory?: string | null;
+  onGetBarberReviews: (barberId: string) => Promise<Review[]>;
 }
 
-export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory }: AppMVPProps) {
+export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews }: AppMVPProps) {
   const [activeTab, setActiveTab] = useState<'search' | 'bookings'>('search');
   const [selectedEntry, setSelectedEntry] = useState<FeedEntry | null>(null);
   const selectedBarber = selectedEntry?.barber ?? null;
@@ -52,6 +53,24 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [lightbox, setLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null);
   const openLightbox = (photos: LightboxPhoto[], index: number) => setLightbox({ photos, index });
+
+  // Real average rating for the barber currently being viewed, computed from actual
+  // reviews instead of a flat hardcoded number — null while loading or for mock entries.
+  const [reviewStats, setReviewStats] = useState<{ avg: number; count: number } | null>(null);
+  useEffect(() => {
+    if (!selectedBarber || selectedEntry?.isMock) {
+      setReviewStats(null);
+      return;
+    }
+    let cancelled = false;
+    onGetBarberReviews(selectedBarber.uid).then(reviews => {
+      if (cancelled) return;
+      setReviewStats(reviews.length > 0
+        ? { avg: reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length, count: reviews.length }
+        : { avg: 0, count: 0 });
+    });
+    return () => { cancelled = true; };
+  }, [selectedBarber, selectedEntry?.isMock, onGetBarberReviews]);
 
   // The gallery shown in "Réalisations", with each photo's own name/price when known
   // (real portfolio items) so the fullscreen viewer can display it while browsing.
@@ -289,8 +308,12 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                       getDistance(selectedEntry.city) !== null
                         ? { val: `${getDistance(selectedEntry.city)} km`, label: 'Distance' }
                         : { val: '5+', label: 'Ans' },
-                      { val: '1k+', label: 'Clients' },
-                      { val: `${selectedEntry.rating}★`, label: 'Note' },
+                      selectedEntry.isMock
+                        ? { val: '1k+', label: 'Clients' }
+                        : { val: `${selectedBarber.completedCount || 0}`, label: 'Clients' },
+                      selectedEntry.isMock
+                        ? { val: `${selectedEntry.rating}★`, label: 'Note' }
+                        : { val: reviewStats && reviewStats.count > 0 ? `${reviewStats.avg.toFixed(1)}★` : 'Nouveau', label: reviewStats && reviewStats.count > 0 ? `${reviewStats.count} avis` : 'Note' },
                       { val: `${selectedEntry.item.price} DH`, label: 'Dès' }
                     ].map((stat, i) => (
                       <div key={i} className={`text-center p-2 rounded-sm border ${theme === 'dark' ? 'bg-mid-brown/30 border-gold/10' : 'bg-gray-50 border-gray-200'}`}>

@@ -55,6 +55,7 @@ export interface UserProfile {
   kycSelfieUrl?: string;
   bio?: string;
   ageRange?: '18-25' | '26-35' | '36-45' | '46-55' | '56+'; // pro only, shown on their public profile
+  completedCount?: number; // pro only, real count of appointments they've marked completed
   city?: string;
   avatarUrl?: string;
   coverUrl?: string;
@@ -471,13 +472,20 @@ export function useFirebase() {
       const docRef = doc(db, 'appointments', id);
       await updateDoc(docRef, updates);
 
-      const needsNotification = updates.status === 'confirmed' || updates.status === 'cancelled' || updates.negotiationStatus === 'barber_countered';
+      const needsNotification = updates.status === 'confirmed' || updates.status === 'cancelled' || updates.status === 'completed' || updates.negotiationStatus === 'barber_countered';
       if (needsNotification) {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
           const appt = snap.data() as Appointment;
           const barber = barbers.find(b => b.uid === appt.barberId);
           const dateStr = formatEmailDate(appt.dateTime);
+
+          // Real "clients servis" count shown on the barber's public profile — a plain
+          // +1 each time they mark a booking completed, not a made-up flat number.
+          if (updates.status === 'completed' && appt.barberId !== 'dummy_barber') {
+            updateDoc(doc(db, 'users', appt.barberId), { completedCount: increment(1) })
+              .catch((error) => console.error("Error incrementing completed count:", error));
+          }
 
           if (updates.status === 'confirmed') {
             await queueEmail(
