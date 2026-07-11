@@ -350,8 +350,8 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
                     transition={{ delay: 0.2 }}
                     className="text-white/80 text-sm md:text-lg max-w-lg mb-6 md:mb-10 leading-relaxed font-light"
                   >
-                    BarberGo met en relation les meilleurs talents beauté & bien-être avec les clients les plus exigeants.
-                    À domicile ou en salon — réservez votre prestation en un clic, partout au Maroc.
+                    <span className="text-gold font-bold">BarberGo</span> met en relation les meilleurs talents <span className="text-gold font-bold">beauté & bien-être</span> avec les clients les plus exigeants.
+                    À <span className="text-gold font-bold">domicile</span> ou en salon — réservez votre prestation en un clic, partout au Maroc.
                   </motion.p>
 
                   <motion.div
