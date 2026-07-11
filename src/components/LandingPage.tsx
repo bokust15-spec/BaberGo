@@ -289,7 +289,6 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
               Réservez votre <span className="gold-gradient-text italic">moment de beauté chez vous.</span>
             </motion.h1>
 
-            <p className="font-bold uppercase tracking-widest text-xl md:text-2xl mb-4 text-white">Beauté & bien-être à domicile</p>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
