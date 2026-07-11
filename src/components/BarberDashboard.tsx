@@ -19,7 +19,8 @@ import {
   Scissors,
   MapPin,
   Star,
-  BadgeCheck
+  BadgeCheck,
+  Users
 } from 'lucide-react';
 import { Appointment, UserProfile, Service, PortfolioItem, BarberService, Review } from '../hooks/useFirebase';
 import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, mockBarberFromPost, CITY_COORDS } from '../data/mockBarberFeed';
@@ -81,6 +82,7 @@ interface BarberDashboardProps {
   onUploadKycFile: (file: File, type: 'cin' | 'selfie') => Promise<string | undefined>;
   onSubmitKycDossier: (cinUrl: string, selfieUrl: string) => Promise<void>;
   onGetBarberReviews: (barberId: string) => Promise<Review[]>;
+  dayVisitors: number;
 }
 
 export default function BarberDashboard({
@@ -106,7 +108,8 @@ export default function BarberDashboard({
   onBookBarber,
   onUploadKycFile,
   onSubmitKycDossier,
-  onGetBarberReviews
+  onGetBarberReviews,
+  dayVisitors
 }: BarberDashboardProps) {
   const [activeTab, setActiveTab] = useState<'home' | 'profile' | 'bookings'>('home');
   const [kycCinUrl, setKycCinUrl] = useState<string | null>(null);
@@ -124,6 +127,13 @@ export default function BarberDashboard({
   const [phoneInput, setPhoneInput] = useState(profile.phone || '');
   const [savingPhone, setSavingPhone] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
+
+  // Notification badge on the "Réservation" tab — real count of new booking requests
+  // awaiting the pro's response, like an unread count.
+  const pendingBookingsCount = useMemo(
+    () => appointments.filter(a => a.status === 'pending').length,
+    [appointments]
+  );
 
   const handleLogoutAll = () => {
     onLogoutFirebase();
@@ -344,6 +354,7 @@ export default function BarberDashboard({
             onSearchDateTimeChange={setSearchDateTime}
             searchStyle={searchStyle}
             onSearchStyleChange={setSearchStyle}
+            dayVisitors={dayVisitors}
           />
         )}
 
@@ -380,16 +391,23 @@ export default function BarberDashboard({
       <nav className={`fixed bottom-0 inset-x-0 z-40 border-t backdrop-blur-md ${theme === 'dark' ? 'bg-black/90 border-gold/20' : 'bg-white/95 border-gray-200'}`}>
         <div className="max-w-md mx-auto grid grid-cols-3">
           {([
-            { id: 'home' as const, label: 'Accueil', Icon: Home },
-            { id: 'profile' as const, label: 'Mon Profil', Icon: User },
-            { id: 'bookings' as const, label: 'Réservation', Icon: CalendarCheck }
+            { id: 'home' as const, label: 'Accueil', Icon: Home, badge: 0 },
+            { id: 'profile' as const, label: 'Mon Profil', Icon: User, badge: 0 },
+            { id: 'bookings' as const, label: 'Réservation', Icon: CalendarCheck, badge: pendingBookingsCount }
           ]).map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex flex-col items-center gap-1 py-3 transition-colors ${activeTab === tab.id ? 'text-gold' : 'text-warm-gray hover:text-white'}`}
             >
-              <tab.Icon size={20} />
+              <div className="relative">
+                <tab.Icon size={20} />
+                {tab.badge > 0 && (
+                  <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                    {tab.badge > 99 ? '99+' : tab.badge}
+                  </span>
+                )}
+              </div>
               <span className="text-[9px] font-bold uppercase tracking-widest">{tab.label}</span>
             </button>
           ))}
@@ -465,7 +483,7 @@ export default function BarberDashboard({
 // ============================================================
 // TAB: ACCUEIL — feed of every other barber's realizations
 // ============================================================
-function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelectEntry, onQuickBook, currentBarberUid, searchGender, onSearchGenderChange, searchCity, onSearchCityChange, moroccanCities, searchDateTime, onSearchDateTimeChange, searchStyle, onSearchStyleChange }: {
+function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelectEntry, onQuickBook, currentBarberUid, searchGender, onSearchGenderChange, searchCity, onSearchCityChange, moroccanCities, searchDateTime, onSearchDateTimeChange, searchStyle, onSearchStyleChange, dayVisitors }: {
   theme: 'dark' | 'light';
   feedItems: FeedEntry[];
   selectedCategory: string | null;
@@ -482,12 +500,32 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
   onSearchDateTimeChange: (v: string) => void;
   searchStyle: string;
   onSearchStyleChange: (v: string) => void;
+  dayVisitors: number;
 }) {
+  const [lightbox, setLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null);
+
+  // The same set of photos shown in the grid below, so opening one from there lets the
+  // viewer keep scrolling left/right through every other post instead of being stuck on
+  // a single picture.
+  const feedLightboxPhotos: LightboxPhoto[] = useMemo(() => feedItems.map(entry => ({
+    url: entry.item.url,
+    name: entry.item.name,
+    price: entry.item.price,
+    createdAt: entry.item.createdAt || entry.barber.createdAt,
+    barberName: `${entry.barber.firstName} ${entry.barber.lastName}`,
+    onBarberClick: () => { setLightbox(null); onSelectEntry(entry); },
+  })), [feedItems, onSelectEntry]);
+
   return (
     <div className="space-y-6 text-left">
       <div>
-        <h2 className="font-bebas text-3xl tracking-widest text-gold uppercase">Accueil</h2>
-        <p className="text-xs text-warm-gray">Parcourez les réalisations des prestataires BarberGo et réservez une séance — comme les clients le voient.</p>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h2 className="font-bebas text-3xl tracking-widest text-gold uppercase">Accueil</h2>
+          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 text-warm-gray text-[10px] font-bold uppercase tracking-widest">
+            <Users size={14} className="text-gold" /> {dayVisitors.toLocaleString('fr-FR')} visiteur{dayVisitors > 1 ? 's' : ''} aujourd'hui
+          </span>
+        </div>
+        <p className="text-xs text-warm-gray">Parcourez les réalisations des prestataires BarberGo et réservez une séance.</p>
       </div>
 
       <CategoryRail selected={selectedCategory} onSelect={onSelectCategory} theme={theme} />
@@ -519,7 +557,10 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
                 key={i}
                 className={`rounded-lg overflow-hidden border ${theme === 'dark' ? 'border-gold/15 bg-mid-brown/20' : 'border-gray-200 bg-white'}`}
               >
-                <button onClick={() => onSelectEntry(entry)} className="group w-full text-left block">
+                <button
+                  onClick={() => setLightbox({ photos: feedLightboxPhotos, index: i })}
+                  className="group w-full text-left block"
+                >
                   <div className="relative aspect-square">
                     <img src={item.url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                     <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full">
@@ -527,6 +568,8 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
                       <span className="text-white text-[9px] font-bold uppercase tracking-wide">{city}</span>
                     </div>
                   </div>
+                </button>
+                <button onClick={() => onSelectEntry(entry)} className="w-full text-left block">
                   <div className="p-2.5">
                     <div className={`text-xs font-bold mb-1 truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.name}</div>
                     <div className="flex items-center gap-1.5 mb-2">
@@ -571,6 +614,14 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
           <Scissors size={28} className="mx-auto mb-3 text-gold/40" />
           <p className="text-xs uppercase tracking-widest font-bold">Aucune réalisation publiée pour le moment</p>
         </div>
+      )}
+
+      {lightbox && (
+        <PhotoGalleryLightbox
+          photos={lightbox.photos}
+          initialIndex={lightbox.index}
+          onClose={() => setLightbox(null)}
+        />
       )}
     </div>
   );
@@ -699,7 +750,22 @@ function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook,
             </div>
           )}
 
-          <div className="text-[10px] text-warm-gray uppercase tracking-widest font-bold mb-3">Réalisations</div>
+          {isSelf ? (
+            <div className={`p-4 rounded-lg text-center text-xs font-bold uppercase tracking-widest mb-6 ${theme === 'dark' ? 'bg-black/30 text-warm-gray' : 'bg-gray-100 text-gray-400'}`}>
+              Votre post
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowBooking(true)}
+              className="w-full btn-primary py-4 mb-6 flex items-center justify-center gap-3 group"
+            >
+              <CalendarDays size={18} />
+              <span className="uppercase font-bold tracking-[0.2em] text-[10px]">Prendre rendez-vous</span>
+              <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+          )}
+
+          <div className="text-lg font-bebas text-gold uppercase tracking-widest mb-3">Réalisations</div>
           {galleryPhotos.length > 0 ? (
             <div className="grid grid-cols-4 gap-2 mb-4">
               {galleryPhotos.map((photo, i) => (
@@ -714,21 +780,6 @@ function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook,
             </div>
           ) : (
             <p className="text-xs text-warm-gray/50 uppercase tracking-widest text-center py-6">Aucune photo publiée pour le moment</p>
-          )}
-
-          {isSelf ? (
-            <div className={`p-4 rounded-lg text-center text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'bg-black/30 text-warm-gray' : 'bg-gray-100 text-gray-400'}`}>
-              Votre post
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowBooking(true)}
-              className="w-full btn-primary py-4 mt-2 flex items-center justify-center gap-3 group"
-            >
-              <CalendarDays size={18} />
-              <span className="uppercase font-bold tracking-[0.2em] text-[10px]">Prendre rendez-vous</span>
-              <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-            </button>
           )}
         </div>
       </motion.div>
@@ -1105,23 +1156,29 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
               <option key={c} value={c} className={theme === 'dark' ? 'bg-mid-brown' : ''}>{c}</option>
             ))}
           </select>
-          ·
-          <select
-            value={profile.ageRange || ''}
-            onChange={(e) => handleChangeAgeRange(e.target.value)}
-            disabled={savingAgeRange}
-            className="bg-transparent border-none outline-none text-gold uppercase tracking-widest font-bold text-[10px] cursor-pointer disabled:opacity-50"
-          >
-            <option value="" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Âge non précisé</option>
-            {AGE_RANGES.map(a => (
-              <option key={a} value={a} className={theme === 'dark' ? 'bg-mid-brown' : ''}>{a} ans</option>
-            ))}
-          </select>
         </p>
 
         {error && (
           <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-lg">{error}</div>
         )}
+
+        {/* AGE RANGE — editable here, shown publicly on the profile clients/other pros consult */}
+        <section className="mb-6">
+          <p className={sectionLabel}>Tranche d'âge</p>
+          <div className={cardClass}>
+            <select
+              value={profile.ageRange || ''}
+              onChange={(e) => handleChangeAgeRange(e.target.value)}
+              disabled={savingAgeRange}
+              className={`w-full text-xs p-3 rounded-lg border outline-none disabled:opacity-50 ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+            >
+              <option value="" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Préférer ne pas préciser</option>
+              {AGE_RANGES.map(a => (
+                <option key={a} value={a} className={theme === 'dark' ? 'bg-mid-brown' : ''}>{a} ans</option>
+              ))}
+            </select>
+          </div>
+        </section>
 
         {/* BIO */}
         <section className="mb-6">

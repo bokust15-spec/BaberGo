@@ -8,6 +8,13 @@ export interface LightboxPhoto {
   name?: string;
   price?: number;
   createdAt?: number;
+  // Optional — shown as a clickable name below the photo (e.g. browsing a search-results
+  // grid, where the photo itself opens this viewer instead of jumping straight to the
+  // pro's profile) so the viewer can still reach the profile from here in one tap. Kept
+  // per-photo, not gallery-level, since a search-results gallery mixes posts from
+  // different pros — each photo can point to a different profile.
+  barberName?: string;
+  onBarberClick?: () => void;
 }
 
 interface PhotoGalleryLightboxProps {
@@ -17,8 +24,8 @@ interface PhotoGalleryLightboxProps {
 }
 
 // Fullscreen photo viewer with left/right navigation through the rest of the set —
-// used for cover/avatar photos (single-item) and "Réalisations" galleries (multi-item)
-// alike, for guests, clients and pros browsing any profile, including their own.
+// used for cover/avatar photos (single-item), "Réalisations" galleries (multi-item, one
+// pro), and search-results grids (multi-item, many pros) alike.
 const SWIPE_THRESHOLD = 60;
 
 export default function PhotoGalleryLightbox({ photos, initialIndex, onClose }: PhotoGalleryLightboxProps) {
@@ -86,6 +93,14 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose }: 
             onDragEnd={handleDragEnd}
             className="max-w-full max-h-[70vh] md:max-h-[75vh] object-contain rounded-sm cursor-grab active:cursor-grabbing touch-pan-y"
           />
+          {current.barberName && (
+            <button
+              onClick={current.onBarberClick}
+              className="text-gold text-sm font-bold uppercase tracking-widest hover:underline underline-offset-4"
+            >
+              {current.barberName}
+            </button>
+          )}
           {(current.name || current.price !== undefined) && (
             <div className="flex items-center gap-3 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full">
               {current.name && <span className="text-white text-xs font-bold uppercase tracking-widest">{current.name}</span>}

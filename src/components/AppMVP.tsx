@@ -43,9 +43,10 @@ interface AppMVPProps {
   ) => Promise<void>;
   initialCategory?: string | null;
   onGetBarberReviews: (barberId: string) => Promise<Review[]>;
+  dayVisitors: number;
 }
 
-export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews }: AppMVPProps) {
+export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews, dayVisitors }: AppMVPProps) {
   const [activeTab, setActiveTab] = useState<'search' | 'bookings'>('search');
   const [selectedEntry, setSelectedEntry] = useState<FeedEntry | null>(null);
   const selectedBarber = selectedEntry?.barber ?? null;
@@ -71,6 +72,13 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
     });
     return () => { cancelled = true; };
   }, [selectedBarber, selectedEntry?.isMock, onGetBarberReviews]);
+
+  // Notification badge on "Mes Réservations" — real count of new counter-proposals from
+  // a pro awaiting the client's response, like an unread count.
+  const newProposalsCount = useMemo(
+    () => appointments.filter(a => a.negotiationStatus === 'barber_countered').length,
+    [appointments]
+  );
 
   // The gallery shown in "Réalisations", with each photo's own name/price when known
   // (real portfolio items) so the fullscreen viewer can display it while browsing.
@@ -179,6 +187,18 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
       return aMatch - bMatch;
     });
   }, [feedEntries, searchGender, selectedCategory, searchCity, searchDateTime, searchStyle]);
+
+  // The same set of photos shown in the grid below, so opening one from there lets the
+  // viewer keep scrolling left/right through every other post instead of being stuck on
+  // a single picture.
+  const feedLightboxPhotos: LightboxPhoto[] = useMemo(() => filteredEntries.map(entry => ({
+    url: entry.item.url,
+    name: entry.item.name,
+    price: entry.item.price,
+    createdAt: entry.item.createdAt || entry.barber.createdAt,
+    barberName: `${entry.barber.firstName} ${entry.barber.lastName}`,
+    onBarberClick: () => { setLightbox(null); openEntry(entry); },
+  })), [filteredEntries]);
 
   const handleLogoutAll = () => {
     onLogoutFirebase();
@@ -332,8 +352,17 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                    </p>
                  </div>
 
+                 <button
+                   onClick={() => setShowBooking(true)}
+                   className="w-full btn-primary py-5 mb-8 flex items-center justify-center gap-3 group"
+                 >
+                   <CalendarDays size={18} />
+                   <span className="uppercase font-bold tracking-[0.2em]">Prendre rendez-vous</span>
+                   <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                 </button>
+
                  <div className="mb-8">
-                   <div className="text-[10px] text-warm-gray uppercase tracking-widest font-bold mb-4">Réalisations</div>
+                   <div className="text-lg font-bebas text-gold uppercase tracking-widest mb-4">Réalisations</div>
                    <div className="grid grid-cols-4 gap-2">
                      {realizationPhotos.map((photo, i) => (
                        <button key={i} onClick={() => openLightbox(realizationPhotos, i)} className="aspect-square rounded-sm overflow-hidden border border-gold/15">
@@ -345,21 +374,17 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                      <p className="text-xs text-warm-gray/50 uppercase tracking-widest text-center py-6">Aucune photo publiée pour le moment</p>
                    )}
                  </div>
-
-                 <button
-                   onClick={() => setShowBooking(true)}
-                   className="w-full btn-primary py-5 mt-4 flex items-center justify-center gap-3 group"
-                 >
-                   <CalendarDays size={18} />
-                   <span className="uppercase font-bold tracking-[0.2em]">Prendre rendez-vous</span>
-                   <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                 </button>
               </div>
             </motion.div>
           ) : (
             <motion.div key="search" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-5xl mx-auto px-4 py-8 md:py-12">
               <div className="mb-6">
-                <h1 className={`font-bebas text-3xl md:text-4xl tracking-wide uppercase mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Trouvez votre professionnel</h1>
+                <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                  <h1 className={`font-bebas text-3xl md:text-4xl tracking-wide uppercase ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Trouvez votre professionnel</h1>
+                  <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm border text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'border-white/10 text-warm-gray' : 'border-gray-200 text-gray-500'}`}>
+                    <Users size={14} className="text-gold" /> {dayVisitors.toLocaleString('fr-FR')} visiteur{dayVisitors > 1 ? 's' : ''} aujourd'hui
+                  </span>
+                </div>
                 <p className="text-warm-gray text-sm">Recherchez selon la disponibilité, le genre et la prestation que vous voulez.</p>
               </div>
 
@@ -395,7 +420,10 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                       key={i}
                       className={`rounded-lg overflow-hidden border ${theme === 'dark' ? 'border-gold/15 bg-mid-brown/20' : 'border-gray-200 bg-white'}`}
                     >
-                      <button onClick={() => openEntry(entry)} className="group w-full text-left block">
+                      <button
+                        onClick={() => openLightbox(feedLightboxPhotos, i)}
+                        className="group w-full text-left block"
+                      >
                         <div className="relative aspect-square">
                           <img src={entry.item.url} alt={entry.item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                           <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full">
@@ -403,6 +431,8 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                             <span className="text-white text-[9px] font-bold uppercase tracking-wide">{entry.city}</span>
                           </div>
                         </div>
+                      </button>
+                      <button onClick={() => openEntry(entry)} className="w-full text-left block">
                         <div className="p-2.5">
                           <div className={`text-xs font-bold mb-1 truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{entry.item.name}</div>
                           <div className="flex items-center gap-1.5 mb-2">
@@ -449,8 +479,8 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
       <nav className={`fixed bottom-0 inset-x-0 z-40 border-t backdrop-blur-md ${theme === 'dark' ? 'bg-black/90 border-gold/20' : 'bg-white/95 border-gray-200'}`}>
         <div className="max-w-md mx-auto grid grid-cols-2">
           {([
-            { id: 'search' as const, label: 'Rechercher', Icon: Search },
-            { id: 'bookings' as const, label: 'Mes Réservations', Icon: CalendarCheck }
+            { id: 'search' as const, label: 'Rechercher', Icon: Search, badge: 0 },
+            { id: 'bookings' as const, label: 'Mes Réservations', Icon: CalendarCheck, badge: newProposalsCount }
           ]).map(tab => (
             <button
               key={tab.id}
@@ -461,7 +491,14 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
               }}
               className={`flex flex-col items-center gap-1 py-3 transition-colors ${activeTab === tab.id ? 'text-gold' : 'text-warm-gray hover:text-white'}`}
             >
-              <tab.Icon size={20} />
+              <div className="relative">
+                <tab.Icon size={20} />
+                {tab.badge > 0 && (
+                  <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                    {tab.badge > 99 ? '99+' : tab.badge}
+                  </span>
+                )}
+              </div>
               <span className="text-[9px] font-bold uppercase tracking-widest">{tab.label}</span>
             </button>
           ))}
@@ -483,7 +520,11 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
 
       {/* FULLSCREEN PHOTO VIEWER */}
       {lightbox && (
-        <PhotoGalleryLightbox photos={lightbox.photos} initialIndex={lightbox.index} onClose={() => setLightbox(null)} />
+        <PhotoGalleryLightbox
+          photos={lightbox.photos}
+          initialIndex={lightbox.index}
+          onClose={() => setLightbox(null)}
+        />
       )}
 
       {/* PROFILE MODAL */}

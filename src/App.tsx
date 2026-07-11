@@ -373,6 +373,7 @@ export default function App() {
           onUploadKycFile={uploadKycFile}
           onSubmitKycDossier={submitKycDossier}
           onGetBarberReviews={getBarberReviews}
+          dayVisitors={dayVisitors}
         />
       );
     }
@@ -393,6 +394,7 @@ export default function App() {
         initialCategory={initialCategory}
         onLogin={handleLoginClick}
         onGetBarberReviews={getBarberReviews}
+        dayVisitors={dayVisitors}
       />
     );
   };
