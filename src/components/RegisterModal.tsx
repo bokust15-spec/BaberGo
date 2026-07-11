@@ -74,12 +74,14 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme }: Re
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        onClick={onClose}
         className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
       >
         <motion.div
           initial={{ scale: 0.95, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 20 }}
+          onClick={(e) => e.stopPropagation()}
           className={`w-full max-w-md border rounded-2xl overflow-hidden shadow-2xl max-h-[90vh] flex flex-col ${theme === 'dark' ? 'bg-mid-brown border-gold/30' : 'bg-white border-gray-200'}`}
         >
           <div className={`px-6 py-5 border-b flex items-center gap-3 shrink-0 ${theme === 'dark' ? 'border-gold/10 bg-black/20' : 'border-gray-100 bg-gray-50/50'}`}>
