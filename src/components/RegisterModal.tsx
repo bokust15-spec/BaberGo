@@ -7,10 +7,12 @@ interface RegisterModalProps {
   onClose: () => void;
   onRegister: (data: any) => Promise<void>;
   theme: 'dark' | 'light';
-  defaultRole?: 'client' | 'barber';
 }
 
-export default function RegisterModal({ isOpen, onClose, onRegister, theme, defaultRole = 'client' }: RegisterModalProps) {
+// Clients never create an account through this form — they only get one transparently
+// when confirming their first booking (see onGuestRegisterAndBook). This modal is
+// reserved for professionals signing up ("Je suis professionnel(le) beauté").
+export default function RegisterModal({ isOpen, onClose, onRegister, theme }: RegisterModalProps) {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -19,7 +21,7 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'client' as 'client' | 'barber',
+    role: 'barber' as 'client' | 'barber',
     ageRange: '' as '' | '18-25' | '26-35' | '36-45' | '46-55' | '56+'
   });
   const [loading, setLoading] = useState(false);
@@ -27,10 +29,9 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
 
   useEffect(() => {
     if (isOpen) {
-      setFormData(prev => ({ ...prev, role: defaultRole }));
       setError(null);
     }
-  }, [isOpen, defaultRole]);
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,8 +59,6 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
   };
 
   if (!isOpen) return null;
-
-  const roleLocked = defaultRole === 'barber';
 
   const inputClass = `w-full border pl-10 pr-4 py-2.5 text-xs outline-none rounded-lg transition-all focus:ring-2 focus:ring-gold/30 ${
     theme === 'dark'
@@ -107,28 +106,9 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
           </div>
 
           <form className="p-6 space-y-6 overflow-y-auto" onSubmit={handleSubmit}>
-            {roleLocked ? (
-              <div className={`flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gold text-black text-[10px] font-bold uppercase tracking-widest shadow-md shadow-gold/20`}>
-                <Scissors size={13} /> Inscription Professionnel Beauté
-              </div>
-            ) : (
-              <div className="flex gap-2 p-1 bg-black/20 rounded-xl">
-                 <button
-                  type="button"
-                  onClick={() => setFormData({...formData, role: 'client'})}
-                  className={`flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5 ${formData.role === 'client' ? 'bg-gold text-black shadow-md shadow-gold/20' : 'text-warm-gray hover:text-white'}`}
-                 >
-                   <Users size={13} /> Client
-                 </button>
-                 <button
-                  type="button"
-                  onClick={() => setFormData({...formData, role: 'barber'})}
-                  className={`flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5 ${formData.role === 'barber' ? 'bg-gold text-black shadow-md shadow-gold/20' : 'text-warm-gray hover:text-white'}`}
-                 >
-                   <Scissors size={13} /> Professionnel
-                 </button>
-              </div>
-            )}
+            <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gold text-black text-[10px] font-bold uppercase tracking-widest shadow-md shadow-gold/20">
+              <Scissors size={13} /> Inscription Professionnel Beauté
+            </div>
 
             <div>
               <p className={sectionLabelClass}><Users size={12} /> Informations personnelles</p>
@@ -191,23 +171,20 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme, defa
               <div className="space-y-4">
                 <div>
                   <label className="text-[10px] text-warm-gray uppercase font-bold mb-1 block">
-                    Numéro de téléphone {roleLocked && <span className="text-warm-gray/50 normal-case font-normal">(optionnel pour l'instant)</span>}
+                    Numéro de téléphone <span className="text-warm-gray/50 normal-case font-normal">(optionnel pour l'instant)</span>
                   </label>
                   <div className="relative">
                     <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gold/50" />
                     <input
-                      required={!roleLocked}
                       value={formData.phone}
                       onChange={e => setFormData({...formData, phone: e.target.value})}
                       className={inputClass}
                       placeholder="+212 6 XX XX XX XX"
                     />
                   </div>
-                  {roleLocked && (
-                    <p className="text-[9px] text-warm-gray/60 mt-1 leading-relaxed">
-                      À renseigner depuis ton tableau de bord avant de pouvoir accepter des réservations, avec ta CIN et un selfie de vérification.
-                    </p>
-                  )}
+                  <p className="text-[9px] text-warm-gray/60 mt-1 leading-relaxed">
+                    À renseigner depuis ton tableau de bord avant de pouvoir accepter des réservations, avec ta CIN et un selfie de vérification.
+                  </p>
                 </div>
 
                 <div>

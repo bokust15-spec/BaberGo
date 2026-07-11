@@ -14,7 +14,6 @@ export default function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const [registerRole, setRegisterRole] = useState<'client' | 'barber'>('client');
   const [hasDismissedRegister, setHasDismissedRegister] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [clientLocation, setClientLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -24,6 +23,7 @@ export default function App() {
     user,
     profile,
     loading,
+    profileFetchError,
     services,
     barbers,
     dayVisitors,
@@ -129,8 +129,7 @@ export default function App() {
     }
   };
 
-  const handleRegisterClick = (role: 'client' | 'barber' = 'client') => {
-    setRegisterRole(role);
+  const handleRegisterClick = () => {
     setHasDismissedRegister(false); // Re-allow opening manually
     setIsRegisterOpen(true);
   };
@@ -436,9 +435,12 @@ export default function App() {
         </div>
       )}
 
-      {/* Auto-open register if logged in but no profile, unless dismissed */}
+      {/* Auto-open register if logged in but no profile, unless dismissed. Gated on
+          !profileFetchError so a failed profile read (network/App Check hiccup) never
+          gets mistaken for "this account has no profile" and shows the signup form to
+          an existing user. */}
       <RegisterModal
-        isOpen={isRegisterOpen || (!!user && !profile && !loading && !hasDismissedRegister)}
+        isOpen={isRegisterOpen || (!!user && !profile && !loading && !profileFetchError && !hasDismissedRegister)}
         onClose={() => {
           setIsRegisterOpen(false);
           setHasDismissedRegister(true);
@@ -446,7 +448,6 @@ export default function App() {
         }}
         onRegister={handleRegisterSuccess}
         theme={theme}
-        defaultRole={registerRole}
       />
 
       <LoginModal

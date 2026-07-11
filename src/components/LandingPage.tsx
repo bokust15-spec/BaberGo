@@ -301,72 +301,118 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
             </motion.div>
 
             <div className="max-w-2xl">
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="text-white/80 text-sm md:text-lg max-w-lg mb-6 md:mb-10 leading-relaxed font-light"
-              >
-                BarberGo met en relation les meilleurs talents beauté & bien-être avec les clients les plus exigeants.
-                À domicile ou en salon — réservez votre prestation en un clic, partout au Maroc.
-              </motion.p>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="flex flex-col gap-4 w-fit"
-              >
-                <div className="flex flex-wrap gap-3 md:gap-4">
-                  <button onClick={onFindNearby} className="btn-primary flex items-center gap-2 md:gap-3 !px-5 !py-3 md:!px-8 md:!py-3 text-[11px] md:text-sm">
-                    <MapPin size={16} className="shrink-0" />
-                    Trouver un professionnel autour de moi
-                  </button>
-                  <button
-                    onClick={() => onRegisterOpen('barber')}
-                    className="flex items-center gap-2 md:gap-3 px-5 py-3 md:px-8 md:py-4 text-[11px] md:text-xs font-bold uppercase tracking-widest border border-white/30 text-white/80 hover:text-gold hover:border-gold transition-all"
+              {profile && (profile.role === 'client' || profile.role === 'barber') ? (
+                <>
+                  <motion.p
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="font-bricolage italic font-bold gold-gradient-text text-3xl md:text-5xl mb-8 md:mb-10"
                   >
-                    <Sparkles size={14} className="shrink-0" />
-                    Je suis professionnel(le) beauté
-                  </button>
-                </div>
-              </motion.div>
+                    Salut, {profile.firstName} !
+                  </motion.p>
 
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="flex gap-6 sm:gap-8 md:gap-12 mt-8 md:mt-16"
-              >
-                <div className="text-center md:text-left">
-                  <div className="text-xl md:text-3xl font-bebas text-gold mb-1">{totalPros.toLocaleString('fr-FR')}</div>
-                  <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Professionnels</div>
-                </div>
-                <div className="text-center md:text-left">
-                  <div className="text-xl md:text-3xl font-bebas text-gold mb-1">{totalUsers.toLocaleString('fr-FR')}</div>
-                  <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">utilisateurs</div>
-                </div>
-                <div className="text-center md:text-left">
-                  <div className="text-xl md:text-3xl font-bebas text-gold mb-1">4.9/5</div>
-                  <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Score</div>
-                </div>
-              </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="flex justify-center"
+                  >
+                    <button onClick={onFindNearby} className="btn-primary flex items-center gap-2 md:gap-3 !px-5 !py-3 md:!px-8 md:!py-3 text-[11px] md:text-sm !bg-gold/80 backdrop-blur-md border border-gold/40 hover:!bg-gold-light/90 shadow-lg shadow-gold/10">
+                      <MapPin size={16} className="shrink-0" />
+                      Trouver un professionnel autour de moi
+                    </button>
+                  </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="mt-6 md:mt-8 flex justify-center gap-10 sm:gap-14"
-              >
-                <div className="text-center">
-                  <div className="text-2xl md:text-4xl font-bebas text-gold leading-none mb-1">{dayVisitors.toLocaleString('fr-FR')}</div>
-                  <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Visiteurs aujourd'hui</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl md:text-4xl font-bebas text-gold leading-none mb-1">{monthVisitors.toLocaleString('fr-FR')}</div>
-                  <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Visiteurs ce mois-ci</div>
-                </div>
-              </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="flex justify-center mt-8 md:mt-16"
+                  >
+                    {profile.role === 'client' ? (
+                      <div className="text-center">
+                        <div className="text-xl md:text-3xl font-bebas text-gold mb-1">{totalPros.toLocaleString('fr-FR')}</div>
+                        <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Professionnels</div>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <div className="text-xl md:text-3xl font-bebas text-gold mb-1">{totalUsers.toLocaleString('fr-FR')}</div>
+                        <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">utilisateurs</div>
+                      </div>
+                    )}
+                  </motion.div>
+                </>
+              ) : (
+                <>
+                  <motion.p
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="text-white/80 text-sm md:text-lg max-w-lg mb-6 md:mb-10 leading-relaxed font-light"
+                  >
+                    BarberGo met en relation les meilleurs talents beauté & bien-être avec les clients les plus exigeants.
+                    À domicile ou en salon — réservez votre prestation en un clic, partout au Maroc.
+                  </motion.p>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="flex flex-col gap-4 w-fit"
+                  >
+                    <div className="flex flex-wrap gap-3 md:gap-4">
+                      <button onClick={onFindNearby} className="btn-primary flex items-center gap-2 md:gap-3 !px-5 !py-3 md:!px-8 md:!py-3 text-[11px] md:text-sm !bg-gold/80 backdrop-blur-md border border-gold/40 hover:!bg-gold-light/90 shadow-lg shadow-gold/10">
+                        <MapPin size={16} className="shrink-0" />
+                        Trouver un professionnel autour de moi
+                      </button>
+                      <button
+                        onClick={() => onRegisterOpen('barber')}
+                        className="flex items-center gap-2 md:gap-3 px-5 py-3 md:px-8 md:py-4 text-[11px] md:text-xs font-bold uppercase tracking-widest border border-white/30 text-white/80 hover:text-gold hover:border-gold transition-all"
+                      >
+                        <Sparkles size={14} className="shrink-0" />
+                        Je suis professionnel(le) beauté
+                      </button>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="flex gap-6 sm:gap-8 md:gap-12 mt-8 md:mt-16"
+                  >
+                    <div className="text-center md:text-left">
+                      <div className="text-xl md:text-3xl font-bebas text-gold mb-1">{totalPros.toLocaleString('fr-FR')}</div>
+                      <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Professionnels</div>
+                    </div>
+                    <div className="text-center md:text-left">
+                      <div className="text-xl md:text-3xl font-bebas text-gold mb-1">{totalUsers.toLocaleString('fr-FR')}</div>
+                      <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">utilisateurs</div>
+                    </div>
+                    <div className="text-center md:text-left">
+                      <div className="text-xl md:text-3xl font-bebas text-gold mb-1">4.9/5</div>
+                      <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Score</div>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 }}
+                    className="mt-6 md:mt-8 flex justify-center gap-10 sm:gap-14"
+                  >
+                    <div className="text-center">
+                      <div className="text-2xl md:text-4xl font-bebas text-gold leading-none mb-1">{dayVisitors.toLocaleString('fr-FR')}</div>
+                      <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Visiteurs aujourd'hui</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl md:text-4xl font-bebas text-gold leading-none mb-1">{monthVisitors.toLocaleString('fr-FR')}</div>
+                      <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Visiteurs ce mois-ci</div>
+                    </div>
+                  </motion.div>
+                </>
+              )}
             </div>
           </div>
         </div>

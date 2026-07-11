@@ -148,6 +148,10 @@ export function useFirebase() {
   const [monthVisitors, setMonthVisitors] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
+  // True only when the profile fetch itself failed (network/App Check hiccup) — kept
+  // separate from "profile is null" so a transient read error can never be mistaken
+  // for "this account has no profile yet" and pop the registration form on a real user.
+  const [profileFetchError, setProfileFetchError] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -161,8 +165,10 @@ export function useFirebase() {
           } else {
             setProfile(null);
           }
+          setProfileFetchError(false);
         } catch (error) {
           console.error("Error fetching profile:", error);
+          setProfileFetchError(true);
         }
         try {
           const adminSnap = await getDoc(doc(db, 'admins', firebaseUser.uid));
@@ -172,6 +178,7 @@ export function useFirebase() {
         }
       } else {
         setProfile(null);
+        setProfileFetchError(false);
         setIsAdmin(false);
       }
       setLoading(false);
@@ -706,6 +713,7 @@ export function useFirebase() {
     user,
     profile,
     loading,
+    profileFetchError,
     services,
     barbers,
     dayVisitors,
