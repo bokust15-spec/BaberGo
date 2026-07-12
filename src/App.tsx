@@ -395,7 +395,6 @@ export default function App() {
         initialCategory={initialCategory}
         onLogin={handleLoginClick}
         onGetBarberReviews={getBarberReviews}
-        dayVisitors={dayVisitors}
         onIncrementProfileView={incrementProfileView}
       />
     );

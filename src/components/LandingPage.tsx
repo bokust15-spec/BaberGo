@@ -349,15 +349,17 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
                         <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Professionnels</div>
                       </div>
                     ) : (
-                      <div className="text-center">
-                        <div className="text-xl md:text-3xl font-bebas text-gold mb-1">{totalUsers.toLocaleString('fr-FR')}</div>
-                        <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">utilisateurs</div>
-                      </div>
+                      <>
+                        <div className="text-center">
+                          <div className="text-xl md:text-3xl font-bebas text-gold mb-1">{totalUsers.toLocaleString('fr-FR')}</div>
+                          <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">utilisateurs</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xl md:text-3xl font-bebas text-gold mb-1">{dayVisitors.toLocaleString('fr-FR')}</div>
+                          <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Visiteurs aujourd'hui</div>
+                        </div>
+                      </>
                     )}
-                    <div className="text-center">
-                      <div className="text-xl md:text-3xl font-bebas text-gold mb-1">{dayVisitors.toLocaleString('fr-FR')}</div>
-                      <div className="text-[9px] md:text-[10px] text-white/70 uppercase tracking-widest font-bold">Visiteurs aujourd'hui</div>
-                    </div>
                   </motion.div>
                 </>
               ) : (
