@@ -27,24 +27,28 @@ export default function CategoryRail({ selected, onSelect, theme, size = 'defaul
     }`;
 
   return (
-    <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen md:static md:left-0 md:right-0 md:mx-0 md:w-full overflow-x-auto scrollbar-hide mb-6">
-      <div className={`flex w-max px-4 md:px-0 ${isLg ? 'gap-3' : 'gap-2'}`}>
-        {!hideAll && (
-          <button onClick={() => onSelect(null)} className={chipClass(selected === null)}>
-            <LayoutGrid size={iconSize} />
-            Tous
-          </button>
-        )}
-        {SERVICE_CATEGORIES.map(cat => {
-          const Icon = cat.icon;
-          return (
-            <button key={cat.id} onClick={() => onSelect(cat.id)} className={chipClass(selected === cat.id)}>
-              <Icon size={iconSize} />
-              {cat.label}
+    <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen md:static md:left-0 md:right-0 md:mx-0 md:w-full mb-6">
+      <div className="overflow-x-auto scrollbar-hide">
+        <div className={`flex w-max px-4 md:px-0 ${isLg ? 'gap-3' : 'gap-2'}`}>
+          {!hideAll && (
+            <button onClick={() => onSelect(null)} className={chipClass(selected === null)}>
+              <LayoutGrid size={iconSize} />
+              Tous
             </button>
-          );
-        })}
+          )}
+          {SERVICE_CATEGORIES.map(cat => {
+            const Icon = cat.icon;
+            return (
+              <button key={cat.id} onClick={() => onSelect(cat.id)} className={chipClass(selected === cat.id)}>
+                <Icon size={iconSize} />
+                {cat.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
+      {/* Fade hint that this row scrolls horizontally — sits on top, never blocks clicks. */}
+      <div className={`pointer-events-none absolute right-0 top-0 bottom-0 w-10 md:w-12 bg-gradient-to-l ${theme === 'dark' ? 'from-black/90' : 'from-white'} to-transparent`} />
     </div>
   );
 }
