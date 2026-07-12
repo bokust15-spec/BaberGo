@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Star, MapPin, Calendar, Sparkles, Apple, Play, ShieldCheck, Wallet, Quote, Menu, X, User, LayoutDashboard } from 'lucide-react';
+import { Star, MapPin, Calendar, Sparkles, Apple, Play, ShieldCheck, Wallet, Quote, Menu, X, User, LayoutDashboard, Download } from 'lucide-react';
 import CategoryRail from './CategoryRail';
 import { SERVICE_CATEGORIES } from '../data/categories';
 import { UserProfile } from '../hooks/useFirebase';
+import { useInstallPrompt } from '../hooks/useInstallPrompt';
+import InstallInstructionsModal from './InstallInstructionsModal';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -112,6 +114,12 @@ const TESTIMONIALS = [
 
 export default function LandingPage({ onLogin, theme, profile, onEnterApp, onRegisterOpen, onFindNearby, onSelectCategory, dayVisitors, monthVisitors, totalPros, totalUsers }: LandingPageProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showIOSInstallHelp, setShowIOSInstallHelp] = useState(false);
+  const { canInstall, promptInstall } = useInstallPrompt();
+  const handleInstallClick = async () => {
+    const result = await promptInstall();
+    if (result === 'ios-instructions') setShowIOSInstallHelp(true);
+  };
   const galleryRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const dragStartRef = useRef({ x: 0, scrollLeft: 0 });
@@ -203,6 +211,15 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
           </button>
           <a href="#how" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Comment ça marche</a>
           <a href="#avis" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Avis</a>
+          {canInstall && (
+            <button
+              onClick={handleInstallClick}
+              className="whitespace-nowrap flex items-center gap-1.5 text-gold text-sm font-bold uppercase tracking-widest hover:text-gold-light transition-colors"
+            >
+              <Download size={14} />
+              Télécharger le site
+            </button>
+          )}
         </div>
         <div className="justify-self-end flex items-center">
           <button
@@ -234,10 +251,23 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
               {profile ? profile.firstName : 'Se connecter'}
             </button>
             <a onClick={() => setIsMobileMenuOpen(false)} href="#how" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Comment ça marche</a>
-            <a onClick={() => setIsMobileMenuOpen(false)} href="#avis" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors">Avis</a>
+            <a onClick={() => setIsMobileMenuOpen(false)} href="#avis" className={`py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors ${canInstall ? 'border-b border-gold/10' : ''}`}>Avis</a>
+            {canInstall && (
+              <button
+                onClick={() => { setIsMobileMenuOpen(false); handleInstallClick(); }}
+                className="py-3 flex items-center gap-1.5 text-left text-gold text-sm font-bold uppercase tracking-widest hover:text-gold-light transition-colors"
+              >
+                <Download size={14} />
+                Télécharger le site
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showIOSInstallHelp && (
+        <InstallInstructionsModal theme={theme} onClose={() => setShowIOSInstallHelp(false)} />
+      )}
 
       {/* HERO */}
       <section id="hero" className="min-h-screen pt-20 md:pt-24 pb-10 md:pb-16 flex flex-col relative overflow-hidden">
