@@ -145,6 +145,7 @@ export function useFirebase() {
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<Service[]>([]);
   const [barbers, setBarbers] = useState<UserProfile[]>([]);
+  const [barbersLoading, setBarbersLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [dayVisitors, setDayVisitors] = useState(0);
   const [monthVisitors, setMonthVisitors] = useState(0);
@@ -208,8 +209,10 @@ export function useFirebase() {
     const barbersQuery = query(collection(db, 'users'), where('role', '==', 'barber'));
     const unsubscribeBarbers = onSnapshot(barbersQuery, (snapshot) => {
       setBarbers(snapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserProfile)));
+      setBarbersLoading(false);
     }, (error) => {
       console.error("Error fetching barbers:", error);
+      setBarbersLoading(false);
     });
 
     return () => unsubscribeBarbers();
@@ -738,6 +741,7 @@ export function useFirebase() {
     profileFetchError,
     services,
     barbers,
+    barbersLoading,
     dayVisitors,
     monthVisitors,
     totalUsers,

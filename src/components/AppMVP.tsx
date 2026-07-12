@@ -7,6 +7,7 @@ import BookingModal from './BookingModal';
 import SearchBar from './SearchBar';
 import CategoryRail from './CategoryRail';
 import PhotoGalleryLightbox, { LightboxPhoto } from './PhotoGalleryLightbox';
+import SkeletonCard from './SkeletonCard';
 import { formatRelativeTime } from '../utils/relativeTime';
 
 // A single bookable "look": either a real barber's own uploaded realization, or one
@@ -44,9 +45,10 @@ interface AppMVPProps {
   initialCategory?: string | null;
   onGetBarberReviews: (barberId: string) => Promise<Review[]>;
   onIncrementProfileView: (barberId: string) => Promise<void>;
+  barbersLoading: boolean;
 }
 
-export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews, onIncrementProfileView }: AppMVPProps) {
+export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews, onIncrementProfileView, barbersLoading }: AppMVPProps) {
   const [activeTab, setActiveTab] = useState<'search' | 'bookings'>('search');
   const [selectedEntry, setSelectedEntry] = useState<FeedEntry | null>(null);
   const selectedBarber = selectedEntry?.barber ?? null;
@@ -416,6 +418,9 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
               <div id="style-gallery">
                 <h2 className={`font-bebas text-xl tracking-widest uppercase mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Réalisations de nos professionnels</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {barbersLoading && filteredEntries.length === 0 && (
+                    Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} theme={theme} />)
+                  )}
                   {filteredEntries.map((entry, i) => {
                     const avatarSrc = entry.barber.avatarUrl || avatarFor(entry.barber.uid);
                     return (

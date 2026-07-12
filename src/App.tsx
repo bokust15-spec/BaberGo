@@ -26,6 +26,7 @@ export default function App() {
     profileFetchError,
     services,
     barbers,
+    barbersLoading,
     dayVisitors,
     monthVisitors,
     totalUsers,
@@ -375,6 +376,7 @@ export default function App() {
           onSubmitKycDossier={submitKycDossier}
           onGetBarberReviews={getBarberReviews}
           onIncrementProfileView={incrementProfileView}
+          barbersLoading={barbersLoading}
         />
       );
     }
@@ -396,9 +398,26 @@ export default function App() {
         onLogin={handleLoginClick}
         onGetBarberReviews={getBarberReviews}
         onIncrementProfileView={incrementProfileView}
+        barbersLoading={barbersLoading}
       />
     );
   };
+
+  // A short branded splash while Firebase resolves whether someone's signed in — avoids
+  // flashing the generic landing page and then jumping to the personalized "Salut, X"
+  // hero a beat later once the profile loads.
+  if (loading) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${theme === 'dark' ? 'bg-black text-white' : 'bg-gray-50 text-gray-900'}`}>
+        <div className="flex flex-col items-center gap-5">
+          <div className="font-bebas text-3xl tracking-[0.2em] uppercase">
+            <span className="text-gold">Barber</span>Go
+          </div>
+          <div className="w-7 h-7 border-2 border-gold/25 border-t-gold rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-black text-white' : 'bg-gray-50 text-gray-900'}`}>

@@ -27,6 +27,7 @@ import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, mockBarberFromPost
 import CategoryRail from './CategoryRail';
 import { SERVICE_CATEGORIES } from '../data/categories';
 import PhotoGalleryLightbox, { LightboxPhoto } from './PhotoGalleryLightbox';
+import SkeletonCard from './SkeletonCard';
 import SearchBar from './SearchBar';
 import BookingModal from './BookingModal';
 import { formatRelativeTime } from '../utils/relativeTime';
@@ -83,6 +84,7 @@ interface BarberDashboardProps {
   onSubmitKycDossier: (cinUrl: string, selfieUrl: string) => Promise<void>;
   onGetBarberReviews: (barberId: string) => Promise<Review[]>;
   onIncrementProfileView: (barberId: string) => Promise<void>;
+  barbersLoading: boolean;
 }
 
 export default function BarberDashboard({
@@ -109,7 +111,8 @@ export default function BarberDashboard({
   onUploadKycFile,
   onSubmitKycDossier,
   onGetBarberReviews,
-  onIncrementProfileView
+  onIncrementProfileView,
+  barbersLoading
 }: BarberDashboardProps) {
   const [activeTab, setActiveTab] = useState<'home' | 'profile' | 'bookings'>('home');
   const [kycCinUrl, setKycCinUrl] = useState<string | null>(null);
@@ -355,6 +358,7 @@ export default function BarberDashboard({
             searchStyle={searchStyle}
             onSearchStyleChange={setSearchStyle}
             profileViews={profile.profileViews || 0}
+            barbersLoading={barbersLoading}
           />
         )}
 
@@ -484,7 +488,7 @@ export default function BarberDashboard({
 // ============================================================
 // TAB: ACCUEIL — feed of every other barber's realizations
 // ============================================================
-function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelectEntry, onQuickBook, currentBarberUid, searchGender, onSearchGenderChange, searchCity, onSearchCityChange, moroccanCities, searchDateTime, onSearchDateTimeChange, searchStyle, onSearchStyleChange, profileViews }: {
+function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelectEntry, onQuickBook, currentBarberUid, searchGender, onSearchGenderChange, searchCity, onSearchCityChange, moroccanCities, searchDateTime, onSearchDateTimeChange, searchStyle, onSearchStyleChange, profileViews, barbersLoading }: {
   theme: 'dark' | 'light';
   feedItems: FeedEntry[];
   selectedCategory: string | null;
@@ -502,6 +506,7 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
   searchStyle: string;
   onSearchStyleChange: (v: string) => void;
   profileViews: number;
+  barbersLoading: boolean;
 }) {
   const [lightbox, setLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null);
 
@@ -548,7 +553,11 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
         {feedItems.length} professionnel{feedItems.length > 1 ? 's' : ''} disponible{feedItems.length > 1 ? 's' : ''}
       </p>
 
-      {feedItems.length > 0 ? (
+      {feedItems.length === 0 && barbersLoading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} theme={theme} />)}
+        </div>
+      ) : feedItems.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {feedItems.map((entry, i) => {
             const { barber, item, isMock, rating, city } = entry;
