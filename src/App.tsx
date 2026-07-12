@@ -57,7 +57,8 @@ export default function App() {
     updateCategories,
     updateServices,
     addReview,
-    getBarberReviews
+    getBarberReviews,
+    incrementProfileView
   } = useFirebase();
 
   useEffect(() => {
@@ -373,7 +374,7 @@ export default function App() {
           onUploadKycFile={uploadKycFile}
           onSubmitKycDossier={submitKycDossier}
           onGetBarberReviews={getBarberReviews}
-          dayVisitors={dayVisitors}
+          onIncrementProfileView={incrementProfileView}
         />
       );
     }
@@ -395,6 +396,7 @@ export default function App() {
         onLogin={handleLoginClick}
         onGetBarberReviews={getBarberReviews}
         dayVisitors={dayVisitors}
+        onIncrementProfileView={incrementProfileView}
       />
     );
   };

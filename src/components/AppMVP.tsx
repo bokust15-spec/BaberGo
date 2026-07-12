@@ -44,9 +44,10 @@ interface AppMVPProps {
   initialCategory?: string | null;
   onGetBarberReviews: (barberId: string) => Promise<Review[]>;
   dayVisitors: number;
+  onIncrementProfileView: (barberId: string) => Promise<void>;
 }
 
-export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews, dayVisitors }: AppMVPProps) {
+export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews, dayVisitors, onIncrementProfileView }: AppMVPProps) {
   const [activeTab, setActiveTab] = useState<'search' | 'bookings'>('search');
   const [selectedEntry, setSelectedEntry] = useState<FeedEntry | null>(null);
   const selectedBarber = selectedEntry?.barber ?? null;
@@ -72,6 +73,14 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
     });
     return () => { cancelled = true; };
   }, [selectedBarber, selectedEntry?.isMock, onGetBarberReviews]);
+
+  // Real per-pro "visiteurs" count — bump the barber's own profileViews once per visit
+  // to their profile (not for mock/demo entries, which have no real backing account).
+  useEffect(() => {
+    if (!selectedBarber || selectedEntry?.isMock) return;
+    onIncrementProfileView(selectedBarber.uid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBarber?.uid, selectedEntry?.isMock]);
 
   // Notification badge on "Mes Réservations" — real count of new counter-proposals from
   // a pro awaiting the client's response, like an unread count.

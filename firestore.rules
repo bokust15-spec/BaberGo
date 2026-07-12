@@ -57,7 +57,8 @@ service cloud.firestore {
         && (!('nightStartHour' in data) || isNum(data.nightStartHour))
         && (!('nightPrice' in data) || isNum(data.nightPrice))
         && (!('kycStatus' in data) || data.kycStatus in ['unverified', 'pending', 'verified'])
-        && (!('completedCount' in data) || (isNum(data.completedCount) && data.completedCount >= 0));
+        && (!('completedCount' in data) || (isNum(data.completedCount) && data.completedCount >= 0))
+        && (!('profileViews' in data) || (isNum(data.profileViews) && data.profileViews >= 0));
       // Note: the CIN/selfie file URLs live in kycSubmissions/{uid}, not here — this
       // users document is publicly readable (guests browse profiles), so it must never
       // hold a link to someone's identity documents.
@@ -171,6 +172,16 @@ service cloud.firestore {
           && resource.data.role == 'barber'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['kycStatus'])
           && request.resource.data.kycStatus in ['unverified', 'pending', 'verified']
+        )
+        || (
+          // profileViews ("visiteurs" shown on a pro's own Accueil) — any other signed-in
+          // user viewing a barber's profile can bump it by exactly +1 in its own isolated
+          // write, same tamper-proof pattern as completedCount above.
+          isSignedIn()
+          && request.auth.uid != userId
+          && resource.data.role == 'barber'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['profileViews'])
+          && request.resource.data.profileViews == (('profileViews' in resource.data) ? resource.data.profileViews : 0) + 1
         );
     }
 

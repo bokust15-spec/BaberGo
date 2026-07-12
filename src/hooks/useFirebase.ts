@@ -56,6 +56,7 @@ export interface UserProfile {
   bio?: string;
   ageRange?: '18-25' | '26-35' | '36-45' | '46-55' | '56+'; // pro only, shown on their public profile
   completedCount?: number; // pro only, real count of appointments they've marked completed
+  profileViews?: number; // pro only, real count of times their profile was opened by someone else
   city?: string;
   avatarUrl?: string;
   coverUrl?: string;
@@ -569,6 +570,19 @@ export function useFirebase() {
     }
   };
 
+  // Real per-pro "profile views" counter — a plain +1 on the barber's own doc each time
+  // someone else opens their profile, never a made-up number. Silent no-op for guests
+  // (not signed in) since the write requires auth; never throws so a failed view-count
+  // bump can't block anything the viewer is actually trying to do.
+  const incrementProfileView = async (barberId: string) => {
+    if (!user || user.uid === barberId) return;
+    try {
+      await updateDoc(doc(db, 'users', barberId), { profileViews: increment(1) });
+    } catch (error) {
+      console.error("Error incrementing profile views:", error);
+    }
+  };
+
   const updateCity = async (city: string) => {
     if (!user) return;
     try {
@@ -743,6 +757,7 @@ export function useFirebase() {
     updatePhone,
     updateCity,
     updateAgeRange,
+    incrementProfileView,
     uploadAvatar,
     uploadCover,
     uploadKycFile,

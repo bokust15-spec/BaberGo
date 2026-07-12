@@ -82,7 +82,7 @@ interface BarberDashboardProps {
   onUploadKycFile: (file: File, type: 'cin' | 'selfie') => Promise<string | undefined>;
   onSubmitKycDossier: (cinUrl: string, selfieUrl: string) => Promise<void>;
   onGetBarberReviews: (barberId: string) => Promise<Review[]>;
-  dayVisitors: number;
+  onIncrementProfileView: (barberId: string) => Promise<void>;
 }
 
 export default function BarberDashboard({
@@ -109,7 +109,7 @@ export default function BarberDashboard({
   onUploadKycFile,
   onSubmitKycDossier,
   onGetBarberReviews,
-  dayVisitors
+  onIncrementProfileView
 }: BarberDashboardProps) {
   const [activeTab, setActiveTab] = useState<'home' | 'profile' | 'bookings'>('home');
   const [kycCinUrl, setKycCinUrl] = useState<string | null>(null);
@@ -354,7 +354,7 @@ export default function BarberDashboard({
             onSearchDateTimeChange={setSearchDateTime}
             searchStyle={searchStyle}
             onSearchStyleChange={setSearchStyle}
-            dayVisitors={dayVisitors}
+            profileViews={profile.profileViews || 0}
           />
         )}
 
@@ -425,6 +425,7 @@ export default function BarberDashboard({
             onBook={onBookBarber}
             viewerProfile={profile}
             onGetBarberReviews={onGetBarberReviews}
+            onIncrementProfileView={onIncrementProfileView}
           />
         )}
       </AnimatePresence>
@@ -483,7 +484,7 @@ export default function BarberDashboard({
 // ============================================================
 // TAB: ACCUEIL — feed of every other barber's realizations
 // ============================================================
-function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelectEntry, onQuickBook, currentBarberUid, searchGender, onSearchGenderChange, searchCity, onSearchCityChange, moroccanCities, searchDateTime, onSearchDateTimeChange, searchStyle, onSearchStyleChange, dayVisitors }: {
+function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelectEntry, onQuickBook, currentBarberUid, searchGender, onSearchGenderChange, searchCity, onSearchCityChange, moroccanCities, searchDateTime, onSearchDateTimeChange, searchStyle, onSearchStyleChange, profileViews }: {
   theme: 'dark' | 'light';
   feedItems: FeedEntry[];
   selectedCategory: string | null;
@@ -500,7 +501,7 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
   onSearchDateTimeChange: (v: string) => void;
   searchStyle: string;
   onSearchStyleChange: (v: string) => void;
-  dayVisitors: number;
+  profileViews: number;
 }) {
   const [lightbox, setLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null);
 
@@ -522,7 +523,7 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h2 className="font-bebas text-3xl tracking-widest text-gold uppercase">Accueil</h2>
           <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 text-warm-gray text-[10px] font-bold uppercase tracking-widest">
-            <Users size={14} className="text-gold" /> {dayVisitors.toLocaleString('fr-FR')} visiteur{dayVisitors > 1 ? 's' : ''} aujourd'hui
+            <Users size={14} className="text-gold" /> {profileViews.toLocaleString('fr-FR')} visiteur{profileViews > 1 ? 's' : ''} de mon profil
           </span>
         </div>
         <p className="text-xs text-warm-gray">Parcourez les réalisations des prestataires BarberGo et réservez une séance.</p>
@@ -632,7 +633,7 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
 // ============================================================
 const MOCK_BIO_TEXT = "Spécialiste du dégradé américain et de la taille de barbe traditionnelle. Plusieurs années d'expérience dans les meilleurs salons de la capitale.";
 
-function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook, viewerProfile, onGetBarberReviews }: {
+function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook, viewerProfile, onGetBarberReviews, onIncrementProfileView }: {
   entry: FeedEntry;
   initialShowBooking?: boolean;
   theme: 'dark' | 'light';
@@ -640,6 +641,7 @@ function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook,
   onBook: (barberId: string, item: { name: string; price: number }, dateTime: Date, note?: string) => Promise<void>;
   viewerProfile: UserProfile;
   onGetBarberReviews: (barberId: string) => Promise<Review[]>;
+  onIncrementProfileView: (barberId: string) => Promise<void>;
 }) {
   const { barber, item: entryItem, isMock, rating, city } = entry;
   const isSelf = barber.uid === viewerProfile.uid;
@@ -662,6 +664,14 @@ function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook,
     });
     return () => { cancelled = true; };
   }, [barber.uid, isMock, onGetBarberReviews]);
+
+  // Real "visiteurs" count on the barber's own Accueil — bump once per visit to a real
+  // (non-mock), non-self profile.
+  useEffect(() => {
+    if (isMock || isSelf) return;
+    onIncrementProfileView(barber.uid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [barber.uid, isMock, isSelf]);
   const galleryPhotos: LightboxPhoto[] = isMock
     ? PORTFOLIO_PHOTOS.map(url => ({ url, name: entryItem.name, price: entryItem.price, createdAt: entryItem.createdAt || barber.createdAt }))
     : items.map(i => ({ url: i.url, name: i.name, price: i.price, createdAt: i.createdAt || barber.createdAt }));
