@@ -57,6 +57,8 @@ export interface UserProfile {
   ageRange?: '18-25' | '26-35' | '36-45' | '46-55' | '56+'; // pro only, shown on their public profile
   completedCount?: number; // pro only, real count of appointments they've marked completed
   profileViews?: number; // pro only, real count of times their profile was opened by someone else
+  unpaidCommissionsCount?: number; // pro only, real count of completed sessions not yet settled (15% commission model)
+  totalCommissionsOwed?: number; // pro only, real sum in DH owed to BarberGo from unpaid completed sessions
   city?: string;
   avatarUrl?: string;
   coverUrl?: string;
@@ -489,6 +491,14 @@ export function useFirebase() {
           if (updates.status === 'completed' && appt.barberId !== 'dummy_barber') {
             updateDoc(doc(db, 'users', appt.barberId), { completedCount: increment(1) })
               .catch((error) => console.error("Error incrementing completed count:", error));
+
+            // 15% commission owed to BarberGo on the real session price — isolated write
+            // (never bundled with completedCount) so firestore.rules can bound the delta.
+            const commission = Math.round(appt.totalPrice * 0.15);
+            updateDoc(doc(db, 'users', appt.barberId), {
+              unpaidCommissionsCount: increment(1),
+              totalCommissionsOwed: increment(commission),
+            }).catch((error) => console.error("Error incrementing commission owed:", error));
           }
 
           if (updates.status === 'confirmed') {
@@ -676,6 +686,10 @@ export function useFirebase() {
     await updateDoc(doc(db, 'users', barberUid), { kycStatus: 'unverified' });
   };
 
+  const settleCommission = async (barberUid: string) => {
+    await updateDoc(doc(db, 'users', barberUid), { unpaidCommissionsCount: 0, totalCommissionsOwed: 0 });
+  };
+
   const addPortfolioItem = async (file: File, name: string, price: number, category?: string) => {
     if (!user) return;
     const path = `portfolios/${user.uid}/${Date.now()}-${file.name}`;
@@ -769,6 +783,7 @@ export function useFirebase() {
     getKycSubmission,
     approveBarberKyc,
     rejectBarberKyc,
+    settleCommission,
     addPortfolioItem,
     removePortfolioItem,
     updateAvailability,
