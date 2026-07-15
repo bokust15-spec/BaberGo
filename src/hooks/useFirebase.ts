@@ -59,6 +59,13 @@ export interface UserProfile {
   profileViews?: number; // pro only, real count of times their profile was opened by someone else
   unpaidCommissionsCount?: number; // pro only, real count of completed sessions not yet settled (15% commission model)
   totalCommissionsOwed?: number; // pro only, real sum in DH owed to BarberGo from unpaid completed sessions
+  reviewCount?: number; // pro only, real number of reviews received — avgRating = ratingSum / reviewCount
+  ratingSum?: number; // pro only, real sum of every review's rating (1-5), never a made-up average
+  locationLat?: number; // pro only, real GPS reference point (rounded to ~100m for privacy) used to compute distance to clients
+  locationLng?: number;
+  locationMode?: 'manual' | 'auto'; // manual = set once by the pro; auto = kept updated by watchPosition while the app is open
+  locationUpdatedAt?: number; // client timestamp (ms) of the last location save
+  locationCountry?: string; // real country name resolved from locationLat/Lng — foundation for country-based matching later
   city?: string;
   avatarUrl?: string;
   coverUrl?: string;
@@ -110,6 +117,36 @@ export interface Review {
   rating: number;
   comment: string;
   createdAt: any;
+}
+
+// Deterministic, safe-for-a-Firestore-doc-ID identifier for a post (a barber's photo),
+// derived from the barber's uid + the photo's own URL (already unique per upload/mock
+// post) — so liking the same post always resolves to the same postLikes/{postId} doc.
+export function hashPostId(barberUid: string, url: string): string {
+  const str = `${barberUid}::${url}`;
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) | 0;
+  }
+  return 'p' + Math.abs(hash).toString(36);
+}
+
+// Free, no-API-key reverse geocoding (client-side use is explicitly supported by
+// BigDataCloud) — turns GPS coordinates into a country name so BarberGo can work
+// anywhere in the world, not just Morocco. Best-effort: returns null on any failure,
+// never throws, since a missing country name shouldn't block saving the location itself.
+export async function reverseGeocodeCountry(lat: number, lng: number): Promise<string | null> {
+  try {
+    const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=fr`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.countryName) return null;
+    // The underlying GeoNames data sometimes appends the French article for
+    // alphabetical sorting (e.g. "Maroc (le)") — strip it for a clean display name.
+    return data.countryName.replace(/\s*\((?:le|la|les|l')\)\s*$/i, '').trim();
+  } catch {
+    return null;
+  }
 }
 
 function describeAuthError(error: any): string {
@@ -545,6 +582,13 @@ export function useFirebase() {
         createdAt: serverTimestamp(),
       };
       await addDoc(collection(db, 'reviews'), data);
+
+      // Real average rating shown on the barber's profile/list rows — an isolated +1
+      // reviewCount / +rating ratingSum write, same tamper-proof pattern as profileViews.
+      updateDoc(doc(db, 'users', review.barberId), {
+        reviewCount: increment(1),
+        ratingSum: increment(review.rating),
+      }).catch((error) => console.error("Error updating review aggregate:", error));
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'reviews');
     }
@@ -596,6 +640,43 @@ export function useFirebase() {
     }
   };
 
+  // Real per-post like count, kept in its own postLikes/{postId} doc (not on the
+  // barber's profile) so liking a post never needs write access to someone else's
+  // account. Read-only for guests; liking requires being signed in.
+  const getPostLikeState = async (postId: string): Promise<{ count: number; liked: boolean }> => {
+    try {
+      const snap = await getDoc(doc(db, 'postLikes', postId));
+      if (!snap.exists()) return { count: 0, liked: false };
+      const data = snap.data() as { count?: number; likedBy?: string[] };
+      return { count: data.count || 0, liked: !!user && (data.likedBy || []).includes(user.uid) };
+    } catch (error) {
+      console.error("Error fetching post like state:", error);
+      return { count: 0, liked: false };
+    }
+  };
+
+  const toggleLike = async (postId: string): Promise<{ count: number; liked: boolean } | undefined> => {
+    if (!user) return;
+    const postRef = doc(db, 'postLikes', postId);
+    try {
+      const snap = await getDoc(postRef);
+      if (!snap.exists()) {
+        await setDoc(postRef, { count: 1, likedBy: [user.uid] });
+        return { count: 1, liked: true };
+      }
+      const data = snap.data() as { count?: number; likedBy?: string[] };
+      const alreadyLiked = (data.likedBy || []).includes(user.uid);
+      if (alreadyLiked) {
+        await updateDoc(postRef, { count: increment(-1), likedBy: arrayRemove(user.uid) });
+        return { count: Math.max(0, (data.count || 0) - 1), liked: false };
+      }
+      await updateDoc(postRef, { count: increment(1), likedBy: arrayUnion(user.uid) });
+      return { count: (data.count || 0) + 1, liked: true };
+    } catch (error) {
+      console.error("Error toggling like:", error);
+    }
+  };
+
   const updateCity = async (city: string) => {
     if (!user) return;
     try {
@@ -613,6 +694,33 @@ export function useFirebase() {
       const docRef = doc(db, 'users', user.uid);
       await updateDoc(docRef, { ageRange });
       setProfile(prev => prev ? { ...prev, ageRange } : prev);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+    }
+  };
+
+  // Real GPS reference point a pro sets for themselves (manual = one-shot, auto = kept
+  // fresh by watchPosition while the app is open) — used to compute a real distance to
+  // clients/other pros instead of a city-level approximation. Rounded to 3 decimals
+  // (~100m) before saving: precise enough for "nearby" search, without exposing an
+  // exact street address in this publicly-readable profile document.
+  const updateLocation = async (lat: number, lng: number, mode: 'manual' | 'auto') => {
+    if (!user) return;
+    const locationLat = Math.round(lat * 1000) / 1000;
+    const locationLng = Math.round(lng * 1000) / 1000;
+    const locationUpdatedAt = Date.now();
+    try {
+      const docRef = doc(db, 'users', user.uid);
+      await updateDoc(docRef, { locationLat, locationLng, locationMode: mode, locationUpdatedAt });
+      setProfile(prev => prev ? { ...prev, locationLat, locationLng, locationMode: mode, locationUpdatedAt } : prev);
+
+      // Resolve the country name in the background — never blocks the location save
+      // itself, since this is a nice-to-have (worldwide readiness), not a requirement.
+      reverseGeocodeCountry(lat, lng).then((locationCountry) => {
+        if (!locationCountry) return;
+        updateDoc(docRef, { locationCountry }).catch(() => {});
+        setProfile(prev => prev ? { ...prev, locationCountry } : prev);
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
     }
@@ -776,6 +884,9 @@ export function useFirebase() {
     updateCity,
     updateAgeRange,
     incrementProfileView,
+    getPostLikeState,
+    toggleLike,
+    updateLocation,
     uploadAvatar,
     uploadCover,
     uploadKycFile,

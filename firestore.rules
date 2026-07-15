@@ -29,6 +29,17 @@ service cloud.firestore {
       return val is int || val is float;
     }
 
+    // Server-side backstop against a pro pasting a phone number / WhatsApp link / email
+    // into a public text field to book clients off-platform (bypassing the commission) —
+    // mirrors the client-side check in src/utils/contactInfoFilter.ts. Only usable on a
+    // single string field (bio); Firestore rules can't loop over portfolioItems/services
+    // array elements, so those rely on the client-side check alone.
+    function hasContactInfo(text) {
+      return text.matches('(?s).*[0-9][0-9 .\\-]{7,}[0-9].*')
+        || text.matches('(?is).*(whatsapp|wa\\.me).*')
+        || text.matches('(?is).*[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}.*');
+    }
+
     // Structural checks shared by create and update (does not constrain createdAt,
     // since on update createdAt must stay equal to its original value, not "now").
     function isValidUserFields(data) {
@@ -41,7 +52,7 @@ service cloud.firestore {
         && data.phone is string && data.phone.size() <= 20 && (data.phone.size() == 0 || data.phone.size() >= 8)
         && data.email is string && data.email.size() <= 200
         && data.role in ['client', 'barber']
-        && (!('bio' in data) || (data.bio is string && data.bio.size() <= 500))
+        && (!('bio' in data) || (data.bio is string && data.bio.size() <= 500 && !hasContactInfo(data.bio)))
         && (!('ageRange' in data) || data.ageRange in ['18-25', '26-35', '36-45', '46-55', '56+'])
         && (!('city' in data) || (data.city is string && data.city.size() <= 50))
         && (!('avatarUrl' in data) || data.avatarUrl is string)
@@ -60,7 +71,14 @@ service cloud.firestore {
         && (!('completedCount' in data) || (isNum(data.completedCount) && data.completedCount >= 0))
         && (!('profileViews' in data) || (isNum(data.profileViews) && data.profileViews >= 0))
         && (!('unpaidCommissionsCount' in data) || (isNum(data.unpaidCommissionsCount) && data.unpaidCommissionsCount >= 0))
-        && (!('totalCommissionsOwed' in data) || (isNum(data.totalCommissionsOwed) && data.totalCommissionsOwed >= 0));
+        && (!('totalCommissionsOwed' in data) || (isNum(data.totalCommissionsOwed) && data.totalCommissionsOwed >= 0))
+        && (!('reviewCount' in data) || (isNum(data.reviewCount) && data.reviewCount >= 0))
+        && (!('ratingSum' in data) || (isNum(data.ratingSum) && data.ratingSum >= 0))
+        && (!('locationLat' in data) || (isNum(data.locationLat) && data.locationLat >= -90 && data.locationLat <= 90))
+        && (!('locationLng' in data) || (isNum(data.locationLng) && data.locationLng >= -180 && data.locationLng <= 180))
+        && (!('locationMode' in data) || data.locationMode in ['manual', 'auto'])
+        && (!('locationUpdatedAt' in data) || isNum(data.locationUpdatedAt))
+        && (!('locationCountry' in data) || (data.locationCountry is string && data.locationCountry.size() <= 100));
       // Note: the CIN/selfie file URLs live in kycSubmissions/{uid}, not here — this
       // users document is publicly readable (guests browse profiles), so it must never
       // hold a link to someone's identity documents.
@@ -212,6 +230,19 @@ service cloud.firestore {
           && resource.data.role == 'barber'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['profileViews'])
           && request.resource.data.profileViews == (('profileViews' in resource.data) ? resource.data.profileViews : 0) + 1
+        )
+        || (
+          // Real average rating ("note") shown on a pro's profile and on profile-list
+          // rows — whoever just left a review can bump reviewCount by exactly +1 and
+          // ratingSum by exactly their own review's rating (1-5, matching isValidReview),
+          // in the same isolated write, same tamper-proof pattern as profileViews.
+          isSignedIn()
+          && request.auth.uid != userId
+          && resource.data.role == 'barber'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviewCount', 'ratingSum'])
+          && request.resource.data.reviewCount == (('reviewCount' in resource.data) ? resource.data.reviewCount : 0) + 1
+          && request.resource.data.ratingSum >= (('ratingSum' in resource.data) ? resource.data.ratingSum : 0) + 1
+          && request.resource.data.ratingSum <= (('ratingSum' in resource.data) ? resource.data.ratingSum : 0) + 5
         );
     }
 
@@ -290,6 +321,37 @@ service cloud.firestore {
     match /mail/{mailId} {
       allow create: if isSignedIn() && isValidMail(request.resource.data);
       allow read, update, delete: if false;
+    }
+
+    // Real per-post likes — one doc per post, keyed by a hash of (barberUid, photoUrl)
+    // computed client-side (see hashPostId in useFirebase.ts). Public read (guests browse
+    // likes counts too); liking requires being signed in, and each write can only move
+    // the count by exactly +1/-1 while adding/removing exactly the caller's own uid from
+    // likedBy — nobody can inflate a count or toggle another user's like.
+    match /postLikes/{postId} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['count', 'likedBy'])
+        && request.resource.data.count == 1
+        && request.resource.data.likedBy is list
+        && request.resource.data.likedBy.size() == 1
+        && request.resource.data.likedBy[0] == request.auth.uid;
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count', 'likedBy'])
+        && (
+          // Like: count +1, my uid added and nobody else's entry touched.
+          (request.resource.data.count == resource.data.count + 1
+            && !(request.auth.uid in resource.data.likedBy)
+            && request.auth.uid in request.resource.data.likedBy
+            && request.resource.data.likedBy.size() == resource.data.likedBy.size() + 1)
+          ||
+          // Unlike: count -1, my uid removed and nobody else's entry touched.
+          (request.resource.data.count == resource.data.count - 1
+            && request.auth.uid in resource.data.likedBy
+            && !(request.auth.uid in request.resource.data.likedBy)
+            && request.resource.data.likedBy.size() == resource.data.likedBy.size() - 1)
+        );
     }
 
     // Reviews

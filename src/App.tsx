@@ -45,6 +45,7 @@ export default function App() {
     updatePhone,
     updateCity,
     updateAgeRange,
+    updateLocation,
     uploadAvatar,
     uploadCover,
     uploadKycFile,
@@ -60,7 +61,9 @@ export default function App() {
     updateServices,
     addReview,
     getBarberReviews,
-    incrementProfileView
+    incrementProfileView,
+    getPostLikeState,
+    toggleLike
   } = useFirebase();
 
   useEffect(() => {
@@ -366,6 +369,7 @@ export default function App() {
           onUpdatePhone={updatePhone}
           onUpdateCity={updateCity}
           onUpdateAgeRange={updateAgeRange}
+          onUpdateLocation={updateLocation}
           onUploadAvatar={uploadAvatar}
           onUploadCover={uploadCover}
           onAddPortfolioItem={addPortfolioItem}
@@ -378,6 +382,8 @@ export default function App() {
           onSubmitKycDossier={submitKycDossier}
           onGetBarberReviews={getBarberReviews}
           onIncrementProfileView={incrementProfileView}
+          onFetchLikeState={getPostLikeState}
+          onToggleLike={toggleLike}
           barbersLoading={barbersLoading}
         />
       );
@@ -400,6 +406,8 @@ export default function App() {
         onLogin={handleLoginClick}
         onGetBarberReviews={getBarberReviews}
         onIncrementProfileView={incrementProfileView}
+        onFetchLikeState={getPostLikeState}
+        onToggleLike={toggleLike}
         barbersLoading={barbersLoading}
       />
     );

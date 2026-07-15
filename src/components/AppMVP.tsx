@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, Search, Scissors, Star, User, ChevronRight, ChevronDown, X, ArrowLeft, BadgeCheck, CalendarDays, CalendarCheck, Navigation, Clock, AlertTriangle, Check } from 'lucide-react';
-import { UserProfile, useFirebase, Appointment, Review } from '../hooks/useFirebase';
+import { UserProfile, useFirebase, Appointment, Review, hashPostId } from '../hooks/useFirebase';
 import { STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, SALON_COVER_PHOTO, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
 import BookingModal from './BookingModal';
 import SearchBar from './SearchBar';
 import CategoryRail from './CategoryRail';
 import PhotoGalleryLightbox, { LightboxPhoto } from './PhotoGalleryLightbox';
 import SkeletonCard from './SkeletonCard';
+import MobilePostCard from './MobilePostCard';
+import DesktopPostCard from './DesktopPostCard';
+import ProfileRow from './ProfileRow';
 import { formatRelativeTime } from '../utils/relativeTime';
 
 // A single bookable "look": either a real barber's own uploaded realization, or one
@@ -16,6 +19,10 @@ interface FeedEntry {
   barber: UserProfile;
   item: { url: string; name: string; price: number; category?: string; createdAt?: number };
   isMock: boolean;
+  // False for a real pro with no uploaded portfolio photo yet — their profile-photo
+  // stand-in makes them findable by category search, but it's not a real "post" and
+  // must not show up in the Publications feed (only in the Profils list).
+  hasRealPhoto: boolean;
   rating: number;
   city: string;
   availableDays: number[];
@@ -45,11 +52,14 @@ interface AppMVPProps {
   initialCategory?: string | null;
   onGetBarberReviews: (barberId: string) => Promise<Review[]>;
   onIncrementProfileView: (barberId: string) => Promise<void>;
+  onFetchLikeState: (postId: string) => Promise<{ count: number; liked: boolean }>;
+  onToggleLike: (postId: string) => Promise<{ count: number; liked: boolean } | undefined>;
   barbersLoading: boolean;
 }
 
-export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews, onIncrementProfileView, barbersLoading }: AppMVPProps) {
+export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews, onIncrementProfileView, onFetchLikeState, onToggleLike, barbersLoading }: AppMVPProps) {
   const [activeTab, setActiveTab] = useState<'search' | 'bookings'>('search');
+  const [resultsTab, setResultsTab] = useState<'pourVous' | 'profils'>('pourVous');
   const [selectedEntry, setSelectedEntry] = useState<FeedEntry | null>(null);
   const selectedBarber = selectedEntry?.barber ?? null;
   const [showBooking, setShowBooking] = useState(false);
@@ -120,10 +130,15 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
 
   const { services, barbers, user } = useFirebase();
 
-  // Distance between the client and a barber's city, only computed once the client has
-  // shared their location (via "Trouver un coiffeur autour de moi").
-  const getDistance = (city: string) => {
+  // Real distance between the client and a barber's own saved GPS location when the pro
+  // has set one (Mon Profil > Localisation) — falls back to a city-level approximation
+  // when they haven't, so search results still show a distance either way. Only computed
+  // once the client has shared their own location (via "Trouver un coiffeur autour de moi").
+  const getDistance = (barber: UserProfile, city: string) => {
     if (!clientLocation) return null;
+    if (barber.locationLat !== undefined && barber.locationLng !== undefined) {
+      return distanceKm(clientLocation.lat, clientLocation.lng, barber.locationLat, barber.locationLng);
+    }
     const coord = CITY_COORDS[city];
     if (!coord) return null;
     return distanceKm(clientLocation.lat, clientLocation.lng, coord.lat, coord.lng);
@@ -141,6 +156,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
             barber: b,
             item,
             isMock: false,
+            hasRealPhoto: true,
             rating: 4.9,
             city: b.city || 'Casablanca',
             availableDays: b.workingDays && b.workingDays.length > 0 ? b.workingDays : [1, 2, 3, 4, 5, 6]
@@ -159,6 +175,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
             barber: b,
             item: { url: image, name: `${b.firstName} ${b.lastName}`.trim(), price: startingPrice, category: categoryId },
             isMock: false,
+            hasRealPhoto: false,
             rating: 4.9,
             city: b.city || 'Casablanca',
             availableDays: b.workingDays && b.workingDays.length > 0 ? b.workingDays : [1, 2, 3, 4, 5, 6]
@@ -170,6 +187,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
       barber: mockBarberFromPost(post),
       item: { url: post.photo, name: post.style, price: post.priceFrom, category: post.category, createdAt: post.createdAt },
       isMock: true,
+      hasRealPhoto: true,
       rating: post.rating,
       city: post.city,
       availableDays: post.availableDays
@@ -198,17 +216,24 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
     });
   }, [feedEntries, searchGender, selectedCategory, searchCity, searchDateTime, searchStyle]);
 
+  // Publications only ever show posts with a real photo — a pro who's only picked
+  // categories but hasn't uploaded anything yet is findable via the "Profils" tab, not
+  // here (their avatar isn't a real "post").
+  const postEntries = useMemo(() => filteredEntries.filter(e => e.hasRealPhoto), [filteredEntries]);
+
   // The same set of photos shown in the grid below, so opening one from there lets the
   // viewer keep scrolling left/right through every other post instead of being stuck on
   // a single picture.
-  const feedLightboxPhotos: LightboxPhoto[] = useMemo(() => filteredEntries.map(entry => ({
+  const feedLightboxPhotos: LightboxPhoto[] = useMemo(() => postEntries.map(entry => ({
     url: entry.item.url,
     name: entry.item.name,
     price: entry.item.price,
     createdAt: entry.item.createdAt || entry.barber.createdAt,
     barberName: `${entry.barber.firstName} ${entry.barber.lastName}`,
+    barberAvatarUrl: entry.barber.avatarUrl || avatarFor(entry.barber.uid),
+    postId: hashPostId(entry.barber.uid, entry.item.url),
     onBarberClick: () => { setLightbox(null); openEntry(entry); },
-  })), [filteredEntries]);
+  })), [postEntries]);
 
   const handleLogoutAll = () => {
     onLogoutFirebase();
@@ -222,6 +247,31 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   const openEntry = (entry: FeedEntry) => {
     setSelectedEntry(entry);
   };
+
+  // One row per pro (not per post) for the "Profils" tab and the "Pour vous" top-5 —
+  // real average rating from reviewCount/ratingSum (never the old flat 4.9 placeholder),
+  // sorted nearest-first when the client's location is known.
+  const uniqueProfiles = useMemo(() => {
+    const seen = new Set<string>();
+    const rows: { entry: FeedEntry; rating: number | null; reviewCount?: number; distance: number | null }[] = [];
+    filteredEntries.forEach(entry => {
+      if (seen.has(entry.barber.uid)) return;
+      seen.add(entry.barber.uid);
+      const reviewCount = entry.barber.reviewCount || 0;
+      rows.push({
+        entry,
+        rating: entry.isMock ? entry.rating : (reviewCount > 0 ? (entry.barber.ratingSum || 0) / reviewCount : null),
+        reviewCount: entry.isMock ? undefined : reviewCount,
+        distance: getDistance(entry.barber, entry.city),
+      });
+    });
+    return rows.sort((a, b) => {
+      if (a.distance === null && b.distance === null) return 0;
+      if (a.distance === null) return 1;
+      if (b.distance === null) return -1;
+      return a.distance - b.distance;
+    });
+  }, [filteredEntries, clientLocation]);
 
   const quickBook = (entry: FeedEntry) => {
     setSelectedEntry(entry);
@@ -328,15 +378,15 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                          {selectedBarber.ageRange && ` · ${selectedBarber.ageRange} ans`}
                        </p>
                        <p className="text-warm-gray text-[10px] uppercase tracking-widest flex items-center gap-1">
-                         <MapPin size={10} /> {selectedEntry.city}
+                         <MapPin size={10} /> {selectedEntry.city}{selectedBarber.locationCountry ? `, ${selectedBarber.locationCountry}` : ''}
                        </p>
                     </div>
                  </div>
 
                  <div className="grid grid-cols-4 gap-4 mb-8">
                     {[
-                      getDistance(selectedEntry.city) !== null
-                        ? { val: `${getDistance(selectedEntry.city)} km`, label: 'Distance' }
+                      getDistance(selectedBarber, selectedEntry.city) !== null
+                        ? { val: `${getDistance(selectedBarber, selectedEntry.city)} km`, label: 'Distance' }
                         : { val: '5+', label: 'Ans' },
                       selectedEntry.isMock
                         ? { val: '1k+', label: 'Clients' }
@@ -410,71 +460,130 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                 onSearchStyleChange={setSearchStyle}
                 onSearch={handleSearch}
               />
-              <p className="text-warm-gray text-[10px] uppercase tracking-widest mb-10">
+              <p className="text-warm-gray text-[10px] uppercase tracking-widest mb-4">
                 {filteredEntries.length} professionnel{filteredEntries.length > 1 ? 's' : ''} disponible{filteredEntries.length > 1 ? 's' : ''}
               </p>
 
-              {/* STYLE GALLERY */}
+              {/* RESULTS TAB SWITCHER: "Pour vous" (profils + publications) / "Profils" (liste complète) */}
+              <div className="flex gap-2 mb-6">
+                {([
+                  { id: 'pourVous' as const, label: 'Pour vous' },
+                  { id: 'profils' as const, label: 'Profils' },
+                ]).map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setResultsTab(tab.id)}
+                    className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-colors ${
+                      resultsTab === tab.id
+                        ? 'bg-gold text-black border-gold'
+                        : theme === 'dark' ? 'border-white/15 text-warm-gray hover:border-gold/40' : 'border-gray-200 text-gray-500 hover:border-gold/40'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
               <div id="style-gallery">
-                <h2 className={`font-bebas text-xl tracking-widest uppercase mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Réalisations de nos professionnels</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {barbersLoading && filteredEntries.length === 0 && (
-                    Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} theme={theme} />)
-                  )}
-                  {filteredEntries.map((entry, i) => {
-                    const avatarSrc = entry.barber.avatarUrl || avatarFor(entry.barber.uid);
-                    return (
-                    <div
-                      key={i}
-                      className={`rounded-lg overflow-hidden border ${theme === 'dark' ? 'border-gold/15 bg-mid-brown/20' : 'border-gray-200 bg-white'}`}
-                    >
-                      <button
-                        onClick={() => openLightbox(feedLightboxPhotos, i)}
-                        className="group w-full text-left block"
-                      >
-                        <div className="relative aspect-square">
-                          <img src={entry.item.url} alt={entry.item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
-                          <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full">
-                            <MapPin size={10} className="text-gold shrink-0" />
-                            <span className="text-white text-[9px] font-bold uppercase tracking-wide">{entry.city}</span>
-                          </div>
-                        </div>
-                      </button>
-                      <button onClick={() => openEntry(entry)} className="w-full text-left block">
-                        <div className="p-2.5">
-                          <div className={`text-xs font-bold mb-1 truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{entry.item.name}</div>
-                          <div className="flex items-center gap-1.5 mb-2">
-                            <img src={avatarSrc} alt="" className="w-5 h-5 rounded-full object-cover border border-gold shrink-0" />
-                            <span className="text-warm-gray text-[10px] truncate">{entry.barber.firstName} {entry.barber.lastName}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1 text-gold text-[10px] font-bold">
-                              <Star size={10} className="fill-gold" /> {entry.rating}
-                            </div>
-                            <div className="text-warm-gray text-[10px]">Dès <span className="text-gold font-bold">{entry.item.price} DH</span></div>
-                          </div>
-                          {(entry.item.createdAt || entry.barber.createdAt) && (
-                            <div className="text-warm-gray/60 text-[9px] mt-1">{formatRelativeTime(entry.item.createdAt || entry.barber.createdAt)}</div>
-                          )}
-                          {getDistance(entry.city) !== null && (
-                            <div className="flex items-center gap-1 text-warm-gray text-[10px] mt-1">
-                              <Navigation size={10} className="text-gold shrink-0" /> {getDistance(entry.city)} km
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                      <button
-                        onClick={() => quickBook(entry)}
-                        className="w-full bg-gold text-black py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-gold-light transition-colors"
-                      >
-                        Réserver
-                      </button>
+                {resultsTab === 'pourVous' && uniqueProfiles.length > 0 && (
+                  <div className="mb-8">
+                    <h2 className={`font-bebas text-xl tracking-widest uppercase mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Profils</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {uniqueProfiles.slice(0, 5).map(({ entry, rating, reviewCount, distance }) => (
+                        <ProfileRow
+                          key={entry.barber.uid}
+                          avatarUrl={entry.barber.avatarUrl || avatarFor(entry.barber.uid)}
+                          name={`${entry.barber.firstName} ${entry.barber.lastName}`}
+                          verified={entry.barber.kycStatus === 'verified'}
+                          rating={rating}
+                          reviewCount={reviewCount}
+                          distanceKm={distance}
+                          theme={theme}
+                          onClick={() => openEntry(entry)}
+                        />
+                      ))}
                     </div>
-                    );
-                  })}
-                </div>
-                {filteredEntries.length === 0 && (
-                  <div className="text-center py-16 text-warm-gray text-xs uppercase tracking-widest">Aucun résultat pour ces critères</div>
+                  </div>
+                )}
+
+                {resultsTab === 'profils' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {uniqueProfiles.map(({ entry, rating, reviewCount, distance }) => (
+                      <ProfileRow
+                        key={entry.barber.uid}
+                        avatarUrl={entry.barber.avatarUrl || avatarFor(entry.barber.uid)}
+                        name={`${entry.barber.firstName} ${entry.barber.lastName}`}
+                        verified={entry.barber.kycStatus === 'verified'}
+                        rating={rating}
+                        reviewCount={reviewCount}
+                        distanceKm={distance}
+                        theme={theme}
+                        onClick={() => openEntry(entry)}
+                      />
+                    ))}
+                    {uniqueProfiles.length === 0 && (
+                      <div className="col-span-full text-center py-16 text-warm-gray text-xs uppercase tracking-widest">Aucun résultat pour ces critères</div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <h2 className={`font-bebas text-xl tracking-widest uppercase mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Publications</h2>
+
+                    {/* MOBILE: Instagram/Reels-style full-bleed vertical feed */}
+                    <div className="flex flex-col gap-4 md:hidden">
+                      {barbersLoading && postEntries.length === 0 && (
+                        Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={`skeleton-m-${i}`} theme={theme} />)
+                      )}
+                      {postEntries.map((entry, i) => (
+                        <MobilePostCard
+                          key={i}
+                          postId={hashPostId(entry.barber.uid, entry.item.url)}
+                          photoUrl={entry.item.url}
+                          caption={entry.item.name}
+                          price={entry.item.price}
+                          city={entry.city}
+                          barberAvatarUrl={entry.barber.avatarUrl || avatarFor(entry.barber.uid)}
+                          barberName={`${entry.barber.firstName} ${entry.barber.lastName}`}
+                          verified={entry.barber.kycStatus === 'verified'}
+                          onOpenPhoto={() => openLightbox(feedLightboxPhotos, i)}
+                          onOpenProfile={() => openEntry(entry)}
+                          onFetchLikeState={onFetchLikeState}
+                          onToggleLike={onToggleLike}
+                        />
+                      ))}
+                    </div>
+
+                    {/* DESKTOP/TABLET: Facebook-style single-column feed */}
+                    <div className="hidden md:flex md:flex-col gap-6">
+                      {barbersLoading && postEntries.length === 0 && (
+                        <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-3">
+                          {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} theme={theme} />)}
+                        </div>
+                      )}
+                      {postEntries.map((entry, i) => (
+                        <DesktopPostCard
+                          key={i}
+                          postId={hashPostId(entry.barber.uid, entry.item.url)}
+                          photoUrl={entry.item.url}
+                          caption={entry.item.name}
+                          price={entry.item.price}
+                          city={entry.city}
+                          createdAtLabel={(entry.item.createdAt || entry.barber.createdAt) ? formatRelativeTime(entry.item.createdAt || entry.barber.createdAt) : undefined}
+                          barberAvatarUrl={entry.barber.avatarUrl || avatarFor(entry.barber.uid)}
+                          barberName={`${entry.barber.firstName} ${entry.barber.lastName}`}
+                          verified={entry.barber.kycStatus === 'verified'}
+                          theme={theme}
+                          onOpenPhoto={() => openLightbox(feedLightboxPhotos, i)}
+                          onOpenProfile={() => openEntry(entry)}
+                          onFetchLikeState={onFetchLikeState}
+                          onToggleLike={onToggleLike}
+                        />
+                      ))}
+                    </div>
+                    {postEntries.length === 0 && (
+                      <div className="text-center py-16 text-warm-gray text-xs uppercase tracking-widest">Aucune publication pour ces critères</div>
+                    )}
+                  </>
                 )}
               </div>
             </motion.div>
@@ -532,6 +641,8 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
           photos={lightbox.photos}
           initialIndex={lightbox.index}
           onClose={() => setLightbox(null)}
+          onFetchLikeState={onFetchLikeState}
+          onToggleLike={onToggleLike}
         />
       )}
 

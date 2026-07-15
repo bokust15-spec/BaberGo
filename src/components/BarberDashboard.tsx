@@ -22,15 +22,19 @@ import {
   BadgeCheck,
   Users
 } from 'lucide-react';
-import { Appointment, UserProfile, Service, PortfolioItem, BarberService, Review } from '../hooks/useFirebase';
-import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, mockBarberFromPost, CITY_COORDS } from '../data/mockBarberFeed';
+import { Appointment, UserProfile, Service, PortfolioItem, BarberService, Review, hashPostId } from '../hooks/useFirebase';
+import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
 import CategoryRail from './CategoryRail';
 import { SERVICE_CATEGORIES } from '../data/categories';
 import PhotoGalleryLightbox, { LightboxPhoto } from './PhotoGalleryLightbox';
 import SkeletonCard from './SkeletonCard';
+import MobilePostCard from './MobilePostCard';
+import DesktopPostCard from './DesktopPostCard';
+import ProfileRow from './ProfileRow';
 import SearchBar from './SearchBar';
 import BookingModal from './BookingModal';
 import { formatRelativeTime } from '../utils/relativeTime';
+import { containsContactInfo, CONTACT_INFO_ERROR } from '../utils/contactInfoFilter';
 
 const DAY_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
 
@@ -38,6 +42,9 @@ interface FeedEntry {
   barber: UserProfile;
   item: PortfolioItem;
   isMock: boolean;
+  // False for a real pro with no uploaded portfolio photo yet — findable via the
+  // "Profils" tab, but must not show up as a fake "post" in Publications.
+  hasRealPhoto: boolean;
   rating: number;
   city: string;
   availableDays: number[];
@@ -72,6 +79,7 @@ interface BarberDashboardProps {
   onUpdatePhone: (phone: string) => Promise<void>;
   onUpdateCity: (city: string) => Promise<void>;
   onUpdateAgeRange: (ageRange: UserProfile['ageRange']) => Promise<void>;
+  onUpdateLocation: (lat: number, lng: number, mode: 'manual' | 'auto') => Promise<void>;
   onUploadAvatar: (file: File) => Promise<string | undefined>;
   onUploadCover: (file: File) => Promise<string | undefined>;
   onAddPortfolioItem: (file: File, name: string, price: number, category?: string) => Promise<PortfolioItem | undefined>;
@@ -84,6 +92,8 @@ interface BarberDashboardProps {
   onSubmitKycDossier: (cinUrl: string, selfieUrl: string) => Promise<void>;
   onGetBarberReviews: (barberId: string) => Promise<Review[]>;
   onIncrementProfileView: (barberId: string) => Promise<void>;
+  onFetchLikeState: (postId: string) => Promise<{ count: number; liked: boolean }>;
+  onToggleLike: (postId: string) => Promise<{ count: number; liked: boolean } | undefined>;
   barbersLoading: boolean;
 }
 
@@ -100,6 +110,7 @@ export default function BarberDashboard({
   onUpdatePhone,
   onUpdateCity,
   onUpdateAgeRange,
+  onUpdateLocation,
   onUploadAvatar,
   onUploadCover,
   onAddPortfolioItem,
@@ -112,6 +123,8 @@ export default function BarberDashboard({
   onSubmitKycDossier,
   onGetBarberReviews,
   onIncrementProfileView,
+  onFetchLikeState,
+  onToggleLike,
   barbersLoading
 }: BarberDashboardProps) {
   const [activeTab, setActiveTab] = useState<'home' | 'profile' | 'bookings'>('home');
@@ -195,7 +208,7 @@ export default function BarberDashboard({
     barbers.forEach(b => {
       const availableDays = b.workingDays && b.workingDays.length > 0 ? b.workingDays : [1, 2, 3, 4, 5, 6];
       if (b.portfolioItems && b.portfolioItems.length > 0) {
-        b.portfolioItems.forEach(item => items.push({ barber: b, item, isMock: false, rating: 4.9, city: b.city || 'Casablanca', availableDays }));
+        b.portfolioItems.forEach(item => items.push({ barber: b, item, isMock: false, hasRealPhoto: true, rating: 4.9, city: b.city || 'Casablanca', availableDays }));
       } else if (b.categories && b.categories.length > 0) {
         const image = b.avatarUrl || b.coverUrl || avatarFor(b.uid);
         const startingPrice = b.services && b.services.length > 0 ? Math.min(...b.services.map(s => s.price)) : 0;
@@ -204,6 +217,7 @@ export default function BarberDashboard({
             barber: b,
             item: { url: image, name: `${b.firstName} ${b.lastName}`.trim(), price: startingPrice, category: categoryId },
             isMock: false,
+            hasRealPhoto: false,
             rating: 4.9,
             city: b.city || 'Casablanca',
             availableDays
@@ -216,6 +230,7 @@ export default function BarberDashboard({
         barber: mockBarberFromPost(post),
         item: { url: post.photo, name: post.style, price: post.priceFrom, category: post.category, createdAt: post.createdAt },
         isMock: true,
+        hasRealPhoto: true,
         rating: post.rating,
         city: post.city,
         availableDays: post.availableDays
@@ -374,6 +389,9 @@ export default function BarberDashboard({
             onSearchStyleChange={setSearchStyle}
             profileViews={profile.profileViews || 0}
             barbersLoading={barbersLoading}
+            onFetchLikeState={onFetchLikeState}
+            onToggleLike={onToggleLike}
+            viewerLocation={profile.locationLat !== undefined && profile.locationLng !== undefined ? { lat: profile.locationLat, lng: profile.locationLng } : null}
           />
         )}
 
@@ -384,6 +402,7 @@ export default function BarberDashboard({
             onUpdateBio={onUpdateBio}
             onUpdateCity={onUpdateCity}
             onUpdateAgeRange={onUpdateAgeRange}
+            onUpdateLocation={onUpdateLocation}
             onUploadAvatar={onUploadAvatar}
             onUploadCover={onUploadCover}
             onAddPortfolioItem={onAddPortfolioItem}
@@ -542,7 +561,7 @@ export default function BarberDashboard({
 // ============================================================
 // TAB: ACCUEIL — feed of every other barber's realizations
 // ============================================================
-function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelectEntry, onQuickBook, currentBarberUid, searchGender, onSearchGenderChange, searchCity, onSearchCityChange, moroccanCities, searchDateTime, onSearchDateTimeChange, searchStyle, onSearchStyleChange, profileViews, barbersLoading }: {
+function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelectEntry, onQuickBook, currentBarberUid, searchGender, onSearchGenderChange, searchCity, onSearchCityChange, moroccanCities, searchDateTime, onSearchDateTimeChange, searchStyle, onSearchStyleChange, profileViews, barbersLoading, onFetchLikeState, onToggleLike, viewerLocation }: {
   theme: 'dark' | 'light';
   feedItems: FeedEntry[];
   selectedCategory: string | null;
@@ -561,20 +580,62 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
   onSearchStyleChange: (v: string) => void;
   profileViews: number;
   barbersLoading: boolean;
+  onFetchLikeState: (postId: string) => Promise<{ count: number; liked: boolean }>;
+  onToggleLike: (postId: string) => Promise<{ count: number; liked: boolean } | undefined>;
+  viewerLocation: { lat: number; lng: number } | null;
 }) {
   const [lightbox, setLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null);
+  const [resultsTab, setResultsTab] = useState<'pourVous' | 'profils'>('pourVous');
+
+  // Publications only ever show posts with a real photo — a pro who's only picked
+  // categories but hasn't uploaded anything yet is findable via the "Profils" tab, not
+  // here (their avatar isn't a real "post").
+  const postEntries = useMemo(() => feedItems.filter(e => e.hasRealPhoto), [feedItems]);
 
   // The same set of photos shown in the grid below, so opening one from there lets the
   // viewer keep scrolling left/right through every other post instead of being stuck on
   // a single picture.
-  const feedLightboxPhotos: LightboxPhoto[] = useMemo(() => feedItems.map(entry => ({
+  const feedLightboxPhotos: LightboxPhoto[] = useMemo(() => postEntries.map(entry => ({
     url: entry.item.url,
     name: entry.item.name,
     price: entry.item.price,
     createdAt: entry.item.createdAt || entry.barber.createdAt,
     barberName: `${entry.barber.firstName} ${entry.barber.lastName}`,
+    barberAvatarUrl: entry.barber.avatarUrl || avatarFor(entry.barber.uid),
+    postId: hashPostId(entry.barber.uid, entry.item.url),
     onBarberClick: () => { setLightbox(null); onSelectEntry(entry); },
-  })), [feedItems, onSelectEntry]);
+  })), [postEntries, onSelectEntry]);
+
+  // One row per pro (not per post) for the "Profils" tab and the "Pour vous" top-5 —
+  // real average rating from reviewCount/ratingSum, and a real distance from the
+  // viewing pro's own saved GPS location (Mon Profil > Localisation) to the listed
+  // pro's saved location, falling back to a city-level estimate when either side
+  // hasn't set a real one yet.
+  const uniqueProfiles = useMemo(() => {
+    const seen = new Set<string>();
+    const rows: { entry: FeedEntry; rating: number | null; reviewCount?: number; distance: number | null }[] = [];
+    feedItems.forEach(entry => {
+      if (seen.has(entry.barber.uid)) return;
+      seen.add(entry.barber.uid);
+      const reviewCount = entry.barber.reviewCount || 0;
+      let distance: number | null = null;
+      if (viewerLocation) {
+        if (entry.barber.locationLat !== undefined && entry.barber.locationLng !== undefined) {
+          distance = distanceKm(viewerLocation.lat, viewerLocation.lng, entry.barber.locationLat, entry.barber.locationLng);
+        } else {
+          const coord = CITY_COORDS[entry.city];
+          distance = coord ? distanceKm(viewerLocation.lat, viewerLocation.lng, coord.lat, coord.lng) : null;
+        }
+      }
+      rows.push({
+        entry,
+        rating: entry.isMock ? entry.rating : (reviewCount > 0 ? (entry.barber.ratingSum || 0) / reviewCount : null),
+        reviewCount: entry.isMock ? undefined : reviewCount,
+        distance,
+      });
+    });
+    return rows.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
+  }, [feedItems, viewerLocation]);
 
   return (
     <div className="space-y-6 text-left">
@@ -607,72 +668,122 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
         {feedItems.length} professionnel{feedItems.length > 1 ? 's' : ''} disponible{feedItems.length > 1 ? 's' : ''}
       </p>
 
-      {feedItems.length === 0 && barbersLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} theme={theme} />)}
+      {/* RESULTS TAB SWITCHER: "Pour vous" (profils + publications) / "Profils" (liste complète) */}
+      <div className="flex gap-2">
+        {([
+          { id: 'pourVous' as const, label: 'Pour vous' },
+          { id: 'profils' as const, label: 'Profils' },
+        ]).map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setResultsTab(tab.id)}
+            className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-colors ${
+              resultsTab === tab.id
+                ? 'bg-gold text-black border-gold'
+                : theme === 'dark' ? 'border-white/15 text-warm-gray hover:border-gold/40' : 'border-gray-200 text-gray-500 hover:border-gold/40'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {resultsTab === 'pourVous' && uniqueProfiles.length > 0 && (
+        <div>
+          <h3 className="font-bebas text-lg tracking-widest text-gold uppercase mb-3">Profils</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {uniqueProfiles.slice(0, 5).map(({ entry, rating, reviewCount, distance }) => (
+              <ProfileRow
+                key={entry.barber.uid}
+                avatarUrl={entry.barber.avatarUrl || avatarFor(entry.barber.uid)}
+                name={`${entry.barber.firstName} ${entry.barber.lastName}`}
+                verified={entry.barber.kycStatus === 'verified'}
+                rating={rating}
+                reviewCount={reviewCount}
+                distanceKm={distance}
+                theme={theme}
+                onClick={() => onSelectEntry(entry)}
+              />
+            ))}
+          </div>
         </div>
-      ) : feedItems.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {feedItems.map((entry, i) => {
-            const { barber, item, isMock, rating, city } = entry;
-            const avatarSrc = barber.avatarUrl || (isMock ? avatarFor(barber.uid) : '');
-            return (
-              <div
-                key={i}
-                className={`rounded-lg overflow-hidden border ${theme === 'dark' ? 'border-gold/15 bg-mid-brown/20' : 'border-gray-200 bg-white'}`}
-              >
-                <button
-                  onClick={() => setLightbox({ photos: feedLightboxPhotos, index: i })}
-                  className="group w-full text-left block"
-                >
-                  <div className="relative aspect-square">
-                    <img src={item.url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
-                    <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full">
-                      <MapPin size={10} className="text-gold shrink-0" />
-                      <span className="text-white text-[9px] font-bold uppercase tracking-wide">{city}</span>
-                    </div>
-                  </div>
-                </button>
-                <button onClick={() => onSelectEntry(entry)} className="w-full text-left block">
-                  <div className="p-2.5">
-                    <div className={`text-xs font-bold mb-1 truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.name}</div>
-                    <div className="flex items-center gap-1.5 mb-2">
-                      {avatarSrc ? (
-                        <img src={avatarSrc} alt="" className="w-5 h-5 rounded-full object-cover border border-gold shrink-0" />
-                      ) : (
-                        <div className="w-5 h-5 rounded-full bg-gold border border-gold shrink-0 flex items-center justify-center text-[7px] font-bold text-black">
-                          {barber.firstName[0]}
-                        </div>
-                      )}
-                      <span className="text-warm-gray text-[10px] truncate">{barber.firstName} {barber.lastName}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1 text-gold text-[10px] font-bold">
-                        <Star size={10} className="fill-gold" /> {rating}
-                      </div>
-                      <div className="text-warm-gray text-[10px]">Dès <span className="text-gold font-bold">{item.price} DH</span></div>
-                    </div>
-                    {(item.createdAt || barber.createdAt) && (
-                      <div className="text-warm-gray/60 text-[9px] mt-1">{formatRelativeTime(item.createdAt || barber.createdAt)}</div>
-                    )}
-                  </div>
-                </button>
-                {barber.uid !== currentBarberUid ? (
-                  <button
-                    onClick={() => onQuickBook(entry)}
-                    className="w-full bg-gold text-black py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-gold-light transition-colors"
-                  >
-                    Réserver
-                  </button>
-                ) : (
-                  <div className={`w-full py-2 text-[10px] font-bold uppercase tracking-widest text-center ${theme === 'dark' ? 'bg-black/30 text-warm-gray' : 'bg-gray-100 text-gray-400'}`}>
-                    Votre réalisation
-                  </div>
-                )}
-              </div>
-            );
-          })}
+      )}
+
+      {resultsTab === 'profils' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {uniqueProfiles.map(({ entry, rating, reviewCount, distance }) => (
+            <ProfileRow
+              key={entry.barber.uid}
+              avatarUrl={entry.barber.avatarUrl || avatarFor(entry.barber.uid)}
+              name={`${entry.barber.firstName} ${entry.barber.lastName}`}
+              verified={entry.barber.kycStatus === 'verified'}
+              rating={rating}
+              reviewCount={reviewCount}
+              distanceKm={distance}
+              theme={theme}
+              onClick={() => onSelectEntry(entry)}
+            />
+          ))}
+          {uniqueProfiles.length === 0 && (
+            <div className="col-span-full text-center py-16 text-warm-gray text-xs uppercase tracking-widest">Aucun résultat pour ces critères</div>
+          )}
         </div>
+      ) : postEntries.length === 0 && barbersLoading ? (
+        <>
+          <div className="flex flex-col gap-4 md:hidden">
+            {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={`skeleton-m-${i}`} theme={theme} />)}
+          </div>
+          <div className="hidden md:grid md:grid-cols-3 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`skeleton-${i}`} theme={theme} />)}
+          </div>
+        </>
+      ) : postEntries.length > 0 ? (
+        <>
+        <h3 className="font-bebas text-lg tracking-widest text-gold uppercase">Publications</h3>
+        {/* MOBILE: Instagram/Reels-style full-bleed vertical feed */}
+        <div className="flex flex-col gap-4 md:hidden">
+          {postEntries.map((entry, i) => (
+            <MobilePostCard
+              key={i}
+              postId={hashPostId(entry.barber.uid, entry.item.url)}
+              photoUrl={entry.item.url}
+              caption={entry.item.name}
+              price={entry.item.price}
+              city={entry.city}
+              barberAvatarUrl={entry.barber.avatarUrl || avatarFor(entry.barber.uid)}
+              barberName={`${entry.barber.firstName} ${entry.barber.lastName}`}
+              verified={entry.barber.kycStatus === 'verified'}
+              onOpenPhoto={() => setLightbox({ photos: feedLightboxPhotos, index: i })}
+              onOpenProfile={() => onSelectEntry(entry)}
+              onFetchLikeState={onFetchLikeState}
+              onToggleLike={onToggleLike}
+            />
+          ))}
+        </div>
+
+        {/* DESKTOP/TABLET: Facebook-style single-column feed */}
+        <div className="hidden md:flex md:flex-col gap-6">
+          {postEntries.map((entry, i) => (
+            <DesktopPostCard
+              key={i}
+              postId={hashPostId(entry.barber.uid, entry.item.url)}
+              photoUrl={entry.item.url}
+              caption={entry.item.name}
+              price={entry.item.price}
+              city={entry.city}
+              createdAtLabel={(entry.item.createdAt || entry.barber.createdAt) ? formatRelativeTime(entry.item.createdAt || entry.barber.createdAt) : undefined}
+              barberAvatarUrl={entry.barber.avatarUrl || avatarFor(entry.barber.uid)}
+              barberName={`${entry.barber.firstName} ${entry.barber.lastName}`}
+              verified={entry.barber.kycStatus === 'verified'}
+              theme={theme}
+              onOpenPhoto={() => setLightbox({ photos: feedLightboxPhotos, index: i })}
+              onOpenProfile={() => onSelectEntry(entry)}
+              onFetchLikeState={onFetchLikeState}
+              onToggleLike={onToggleLike}
+            />
+          ))}
+        </div>
+        </>
       ) : (
         <div className={`p-10 text-center border border-dashed rounded-xl opacity-60 ${theme === 'dark' ? 'border-gold/20' : 'border-gray-300'}`}>
           <Scissors size={28} className="mx-auto mb-3 text-gold/40" />
@@ -685,6 +796,8 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
           photos={lightbox.photos}
           initialIndex={lightbox.index}
           onClose={() => setLightbox(null)}
+          onFetchLikeState={onFetchLikeState}
+          onToggleLike={onToggleLike}
         />
       )}
     </div>
@@ -795,7 +908,7 @@ function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook,
                 {barber.ageRange && ` · ${barber.ageRange} ans`}
               </p>
               <p className="text-warm-gray text-[10px] uppercase tracking-widest flex items-center gap-1">
-                <MapPin size={10} /> {city}
+                <MapPin size={10} /> {city}{barber.locationCountry ? `, ${barber.locationCountry}` : ''}
               </p>
             </div>
           </div>
@@ -884,6 +997,7 @@ interface MyProfileTabProps {
   onUpdateBio: (bio: string) => Promise<void>;
   onUpdateCity: (city: string) => Promise<void>;
   onUpdateAgeRange: (ageRange: UserProfile['ageRange']) => Promise<void>;
+  onUpdateLocation: (lat: number, lng: number, mode: 'manual' | 'auto') => Promise<void>;
   onUploadAvatar: (file: File) => Promise<string | undefined>;
   onUploadCover: (file: File) => Promise<string | undefined>;
   onAddPortfolioItem: (file: File, name: string, price: number, category?: string) => Promise<PortfolioItem | undefined>;
@@ -895,7 +1009,7 @@ interface MyProfileTabProps {
 
 const AGE_RANGES: NonNullable<UserProfile['ageRange']>[] = ['18-25', '26-35', '36-45', '46-55', '56+'];
 
-function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRange, onUploadAvatar, onUploadCover, onAddPortfolioItem, onRemovePortfolioItem, onUpdateAvailability, onUpdateCategories, onUpdateServices }: MyProfileTabProps) {
+function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRange, onUpdateLocation, onUploadAvatar, onUploadCover, onAddPortfolioItem, onRemovePortfolioItem, onUpdateAvailability, onUpdateCategories, onUpdateServices }: MyProfileTabProps) {
   const [bio, setBio] = useState(profile.bio || '');
   const [savingBio, setSavingBio] = useState(false);
   const [isEditingBio, setIsEditingBio] = useState(!profile.bio);
@@ -908,6 +1022,65 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
   const [city, setCity] = useState(profile.city || 'Casablanca');
   const [savingCity, setSavingCity] = useState(false);
   const moroccanCities = useMemo(() => Object.keys(CITY_COORDS).sort(), []);
+
+  // Real GPS reference location for distance calculations — manual (one-shot) or auto
+  // (kept fresh by watchPosition while this tab/app stays open in the browser).
+  const [locationMode, setLocationMode] = useState<'manual' | 'auto'>(profile.locationMode || 'manual');
+  const [savingLocation, setSavingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const lastAutoWriteRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
+
+  const handleSaveManualLocation = () => {
+    if (!('geolocation' in navigator)) {
+      setLocationError("La géolocalisation n'est pas disponible sur cet appareil.");
+      return;
+    }
+    setLocationError(null);
+    setSavingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          await onUpdateLocation(position.coords.latitude, position.coords.longitude, 'manual');
+        } catch {
+          setLocationError("Impossible d'enregistrer la position pour le moment.");
+        }
+        setSavingLocation(false);
+      },
+      () => {
+        setLocationError('Position refusée ou indisponible. Autorisez la localisation dans votre navigateur.');
+        setSavingLocation(false);
+      }
+    );
+  };
+
+  // Automatic mode only updates while this tab is open in the browser — there is no
+  // true background tracking without a native app. Writes are throttled (moved >100m
+  // or >5min since the last save) so it doesn't hammer Firestore on every GPS tick.
+  useEffect(() => {
+    if (locationMode !== 'auto' || !('geolocation' in navigator)) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const last = lastAutoWriteRef.current;
+        const movedFar = !last || distanceKm(last.lat, last.lng, latitude, longitude) > 0.1;
+        const longSinceLast = !last || Date.now() - last.time > 5 * 60 * 1000;
+        if (!movedFar && !longSinceLast) return;
+        lastAutoWriteRef.current = { lat: latitude, lng: longitude, time: Date.now() };
+        onUpdateLocation(latitude, longitude, 'auto').catch(() => setLocationError("Impossible de mettre à jour la position."));
+      },
+      () => setLocationError('Position refusée ou indisponible. Autorisez la localisation dans votre navigateur.'),
+      { enableHighAccuracy: false, maximumAge: 60000 }
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [locationMode, onUpdateLocation]);
+
+  const handleChangeLocationMode = async (mode: 'manual' | 'auto') => {
+    setLocationMode(mode);
+    setLocationError(null);
+    if (mode === 'auto' && !('geolocation' in navigator)) {
+      setLocationError("La géolocalisation n'est pas disponible sur cet appareil.");
+    }
+  };
 
   const [categories, setCategories] = useState<string[]>(profile.categories ?? []);
   const [savingCategories, setSavingCategories] = useState(false);
@@ -956,6 +1129,11 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
     nightPrice !== (profile.nightPrice?.toString() ?? '50');
 
   const handleSaveBio = async () => {
+    if (containsContactInfo(bio)) {
+      setError(CONTACT_INFO_ERROR);
+      return;
+    }
+    setError(null);
     setSavingBio(true);
     try {
       await onUpdateBio(bio.trim());
@@ -1030,6 +1208,10 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
 
   const handleAddItem = async () => {
     if (!newItemFile || !newItemName.trim() || !newItemPrice) return;
+    if (containsContactInfo(newItemName)) {
+      setError(CONTACT_INFO_ERROR);
+      return;
+    }
     setAddingItem(true);
     setError(null);
     try {
@@ -1088,6 +1270,11 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
 
   const addBarberService = () => {
     if (!newServiceName.trim() || !newServicePrice) return;
+    if (containsContactInfo(newServiceName)) {
+      setError(CONTACT_INFO_ERROR);
+      return;
+    }
+    setError(null);
     const service: BarberService = {
       id: `${Date.now()}`,
       name: newServiceName.trim(),
@@ -1250,6 +1437,62 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
                 <option key={a} value={a} className={theme === 'dark' ? 'bg-mid-brown' : ''}>{a} ans</option>
               ))}
             </select>
+          </div>
+        </section>
+
+        {/* LOCALISATION — real GPS reference point used to compute real distance to
+            clients/other pros, instead of the previous city-level approximation. */}
+        <section className="mb-6">
+          <p className={sectionLabel}>Localisation (pour la distance affichée aux clients)</p>
+          <div className={cardClass}>
+            <div className="flex gap-2 mb-4">
+              {([
+                { id: 'manual' as const, label: 'Manuelle' },
+                { id: 'auto' as const, label: 'Automatique' },
+              ]).map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => handleChangeLocationMode(m.id)}
+                  className={`flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-colors ${
+                    locationMode === m.id
+                      ? 'bg-gold text-black border-gold'
+                      : theme === 'dark' ? 'border-white/15 text-warm-gray hover:border-gold/40' : 'border-gray-200 text-gray-500 hover:border-gold/40'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+
+            {locationMode === 'manual' ? (
+              <>
+                <p className="text-[10px] text-warm-gray leading-relaxed mb-3">
+                  Enregistrez votre position une seule fois — elle sera utilisée pour calculer votre distance avec les clients jusqu'à ce que vous l'enregistriez de nouveau.
+                </p>
+                <button
+                  onClick={handleSaveManualLocation}
+                  disabled={savingLocation}
+                  className="w-full py-2.5 bg-gold text-black text-[10px] font-bold uppercase tracking-widest rounded-lg hover:bg-gold-light disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <MapPin size={14} />
+                  {savingLocation ? 'Enregistrement...' : 'Enregistrer ma position actuelle'}
+                </button>
+              </>
+            ) : (
+              <p className="text-[10px] text-warm-gray leading-relaxed">
+                Votre position se met à jour automatiquement pendant que BarberGo reste ouvert dans votre navigateur (elle ne se met pas à jour en arrière-plan une fois l'appli fermée).
+              </p>
+            )}
+
+            {locationError && (
+              <p className="text-[10px] text-red-400 mt-3">{locationError}</p>
+            )}
+
+            <p className="text-[9px] text-warm-gray/60 mt-3">
+              {profile.locationUpdatedAt
+                ? `Dernière position enregistrée ${formatRelativeTime(profile.locationUpdatedAt)} (mode ${profile.locationMode === 'auto' ? 'automatique' : 'manuel'})${profile.locationCountry ? ` — ${profile.locationCountry}` : ''}.`
+                : 'Aucune position enregistrée pour le moment — la distance affichée aux clients restera approximative (basée sur votre ville).'}
+            </p>
           </div>
         </section>
 
