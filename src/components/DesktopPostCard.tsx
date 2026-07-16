@@ -19,6 +19,12 @@ interface DesktopPostCardProps {
   onOpenProfile: () => void;
   onFetchLikeState: (postId: string) => Promise<{ count: number; liked: boolean }>;
   onToggleLike: (postId: string) => Promise<{ count: number; liked: boolean } | undefined>;
+  // Liking requires an account — a signed-out visitor clicking "J'aime" is prompted to
+  // log in/sign up (onRequireAuth) instead of the like silently going nowhere. Defaults
+  // to "allowed" so contexts that are always authenticated (the pro's own dashboard)
+  // don't need to pass anything.
+  isLoggedIn?: boolean;
+  onRequireAuth?: () => void;
 }
 
 // Facebook desktop-style feed post: header (avatar + name, click straight to profile)
@@ -40,6 +46,8 @@ const DesktopPostCard: React.FC<DesktopPostCardProps> = ({
   onOpenProfile,
   onFetchLikeState,
   onToggleLike,
+  isLoggedIn = true,
+  onRequireAuth,
 }) => {
   const [liked, setLiked] = useState(false);
   const [count, setCount] = useState(0);
@@ -53,6 +61,7 @@ const DesktopPostCard: React.FC<DesktopPostCardProps> = ({
   }, [postId, onFetchLikeState]);
 
   const handleLike = async () => {
+    if (!isLoggedIn) { onRequireAuth?.(); return; }
     setLiked((l) => !l);
     setCount((c) => (liked ? Math.max(0, c - 1) : c + 1));
     const result = await onToggleLike(postId);

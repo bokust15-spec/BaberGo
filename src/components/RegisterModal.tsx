@@ -6,13 +6,14 @@ interface RegisterModalProps {
   isOpen: boolean;
   onClose: () => void;
   onRegister: (data: any) => Promise<void>;
+  onSwitchToLogin: () => void;
   theme: 'dark' | 'light';
 }
 
 // Clients never create an account through this form — they only get one transparently
 // when confirming their first booking (see onGuestRegisterAndBook). This modal is
 // reserved for professionals signing up ("Je suis professionnel(le) beauté").
-export default function RegisterModal({ isOpen, onClose, onRegister, theme }: RegisterModalProps) {
+export default function RegisterModal({ isOpen, onClose, onRegister, onSwitchToLogin, theme }: RegisterModalProps) {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -259,6 +260,14 @@ export default function RegisterModal({ isOpen, onClose, onRegister, theme }: Re
               ) : (
                 <>Finaliser l'inscription <ChevronRight size={16} /></>
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={onSwitchToLogin}
+              className="w-full text-[10px] text-warm-gray hover:text-gold uppercase font-bold tracking-wide"
+            >
+              Déjà un compte ? Se connecter
             </button>
           </form>
         </motion.div>

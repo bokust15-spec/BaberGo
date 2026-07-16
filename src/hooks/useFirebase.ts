@@ -790,6 +790,19 @@ export function useFirebase() {
 
   // Admin-only actions — enforced server-side by firestore.rules (isAdmin()), these
   // simply fail with a permission error if the caller isn't in the admins/{uid} collection.
+
+  // Every reservation on the platform, not just the caller's own — so an admin can
+  // monitor all bookings in one place (see AdminPanel's "Réservations" section).
+  const getAllAppointments = async () => {
+    try {
+      const snapshot = await getDocs(collection(db, 'appointments'));
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'appointments');
+      return [];
+    }
+  };
+
   const getKycSubmission = async (barberUid: string) => {
     const snap = await getDoc(doc(db, 'kycSubmissions', barberUid));
     return snap.exists() ? (snap.data() as { cinUrl: string; selfieUrl: string; submittedAt: any }) : null;
@@ -907,6 +920,7 @@ export function useFirebase() {
     uploadCover,
     uploadKycFile,
     submitKycDossier,
+    getAllAppointments,
     getKycSubmission,
     approveBarberKyc,
     rejectBarberKyc,

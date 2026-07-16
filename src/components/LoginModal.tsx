@@ -7,10 +7,11 @@ interface LoginModalProps {
   onClose: () => void;
   onLogin: (email: string, password: string) => Promise<boolean>;
   onResetPassword: (email: string) => Promise<boolean>;
+  onSwitchToRegister: () => void;
   theme: 'dark' | 'light';
 }
 
-export default function LoginModal({ isOpen, onClose, onLogin, onResetPassword, theme }: LoginModalProps) {
+export default function LoginModal({ isOpen, onClose, onLogin, onResetPassword, onSwitchToRegister, theme }: LoginModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -149,6 +150,16 @@ export default function LoginModal({ isOpen, onClose, onLogin, onResetPassword, 
                   className="w-full text-[10px] text-warm-gray hover:text-gold uppercase font-bold tracking-wide"
                 >
                   Retour à la connexion
+                </button>
+              )}
+
+              {mode === 'login' && (
+                <button
+                  type="button"
+                  onClick={onSwitchToRegister}
+                  className="w-full text-[10px] text-warm-gray hover:text-gold uppercase font-bold tracking-wide pt-1"
+                >
+                  Pas encore de compte ? S'inscrire
                 </button>
               )}
             </form>

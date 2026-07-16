@@ -300,10 +300,12 @@ service cloud.firestore {
         && request.resource.data.count == resource.data.count + 1;
     }
 
-    // Appointments
+    // Appointments — an admin can read/list every booking on the platform (monitoring
+    // only; the update rule below deliberately does NOT grant admins write access, so
+    // this doesn't let an admin silently alter a reservation).
     match /appointments/{appointmentId} {
-      allow read: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber');
-      allow list: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber');
+      allow read: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber' || isAdmin());
+      allow list: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber' || isAdmin());
       allow create: if isSignedIn() && isValidAppointment(request.resource.data);
       allow update: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber')
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'totalPrice', 'proposedPrice', 'counterPriceByBarber', 'counterDateTime', 'dateTime', 'negotiationStatus', 'clientLocationShared', 'clientNotes', 'barberId'])

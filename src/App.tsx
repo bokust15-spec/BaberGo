@@ -16,6 +16,7 @@ export default function App() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [hasDismissedRegister, setHasDismissedRegister] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
   const [clientLocation, setClientLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [initialCategory, setInitialCategory] = useState<string | null>(null);
   const [sharedPostId, setSharedPostId] = useState<string | null>(null);
@@ -52,6 +53,7 @@ export default function App() {
     uploadCover,
     uploadKycFile,
     submitKycDossier,
+    getAllAppointments,
     getKycSubmission,
     approveBarberKyc,
     rejectBarberKyc,
@@ -94,6 +96,13 @@ export default function App() {
     };
     fetchApps();
   }, [profile, getAppointments]);
+
+  // Every reservation on the platform, refreshed each time the admin opens the panel —
+  // so a newly created/updated booking always shows up rather than a stale snapshot.
+  useEffect(() => {
+    if (view !== 'admin' || !isAdmin) return;
+    getAllAppointments().then(setAllAppointments);
+  }, [view, isAdmin, getAllAppointments]);
 
   useEffect(() => {
     // Reset dismissal when user changes or logs out
@@ -329,6 +338,8 @@ export default function App() {
       return (
         <AdminPanel
           barbers={barbers}
+          allAppointments={allAppointments}
+          onRefreshAppointments={() => getAllAppointments().then(setAllAppointments)}
           theme={theme}
           onClose={() => setView('landing')}
           getKycSubmission={getKycSubmission}
@@ -503,6 +514,11 @@ export default function App() {
           setView('landing');
         }}
         onRegister={handleRegisterSuccess}
+        onSwitchToLogin={() => {
+          setIsRegisterOpen(false);
+          setHasDismissedRegister(true);
+          setIsLoginOpen(true);
+        }}
         theme={theme}
       />
 
@@ -511,6 +527,10 @@ export default function App() {
         onClose={() => setIsLoginOpen(false)}
         onLogin={handleLoginSubmit}
         onResetPassword={resetPassword}
+        onSwitchToRegister={() => {
+          setIsLoginOpen(false);
+          handleRegisterClick();
+        }}
         theme={theme}
       />
     </div>

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { ArrowLeft, ShieldCheck, FileImage, Check, X as XIcon, Banknote } from 'lucide-react';
-import { UserProfile } from '../hooks/useFirebase';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, ShieldCheck, FileImage, Check, X as XIcon, Banknote, CalendarClock, RefreshCw, Search } from 'lucide-react';
+import { UserProfile, Appointment } from '../hooks/useFirebase';
 
 interface KycSubmission {
   cinUrl: string;
@@ -10,6 +10,8 @@ interface KycSubmission {
 
 interface AdminPanelProps {
   barbers: UserProfile[];
+  allAppointments: Appointment[];
+  onRefreshAppointments: () => void;
   theme: 'dark' | 'light';
   onClose: () => void;
   getKycSubmission: (barberUid: string) => Promise<KycSubmission | null>;
@@ -18,12 +20,62 @@ interface AdminPanelProps {
   settleCommission: (barberUid: string) => Promise<void>;
 }
 
-export default function AdminPanel({ barbers, theme, onClose, getKycSubmission, approveBarberKyc, rejectBarberKyc, settleCommission }: AdminPanelProps) {
+function toDate(value: any): Date {
+  return value instanceof Date ? value : value.toDate();
+}
+
+const STATUS_LABEL: Record<Appointment['status'], string> = {
+  pending: 'En attente',
+  confirmed: 'Confirmée',
+  completed: 'Terminée',
+  cancelled: 'Refusée'
+};
+
+const STATUS_CLASS: Record<Appointment['status'], string> = {
+  pending: 'bg-amber-500/10 text-amber-400',
+  confirmed: 'bg-emerald-500/10 text-emerald-400',
+  completed: 'bg-gold/10 text-gold',
+  cancelled: 'bg-red-500/10 text-red-400'
+};
+
+export default function AdminPanel({ barbers, allAppointments, onRefreshAppointments, theme, onClose, getKycSubmission, approveBarberKyc, rejectBarberKyc, settleCommission }: AdminPanelProps) {
   const [dossiers, setDossiers] = useState<Record<string, KycSubmission | null>>({});
   const [busyUid, setBusyUid] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<Appointment['status'] | 'all'>('all');
+  const [search, setSearch] = useState('');
 
   const pendingKyc = barbers.filter(b => b.kycStatus === 'pending');
   const owingCommission = barbers.filter(b => (b.unpaidCommissionsCount || 0) > 0);
+
+  const barberName = (barberId: string) => {
+    if (barberId === 'dummy_barber') return 'Annonce ouverte (non assignée)';
+    const b = barbers.find(x => x.uid === barberId);
+    return b ? `${b.firstName} ${b.lastName}` : 'Pro introuvable';
+  };
+
+  // Most recent activity first — the whole point of this section is to catch anything
+  // new without having to scroll past older, already-handled bookings.
+  const sortedAppointments = useMemo(
+    () => [...allAppointments].sort((a, b) => toDate(b.dateTime).getTime() - toDate(a.dateTime).getTime()),
+    [allAppointments]
+  );
+
+  const filteredAppointments = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return sortedAppointments.filter(app => {
+      if (statusFilter !== 'all' && app.status !== statusFilter) return false;
+      if (!q) return true;
+      const haystack = `${app.clientName || ''} ${app.clientEmail || ''} ${barberName(app.barberId)} ${app.serviceName || ''}`.toLowerCase();
+      return haystack.includes(q);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortedAppointments, statusFilter, search, barbers]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<Appointment['status'], number> = { pending: 0, confirmed: 0, completed: 0, cancelled: 0 };
+    allAppointments.forEach(app => { counts[app.status] = (counts[app.status] || 0) + 1; });
+    return counts;
+  }, [allAppointments]);
 
   useEffect(() => {
     pendingKyc.forEach(b => {
@@ -70,6 +122,78 @@ export default function AdminPanel({ barbers, theme, onClose, getKycSubmission, 
       </nav>
 
       <main className="max-w-3xl mx-auto space-y-10">
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-bebas text-lg tracking-widest text-gold uppercase flex items-center gap-2">
+              <CalendarClock size={16} /> Toutes les réservations ({allAppointments.length})
+            </h2>
+            <button
+              onClick={onRefreshAppointments}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-white/10 text-warm-gray hover:text-gold transition-colors text-[9px] font-bold uppercase tracking-widest"
+            >
+              <RefreshCw size={11} /> Actualiser
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            {([
+              { id: 'all' as const, label: 'Toutes', count: allAppointments.length },
+              { id: 'pending' as const, label: STATUS_LABEL.pending, count: statusCounts.pending },
+              { id: 'confirmed' as const, label: STATUS_LABEL.confirmed, count: statusCounts.confirmed },
+              { id: 'completed' as const, label: STATUS_LABEL.completed, count: statusCounts.completed },
+              { id: 'cancelled' as const, label: STATUS_LABEL.cancelled, count: statusCounts.cancelled }
+            ]).map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setStatusFilter(tab.id)}
+                className={`px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest border transition-colors ${statusFilter === tab.id ? 'bg-gold text-black border-gold' : 'border-white/10 text-warm-gray hover:text-gold'}`}
+              >
+                {tab.label} ({tab.count})
+              </button>
+            ))}
+          </div>
+
+          <div className="relative mb-4">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-gray" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher un client, un pro, une prestation..."
+              className={`w-full pl-9 pr-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white placeholder:text-warm-gray/50' : 'bg-white border-gray-200 text-gray-900'}`}
+            />
+          </div>
+
+          {filteredAppointments.length === 0 ? (
+            <p className="text-xs text-warm-gray">Aucune réservation {statusFilter !== 'all' || search ? 'pour ces critères' : "pour le moment"}.</p>
+          ) : (
+            <div className="space-y-2">
+              {filteredAppointments.map(app => (
+                <div key={app.id} className={`p-3.5 rounded-xl border ${cardClass}`}>
+                  <div className="flex items-start justify-between gap-3 mb-1.5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold truncate">{app.serviceName || 'Prestation'}</p>
+                      <p className="text-[10px] text-warm-gray truncate">
+                        {app.clientName || 'Client'}{app.clientEmail ? ` · ${app.clientEmail}` : ''} → {barberName(app.barberId)}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest ${STATUS_CLASS[app.status]}`}>
+                      {STATUS_LABEL[app.status]}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-warm-gray">
+                    <span>{toDate(app.dateTime).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                    <span className="text-gold font-bold">{app.totalPrice} DH</span>
+                  </div>
+                  {app.negotiationStatus && (
+                    <p className="text-[9px] text-warm-gray/70 mt-1 uppercase tracking-widest">Négociation : {app.negotiationStatus}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         <section>
           <h2 className="font-bebas text-lg tracking-widest text-gold uppercase mb-4">KYC en attente ({pendingKyc.length})</h2>
           {pendingKyc.length === 0 ? (

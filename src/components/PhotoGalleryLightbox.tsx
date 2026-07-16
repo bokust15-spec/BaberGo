@@ -31,6 +31,12 @@ interface PhotoGalleryLightboxProps {
   onClose: () => void;
   onFetchLikeState?: (postId: string) => Promise<{ count: number; liked: boolean }>;
   onToggleLike?: (postId: string) => Promise<{ count: number; liked: boolean } | undefined>;
+  // Liking requires an account — a signed-out visitor tapping the heart is prompted to
+  // log in/sign up (onRequireAuth) instead of the like silently going nowhere. Defaults
+  // to "allowed" so contexts that are always authenticated (the pro's own dashboard)
+  // don't need to pass anything.
+  isLoggedIn?: boolean;
+  onRequireAuth?: () => void;
 }
 
 // Fullscreen photo viewer with left/right navigation through the rest of the set —
@@ -41,7 +47,7 @@ interface PhotoGalleryLightboxProps {
 // Instagram's fullscreen viewer.
 const SWIPE_THRESHOLD = 60;
 
-export default function PhotoGalleryLightbox({ photos, initialIndex, onClose, onFetchLikeState, onToggleLike }: PhotoGalleryLightboxProps) {
+export default function PhotoGalleryLightbox({ photos, initialIndex, onClose, onFetchLikeState, onToggleLike, isLoggedIn = true, onRequireAuth }: PhotoGalleryLightboxProps) {
   const [index, setIndex] = useState(initialIndex);
   const [subIndex, setSubIndex] = useState(0);
   // Real like state when a photo has a postId (fetched from Firestore); local-only
@@ -126,6 +132,7 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose, on
   }, [current?.postId, current?.url]);
 
   const toggleLike = async () => {
+    if (!isLoggedIn) { onRequireAuth?.(); return; }
     setLikedUrls(prev => ({ ...prev, [current.url]: !prev[current.url] }));
     setLikeCounts(prev => ({ ...prev, [current.url]: liked ? Math.max(0, (prev[current.url] || 0) - 1) : (prev[current.url] || 0) + 1 }));
     if (current.postId && onToggleLike) {

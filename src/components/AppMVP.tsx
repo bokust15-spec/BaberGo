@@ -622,6 +622,8 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                           onOpenProfile={() => openEntry(entry)}
                           onFetchLikeState={onFetchLikeState}
                           onToggleLike={onToggleLike}
+                          isLoggedIn={!!user}
+                          onRequireAuth={onLogin}
                         />
                       ))}
                     </div>
@@ -651,6 +653,8 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                           onOpenProfile={() => openEntry(entry)}
                           onFetchLikeState={onFetchLikeState}
                           onToggleLike={onToggleLike}
+                          isLoggedIn={!!user}
+                          onRequireAuth={onLogin}
                         />
                       ))}
                     </div>
@@ -717,6 +721,8 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
           onClose={() => setLightbox(null)}
           onFetchLikeState={onFetchLikeState}
           onToggleLike={onToggleLike}
+          isLoggedIn={!!user}
+          onRequireAuth={onLogin}
         />
       )}
 

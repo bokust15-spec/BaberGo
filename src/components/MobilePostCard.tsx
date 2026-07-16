@@ -17,6 +17,12 @@ interface MobilePostCardProps {
   onOpenProfile: () => void;
   onFetchLikeState: (postId: string) => Promise<{ count: number; liked: boolean }>;
   onToggleLike: (postId: string) => Promise<{ count: number; liked: boolean } | undefined>;
+  // Liking requires an account — a signed-out visitor tapping the heart is prompted to
+  // log in/sign up (onRequireAuth) instead of the like silently going nowhere. Defaults
+  // to "allowed" so contexts that are always authenticated (the pro's own dashboard)
+  // don't need to pass anything.
+  isLoggedIn?: boolean;
+  onRequireAuth?: () => void;
 }
 
 // Instagram/Reels-style full-bleed post card for mobile browsing — one big photo,
@@ -37,6 +43,8 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
   onOpenProfile,
   onFetchLikeState,
   onToggleLike,
+  isLoggedIn = true,
+  onRequireAuth,
 }) => {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
@@ -51,6 +59,7 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!isLoggedIn) { onRequireAuth?.(); return; }
     setLiked((l) => !l);
     setLikeCount((c) => (liked ? Math.max(0, c - 1) : c + 1));
     const result = await onToggleLike(postId);
