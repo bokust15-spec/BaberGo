@@ -4,8 +4,8 @@ import { UserProfile, Appointment, AppointmentChatMeta, ChatMessage } from '../h
 import { cannedMessageLabel, cancelReasonLabel } from '../data/chatMessages';
 
 interface KycSubmission {
-  cinUrl: string;
-  selfieUrl: string;
+  cinUrl?: string;
+  selfieUrl?: string;
   submittedAt: any;
 }
 
@@ -40,6 +40,8 @@ const STATUS_CLASS: Record<Appointment['status'], string> = {
   cancelled: 'bg-red-500/10 text-red-400'
 };
 
+type AdminTab = 'reservations' | 'kyc' | 'commissions';
+
 export default function AdminPanel({ barbers, allAppointments, onRefreshAppointments, theme, onClose, getKycSubmission, approveBarberKyc, rejectBarberKyc, settleCommission, getAppointmentChatForAdmin }: AdminPanelProps) {
   const [dossiers, setDossiers] = useState<Record<string, KycSubmission | null>>({});
   const [busyUid, setBusyUid] = useState<string | null>(null);
@@ -47,6 +49,7 @@ export default function AdminPanel({ barbers, allAppointments, onRefreshAppointm
   const [search, setSearch] = useState('');
   const [expandedChatId, setExpandedChatId] = useState<string | null>(null);
   const [chatData, setChatData] = useState<Record<string, { meta: AppointmentChatMeta | null; messages: ChatMessage[] } | 'loading'>>({});
+  const [activeTab, setActiveTab] = useState<AdminTab>('reservations');
 
   const handleToggleChat = (appointmentId: string) => {
     if (expandedChatId === appointmentId) {
@@ -137,7 +140,37 @@ export default function AdminPanel({ barbers, allAppointments, onRefreshAppointm
         </button>
       </nav>
 
+      {/* Rubriques séparées — KYC et Commissions ont chacune leur propre onglet, avec un
+          badge doré dès qu'un dossier ou un solde attend une action, pour que l'admin
+          n'ait jamais à faire défiler toute la liste des réservations pour les trouver. */}
+      <div className="max-w-3xl mx-auto flex gap-2 mb-8">
+        {([
+          { id: 'reservations' as const, label: 'Réservations', Icon: CalendarClock, count: 0 },
+          { id: 'kyc' as const, label: 'KYC', Icon: FileImage, count: pendingKyc.length },
+          { id: 'commissions' as const, label: 'Commissions', Icon: Banknote, count: owingCommission.length },
+        ]).map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`relative flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-colors ${
+              activeTab === tab.id
+                ? 'bg-gold text-black border-gold'
+                : theme === 'dark' ? 'border-white/10 text-warm-gray hover:text-gold' : 'border-gray-200 text-gray-500 hover:text-gold'
+            }`}
+          >
+            <tab.Icon size={14} />
+            {tab.label}
+            {tab.count > 0 && (
+              <span className={`absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none ${activeTab === tab.id ? 'border-2 border-black/20' : ''}`}>
+                {tab.count > 99 ? '99+' : tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       <main className="max-w-3xl mx-auto space-y-10">
+        {activeTab === 'reservations' && (
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bebas text-lg tracking-widest text-gold uppercase flex items-center gap-2">
@@ -252,7 +285,9 @@ export default function AdminPanel({ barbers, allAppointments, onRefreshAppointm
             </div>
           )}
         </section>
+        )}
 
+        {activeTab === 'kyc' && (
         <section>
           <h2 className="font-bebas text-lg tracking-widest text-gold uppercase mb-4">KYC en attente ({pendingKyc.length})</h2>
           {pendingKyc.length === 0 ? (
@@ -291,12 +326,20 @@ export default function AdminPanel({ barbers, allAppointments, onRefreshAppointm
                       <p className="text-[10px] text-red-400">Aucun fichier trouvé pour ce dossier.</p>
                     ) : (
                       <div className="flex gap-3">
-                        <a href={dossier.cinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[10px] text-gold underline">
-                          <FileImage size={12} /> Voir la CIN
-                        </a>
-                        <a href={dossier.selfieUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[10px] text-gold underline">
-                          <FileImage size={12} /> Voir le selfie
-                        </a>
+                        {dossier.cinUrl ? (
+                          <a href={dossier.cinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[10px] text-gold underline">
+                            <FileImage size={12} /> Voir la CIN
+                          </a>
+                        ) : (
+                          <span className="text-[10px] text-warm-gray">CIN manquante</span>
+                        )}
+                        {dossier.selfieUrl ? (
+                          <a href={dossier.selfieUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[10px] text-gold underline">
+                            <FileImage size={12} /> Voir le selfie
+                          </a>
+                        ) : (
+                          <span className="text-[10px] text-warm-gray">Selfie manquant</span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -305,7 +348,9 @@ export default function AdminPanel({ barbers, allAppointments, onRefreshAppointm
             </div>
           )}
         </section>
+        )}
 
+        {activeTab === 'commissions' && (
         <section>
           <h2 className="font-bebas text-lg tracking-widest text-gold uppercase mb-4">Commissions dues ({owingCommission.length})</h2>
           {owingCommission.length === 0 ? (
@@ -330,6 +375,7 @@ export default function AdminPanel({ barbers, allAppointments, onRefreshAppointm
             </div>
           )}
         </section>
+        )}
       </main>
     </div>
   );

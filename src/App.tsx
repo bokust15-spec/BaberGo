@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Sun, Moon, AlertTriangle, X, ShieldCheck } from 'lucide-react';
 import LandingPage from './components/LandingPage';
 import AppMVP from './components/AppMVP';
@@ -52,7 +52,7 @@ export default function App() {
     uploadAvatar,
     uploadCover,
     uploadKycFile,
-    submitKycDossier,
+    saveKycFile,
     getAllAppointments,
     getAppointmentChatForAdmin,
     getKycSubmission,
@@ -334,6 +334,14 @@ export default function App() {
     }
   };
 
+  // Live count of items actually waiting on an admin (new KYC dossier, commission owed)
+  // — `barbers` is kept fresh via onSnapshot, so this updates the moment a pro submits
+  // their CIN/selfie, without the admin needing to open the panel to find out.
+  const pendingAdminActionsCount = useMemo(
+    () => barbers.filter(b => b.kycStatus === 'pending').length + barbers.filter(b => (b.unpaidCommissionsCount || 0) > 0).length,
+    [barbers]
+  );
+
   const renderCurrentView = () => {
     if (view === 'admin' && isAdmin) {
       return (
@@ -411,7 +419,8 @@ export default function App() {
           onUpdateServices={updateServices}
           onBookBarber={handleBookBarber}
           onUploadKycFile={uploadKycFile}
-          onSubmitKycDossier={submitKycDossier}
+          onSaveKycFile={saveKycFile}
+          onGetKycSubmission={getKycSubmission}
           onGetBarberReviews={getBarberReviews}
           onIncrementProfileView={incrementProfileView}
           onFetchLikeState={getPostLikeState}
@@ -467,17 +476,24 @@ export default function App() {
     <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-black text-white' : 'bg-gray-50 text-gray-900'}`}>
       {renderCurrentView()}
 
-      {/* Accès admin — visible uniquement pour les comptes listés dans admins/{uid} */}
+      {/* Accès admin — visible uniquement pour les comptes listés dans admins/{uid}.
+          Le badge rouge signale en temps réel un nouveau dossier KYC ou une commission
+          due, sans avoir à ouvrir le panneau pour le découvrir. */}
       {isAdmin && view !== 'admin' && (
         <button
           onClick={() => setView('admin')}
           aria-label="Panneau admin"
           title="Panneau admin"
-          className={`fixed z-[100] p-2.5 rounded-full shadow-lg backdrop-blur-md transition-colors ${
+          className={`fixed z-[100] p-2.5 rounded-full shadow-lg backdrop-blur-md transition-colors relative ${
             view === 'landing' || (view === 'app' && profile?.role !== 'barber') ? 'top-4 right-16 md:right-24' : 'top-3 left-14'
           } ${theme === 'dark' ? 'bg-white/10 text-gold hover:bg-white/20' : 'bg-black/10 text-gold hover:bg-black/20'}`}
         >
           <ShieldCheck size={18} />
+          {pendingAdminActionsCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+              {pendingAdminActionsCount > 99 ? '99+' : pendingAdminActionsCount}
+            </span>
+          )}
         </button>
       )}
 

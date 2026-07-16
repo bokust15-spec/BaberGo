@@ -204,7 +204,9 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
         <div className="hidden lg:flex gap-5 lg:gap-8 items-center justify-self-center">
           <a href="#hero" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Accueil</a>
           <a href="#services" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Services</a>
-          <button onClick={() => onRegisterOpen('barber')} className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Je suis professionnel(le) beauté</button>
+          {profile?.role !== 'barber' && (
+            <button onClick={() => onRegisterOpen('barber')} className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Je suis professionnel(le) beauté</button>
+          )}
           <button onClick={profile ? onEnterApp : onLogin} className="whitespace-nowrap flex items-center gap-1.5 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">
             {profile && <User size={14} />}
             {profile ? profile.firstName : 'Se connecter'}
@@ -245,7 +247,9 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
           >
             <a onClick={() => setIsMobileMenuOpen(false)} href="#hero" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Accueil</a>
             <a onClick={() => setIsMobileMenuOpen(false)} href="#services" className="py-3 text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Services</a>
-            <button onClick={() => { setIsMobileMenuOpen(false); onRegisterOpen('barber'); }} className="py-3 text-left text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Je suis professionnel(le) beauté</button>
+            {profile?.role !== 'barber' && (
+              <button onClick={() => { setIsMobileMenuOpen(false); onRegisterOpen('barber'); }} className="py-3 text-left text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">Je suis professionnel(le) beauté</button>
+            )}
             <button onClick={() => { setIsMobileMenuOpen(false); profile ? onEnterApp() : onLogin(); }} className="py-3 flex items-center gap-1.5 text-left text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold transition-colors border-b border-gold/10">
               {profile && <User size={14} />}
               {profile ? profile.firstName : 'Se connecter'}
@@ -414,13 +418,15 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
                       <MapPin size={16} className="shrink-0" />
                       Trouver un professionnel autour de moi
                     </button>
-                    <button
-                      onClick={() => onRegisterOpen('barber')}
-                      className="flex items-center gap-1.5 text-[10px] md:text-xs font-bold uppercase tracking-widest text-white/60 hover:text-gold transition-colors underline-offset-4 hover:underline"
-                    >
-                      <Sparkles size={12} className="shrink-0" />
-                      Je suis professionnel(le) beauté
-                    </button>
+                    {profile?.role !== 'barber' && (
+                      <button
+                        onClick={() => onRegisterOpen('barber')}
+                        className="flex items-center gap-1.5 text-[10px] md:text-xs font-bold uppercase tracking-widest text-white/60 hover:text-gold transition-colors underline-offset-4 hover:underline"
+                      >
+                        <Sparkles size={12} className="shrink-0" />
+                        Je suis professionnel(le) beauté
+                      </button>
+                    )}
                   </motion.div>
 
                   <motion.div
@@ -701,7 +707,9 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
                <h4 className="text-gold text-[10px] uppercase font-bold tracking-[0.2em] mb-6">Compagnie</h4>
                <ul className="flex flex-col gap-3">
                  <li><a href="#services" className="text-warm-gray text-sm hover:text-white transition-colors">Nos prestations</a></li>
-                 <li><button onClick={() => onRegisterOpen('barber')} className="text-warm-gray text-sm hover:text-white transition-colors text-left">Devenir partenaire</button></li>
+                 {profile?.role !== 'barber' && (
+                   <li><button onClick={() => onRegisterOpen('barber')} className="text-warm-gray text-sm hover:text-white transition-colors text-left">Devenir partenaire</button></li>
+                 )}
                  <li><button onClick={profile ? onEnterApp : onLogin} className="text-warm-gray text-sm hover:text-white transition-colors text-left">{profile ? profile.firstName : 'Se connecter'}</button></li>
                </ul>
             </div>

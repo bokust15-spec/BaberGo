@@ -957,9 +957,9 @@ export function useFirebase() {
     return url;
   };
 
-  // Uploads a CIN or selfie photo to Storage only — does NOT touch Firestore, since
-  // the dossier (both file URLs) is written together via submitKycDossier once both
-  // uploads finish, keeping the users/{uid} doc free of identity-document links.
+  // Uploads a CIN or selfie photo to Storage only — does NOT touch Firestore itself;
+  // the caller passes the resulting URL to saveKycFile, which persists it to the
+  // private kycSubmissions/{uid} doc (never the public users/{uid} doc).
   const uploadKycFile = async (file: File, type: 'cin' | 'selfie') => {
     if (!user) return;
     const path = `kyc/${user.uid}/${type}-${Date.now()}-${file.name}`;
@@ -968,21 +968,27 @@ export function useFirebase() {
     return await getDownloadURL(storageRef);
   };
 
-  // Stores the KYC dossier in the private kycSubmissions/{uid} doc, then flips the
-  // public kycStatus to 'pending' — only an admin can move it to 'verified' afterward.
-  const submitKycDossier = async (cinUrl: string, selfieUrl: string) => {
+  // Saves one KYC file's URL to the private kycSubmissions/{uid} doc — merged, not
+  // overwritten, so uploading the CIN and the selfie in two separate sessions doesn't
+  // erase whichever one was saved first (that was a real bug: the "already uploaded"
+  // checkmark only ever lived in local component state, so refreshing the page before
+  // both files were done in the same sitting made it look like nothing had been sent).
+  // Once both files are present, flips the public kycStatus to 'pending' — only an
+  // admin can move it to 'verified' afterward.
+  const saveKycFile = async (type: 'cin' | 'selfie', url: string) => {
     if (!user) return;
     try {
-      await setDoc(doc(db, 'kycSubmissions', user.uid), {
-        cinUrl,
-        selfieUrl,
-        submittedAt: serverTimestamp()
-      });
-      const docRef = doc(db, 'users', user.uid);
-      await updateDoc(docRef, { kycStatus: 'pending' });
-      setProfile(prev => prev ? { ...prev, kycStatus: 'pending' } : prev);
+      const field = type === 'cin' ? 'cinUrl' : 'selfieUrl';
+      const submissionRef = doc(db, 'kycSubmissions', user.uid);
+      await setDoc(submissionRef, { [field]: url, submittedAt: serverTimestamp() }, { merge: true });
+      const snap = await getDoc(submissionRef);
+      const data = snap.data();
+      if (data?.cinUrl && data?.selfieUrl) {
+        await updateDoc(doc(db, 'users', user.uid), { kycStatus: 'pending' });
+        setProfile(prev => prev ? { ...prev, kycStatus: 'pending' } : prev);
+      }
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+      handleFirestoreError(error, OperationType.UPDATE, `kycSubmissions/${user.uid}`);
     }
   };
 
@@ -1001,9 +1007,10 @@ export function useFirebase() {
     }
   };
 
+  // Either field may be missing — a pro can have saved just one of the two files so far.
   const getKycSubmission = async (barberUid: string) => {
     const snap = await getDoc(doc(db, 'kycSubmissions', barberUid));
-    return snap.exists() ? (snap.data() as { cinUrl: string; selfieUrl: string; submittedAt: any }) : null;
+    return snap.exists() ? (snap.data() as { cinUrl?: string; selfieUrl?: string; submittedAt: any }) : null;
   };
 
   const approveBarberKyc = async (barberUid: string) => {
@@ -1127,7 +1134,7 @@ export function useFirebase() {
     uploadAvatar,
     uploadCover,
     uploadKycFile,
-    submitKycDossier,
+    saveKycFile,
     getAllAppointments,
     getKycSubmission,
     approveBarberKyc,

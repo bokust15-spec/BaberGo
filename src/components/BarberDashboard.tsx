@@ -92,7 +92,8 @@ interface BarberDashboardProps {
   onUpdateServices: (services: BarberService[]) => Promise<void>;
   onBookBarber: (barberId: string, item: { name: string; price: number }, dateTime: Date, note?: string) => Promise<void>;
   onUploadKycFile: (file: File, type: 'cin' | 'selfie') => Promise<string | undefined>;
-  onSubmitKycDossier: (cinUrl: string, selfieUrl: string) => Promise<void>;
+  onSaveKycFile: (type: 'cin' | 'selfie', url: string) => Promise<void>;
+  onGetKycSubmission: (uid: string) => Promise<{ cinUrl?: string; selfieUrl?: string; submittedAt: any } | null>;
   onGetBarberReviews: (barberId: string) => Promise<Review[]>;
   onIncrementProfileView: (barberId: string) => Promise<void>;
   onFetchLikeState: (postId: string) => Promise<{ count: number; liked: boolean }>;
@@ -123,7 +124,8 @@ export default function BarberDashboard({
   onUpdateServices,
   onBookBarber,
   onUploadKycFile,
-  onSubmitKycDossier,
+  onSaveKycFile,
+  onGetKycSubmission,
   onGetBarberReviews,
   onIncrementProfileView,
   onFetchLikeState,
@@ -160,6 +162,22 @@ export default function BarberDashboard({
     onLogout();
   };
 
+  // Loads whichever KYC file(s) were already saved — fixes a real bug where the
+  // "already uploaded" checkmark only ever lived in local state, so refreshing the
+  // page (or uploading the CIN and the selfie in two separate sessions) made the
+  // upload UI look like nothing had ever been sent, even though the file had gone
+  // through and was sitting in Storage/Firestore the whole time.
+  useEffect(() => {
+    let cancelled = false;
+    onGetKycSubmission(profile.uid).then(submission => {
+      if (cancelled || !submission) return;
+      if (submission.cinUrl) setKycCinUrl(submission.cinUrl);
+      if (submission.selfieUrl) setKycSelfieUrl(submission.selfieUrl);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile.uid]);
+
   const kycStatus = profile.kycStatus || 'unverified';
   const unpaidCount = profile.unpaidCommissionsCount || 0;
   const commissionsOwed = profile.totalCommissionsOwed || 0;
@@ -187,10 +205,11 @@ export default function BarberDashboard({
       const url = await onUploadKycFile(file, type);
       if (url) {
         setUrl(url);
-        const otherUrl = type === 'cin' ? kycSelfieUrl : kycCinUrl;
-        if (otherUrl) {
-          await onSubmitKycDossier(type === 'cin' ? url : otherUrl, type === 'cin' ? otherUrl : url);
-        }
+        // Saved immediately, independently of the other file — onSaveKycFile persists
+        // it right away (merged, not overwritten) and only flips kycStatus to
+        // 'pending' once both files are present in Firestore, however many sessions
+        // that took.
+        await onSaveKycFile(type, url);
       }
     } catch (e) {
       console.error('Error uploading KYC file:', e);

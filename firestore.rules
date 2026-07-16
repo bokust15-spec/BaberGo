@@ -109,11 +109,15 @@ service cloud.firestore {
         && after.kycStatus == 'pending';
     }
 
+    // Each file (CIN, selfie) can be saved on its own — the pro might upload them in two
+    // separate sessions — so this only requires whichever fields are present to be valid,
+    // not both at once. The two-file merge write itself is `setDoc(..., {merge: true})`
+    // client-side, so previously-saved fields survive an update that only carries one.
     function isValidKycSubmission(data) {
-      return data.keys().hasAll(['cinUrl', 'selfieUrl', 'submittedAt'])
-        && data.keys().size() == 3
-        && data.cinUrl is string && data.cinUrl.size() > 0
-        && data.selfieUrl is string && data.selfieUrl.size() > 0
+      return data.keys().hasOnly(['cinUrl', 'selfieUrl', 'submittedAt'])
+        && (('cinUrl' in data) || ('selfieUrl' in data))
+        && (!('cinUrl' in data) || (data.cinUrl is string && data.cinUrl.size() > 0))
+        && (!('selfieUrl' in data) || (data.selfieUrl is string && data.selfieUrl.size() > 0))
         && data.submittedAt == request.time;
     }
 
