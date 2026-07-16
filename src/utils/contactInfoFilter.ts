@@ -6,16 +6,20 @@
 // for fields it can validate directly (bio) — Firestore rules can't loop over array
 // elements, so portfolio item captions rely on this client-side check alone.
 
-// 9+ consecutive digit-like characters (digits + spaces/dots/dashes between them) —
-// wide enough to catch "06 12 34 56 78" or "+212612345678" formats, narrow enough to
-// let short mentions like "300 DH" or "5 ans d'expérience" through.
-const PHONE_PATTERN = /\d[\d\s.-]{7,}\d/;
+// Zero-tolerance on digits: 2 or more digit characters ANYWHERE in the text is blocked,
+// consecutive or not. A pattern requiring a long unbroken digit run (the previous
+// approach) is trivially beaten by breaking the number up with letters or spaces
+// ("07 80 9OH9OH9OH9O") — counting digits regardless of what's between them closes
+// that gap, at the cost of also blocking legitimate short numbers in the bio (ages,
+// years of experience). That trade-off is intentional given the commission model.
 const WHATSAPP_PATTERN = /whats\s*app|wa\.me|api\.whatsapp/i;
 const EMAIL_PATTERN = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
 
 export function containsContactInfo(text: string): boolean {
   if (!text) return false;
-  return PHONE_PATTERN.test(text) || WHATSAPP_PATTERN.test(text) || EMAIL_PATTERN.test(text);
+  const digitCount = (text.match(/[0-9]/g) || []).length;
+  if (digitCount >= 2) return true;
+  return WHATSAPP_PATTERN.test(text) || EMAIL_PATTERN.test(text);
 }
 
 export const CONTACT_INFO_ERROR = "Merci de ne pas partager de numéro, WhatsApp ou email ici — toutes les réservations doivent passer par BarberGo.";

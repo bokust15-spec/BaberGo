@@ -27,11 +27,20 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { auth, db, storage, handleFirestoreError, OperationType } from '../lib/firebase';
 
 export interface PortfolioItem {
-  url: string;
+  url: string; // cover photo — always set, kept for backward compatibility with single-photo posts
+  urls?: string[]; // full set (1-15) for a multi-photo post, cover included as urls[0]; absent = single-photo post, use `url`
   name: string;
   price: number;
   category?: string; // one of SERVICE_CATEGORIES ids (src/data/categories.ts)
   createdAt?: number; // client timestamp (ms) — arrayUnion doesn't support serverTimestamp()
+}
+
+export const MAX_PHOTOS_PER_POST = 15;
+
+// The real photo list for a post, whichever shape it was saved in — a pre-carousel
+// post only ever had `url`, a carousel post has `urls` (cover included as urls[0]).
+export function getItemPhotos(item: PortfolioItem): string[] {
+  return item.urls && item.urls.length > 0 ? item.urls : [item.url];
 }
 
 export interface BarberService {
@@ -798,13 +807,20 @@ export function useFirebase() {
     await updateDoc(doc(db, 'users', barberUid), { unpaidCommissionsCount: 0, totalCommissionsOwed: 0 });
   };
 
-  const addPortfolioItem = async (file: File, name: string, price: number, category?: string) => {
-    if (!user) return;
-    const path = `portfolios/${user.uid}/${Date.now()}-${file.name}`;
-    const storageRef = ref(storage, path);
-    await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(storageRef);
-    const item: PortfolioItem = category ? { url, name, price, category, createdAt: Date.now() } : { url, name, price, createdAt: Date.now() };
+  // Accepts 1 to MAX_PHOTOS_PER_POST files as a single post (an Instagram-style
+  // carousel) — the first photo becomes the cover (`url`, for existing code that only
+  // ever reads a single photo), `urls` holds the full set.
+  const addPortfolioItem = async (files: File[], name: string, price: number, category?: string) => {
+    if (!user || files.length === 0) return;
+    const capped = files.slice(0, MAX_PHOTOS_PER_POST);
+    const urls = await Promise.all(capped.map(async (file, i) => {
+      const path = `portfolios/${user.uid}/${Date.now()}-${i}-${file.name}`;
+      const storageRef = ref(storage, path);
+      await uploadBytes(storageRef, file);
+      return getDownloadURL(storageRef);
+    }));
+    const base = { url: urls[0], urls, name, price, createdAt: Date.now() };
+    const item: PortfolioItem = category ? { ...base, category } : base;
     const docRef = doc(db, 'users', user.uid);
     await updateDoc(docRef, { portfolioItems: arrayUnion(item) });
     setProfile(prev => prev ? { ...prev, portfolioItems: [...(prev.portfolioItems || []), item] } : prev);

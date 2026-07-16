@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Search, Scissors, Star, User, ChevronRight, ChevronDown, X, ArrowLeft, BadgeCheck, CalendarDays, CalendarCheck, Navigation, Clock, AlertTriangle, Check } from 'lucide-react';
-import { UserProfile, useFirebase, Appointment, Review, hashPostId } from '../hooks/useFirebase';
+import { MapPin, Search, Scissors, Star, User, ChevronRight, ChevronDown, X, ArrowLeft, BadgeCheck, CalendarDays, CalendarCheck, Navigation, Clock, AlertTriangle, Check, Layers, Share2 } from 'lucide-react';
+import { UserProfile, useFirebase, Appointment, Review, hashPostId, getItemPhotos } from '../hooks/useFirebase';
 import { STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, SALON_COVER_PHOTO, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
 import BookingModal from './BookingModal';
 import SearchBar from './SearchBar';
@@ -55,9 +55,11 @@ interface AppMVPProps {
   onFetchLikeState: (postId: string) => Promise<{ count: number; liked: boolean }>;
   onToggleLike: (postId: string) => Promise<{ count: number; liked: boolean } | undefined>;
   barbersLoading: boolean;
+  sharedPostId?: string | null;
+  sharedBarberId?: string | null;
 }
 
-export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews, onIncrementProfileView, onFetchLikeState, onToggleLike, barbersLoading }: AppMVPProps) {
+export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews, onIncrementProfileView, onFetchLikeState, onToggleLike, barbersLoading, sharedPostId, sharedBarberId }: AppMVPProps) {
   const [activeTab, setActiveTab] = useState<'search' | 'bookings'>('search');
   const [resultsTab, setResultsTab] = useState<'pourVous' | 'profils'>('pourVous');
   const [selectedEntry, setSelectedEntry] = useState<FeedEntry | null>(null);
@@ -105,7 +107,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   const realizationPhotos: LightboxPhoto[] = selectedEntry
     ? (selectedEntry.isMock
         ? PORTFOLIO_PHOTOS.map(url => ({ url, name: selectedEntry.item.name, price: selectedEntry.item.price, createdAt: selectedEntry.item.createdAt || selectedBarber?.createdAt }))
-        : (selectedBarber?.portfolioItems || []).map(i => ({ url: i.url, name: i.name, price: i.price, createdAt: i.createdAt || selectedBarber?.createdAt })))
+        : (selectedBarber?.portfolioItems || []).map(i => ({ url: i.url, photoUrls: getItemPhotos(i), name: i.name, price: i.price, createdAt: i.createdAt || selectedBarber?.createdAt })))
     : [];
 
   // The list a client picks from when booking: the barber's own prestations menu when
@@ -226,6 +228,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   // a single picture.
   const feedLightboxPhotos: LightboxPhoto[] = useMemo(() => postEntries.map(entry => ({
     url: entry.item.url,
+    photoUrls: getItemPhotos(entry.item),
     name: entry.item.name,
     price: entry.item.price,
     createdAt: entry.item.createdAt || entry.barber.createdAt,
@@ -247,6 +250,63 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   const openEntry = (entry: FeedEntry) => {
     setSelectedEntry(entry);
   };
+
+  // A "?barber=" link lets whoever opens it land straight on this pro's own profile
+  // (see the resolver below) instead of just the generic homepage — same pattern as the
+  // per-post "?post=" share link.
+  const handleShareProfile = async (uid: string, name: string) => {
+    const shareUrl = `${window.location.origin}${window.location.pathname}?barber=${encodeURIComponent(uid)}`;
+    const shareData = { title: 'BarberGo', text: `${name} sur BarberGo`, url: shareUrl };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else if (navigator.clipboard) await navigator.clipboard.writeText(shareData.url);
+    } catch {
+      // User cancelled the native share sheet — nothing to do.
+    }
+  };
+
+  // The pro's real chosen specialties when they've set any; mock/demo entries fall back
+  // to the single category of the post itself so the row still shows something useful.
+  const entryCategories = (entry: FeedEntry): string[] =>
+    entry.barber.categories && entry.barber.categories.length > 0
+      ? entry.barber.categories
+      : (entry.item.category ? [entry.item.category] : []);
+
+  // A "Partager" link should drop the visitor straight onto that specific post, not just
+  // the generic search page — resolve the shared postId against the full (unfiltered)
+  // feed once barbers have loaded, and open it directly in the fullscreen viewer.
+  const resolvedSharedPostRef = useRef(false);
+  useEffect(() => {
+    if (!sharedPostId || resolvedSharedPostRef.current || feedEntries.length === 0) return;
+    const match = feedEntries.find(e => hashPostId(e.barber.uid, e.item.url) === sharedPostId);
+    if (!match) return;
+    resolvedSharedPostRef.current = true;
+    openLightbox([{
+      url: match.item.url,
+      photoUrls: getItemPhotos(match.item),
+      name: match.item.name,
+      price: match.item.price,
+      createdAt: match.item.createdAt || match.barber.createdAt,
+      barberName: `${match.barber.firstName} ${match.barber.lastName}`,
+      barberAvatarUrl: match.barber.avatarUrl || avatarFor(match.barber.uid),
+      postId: sharedPostId,
+      onBarberClick: () => { setLightbox(null); openEntry(match); },
+    }], 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharedPostId, feedEntries]);
+
+  // A "Partager" link on a pro's profile ("?barber=<uid>") should drop the visitor
+  // straight onto that pro's profile, same pattern as the per-post deep link above.
+  const resolvedSharedBarberRef = useRef(false);
+  useEffect(() => {
+    if (!sharedBarberId || resolvedSharedBarberRef.current || feedEntries.length === 0) return;
+    const match = feedEntries.find(e => e.barber.uid === sharedBarberId);
+    if (!match) return;
+    resolvedSharedBarberRef.current = true;
+    setActiveTab('search');
+    openEntry(match);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharedBarberId, feedEntries]);
 
   // One row per pro (not per post) for the "Profils" tab and the "Pour vous" top-5 —
   // real average rating from reviewCount/ratingSum (never the old flat 4.9 placeholder),
@@ -341,12 +401,18 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
         <AnimatePresence mode="wait">
           {selectedBarber && selectedEntry ? (
             <motion.div key="profile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-3xl mx-auto">
-              <div className="p-4">
+              <div className="p-4 flex items-center justify-between">
                 <button
                   onClick={() => setSelectedEntry(null)}
                   className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gold hover:opacity-80 transition-opacity"
                 >
                   <ArrowLeft size={14} /> Retour à la recherche
+                </button>
+                <button
+                  onClick={() => handleShareProfile(selectedBarber.uid, `${selectedBarber.firstName} ${selectedBarber.lastName}`)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-bold uppercase tracking-widest transition-colors ${theme === 'dark' ? 'border-white/10 text-warm-gray hover:text-gold hover:border-gold/30' : 'border-gray-200 text-gray-500 hover:text-gold hover:border-gold/30'}`}
+                >
+                  <Share2 size={14} /> Partager
                 </button>
               </div>
 
@@ -425,8 +491,13 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                    <div className="text-lg font-bebas text-gold uppercase tracking-widest mb-4">Réalisations</div>
                    <div className="grid grid-cols-4 gap-2">
                      {realizationPhotos.map((photo, i) => (
-                       <button key={i} onClick={() => openLightbox(realizationPhotos, i)} className="aspect-square rounded-sm overflow-hidden border border-gold/15">
+                       <button key={i} onClick={() => openLightbox(realizationPhotos, i)} className="relative aspect-square rounded-sm overflow-hidden border border-gold/15">
                          <img src={photo.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                         {photo.photoUrls && photo.photoUrls.length > 1 && (
+                           <span className="absolute top-1 right-1 flex items-center gap-0.5 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                             <Layers size={9} /> {photo.photoUrls.length}
+                           </span>
+                         )}
                        </button>
                      ))}
                    </div>
@@ -498,6 +569,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                           rating={rating}
                           reviewCount={reviewCount}
                           distanceKm={distance}
+                          categories={entryCategories(entry)}
                           theme={theme}
                           onClick={() => openEntry(entry)}
                         />
@@ -539,6 +611,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                           key={i}
                           postId={hashPostId(entry.barber.uid, entry.item.url)}
                           photoUrl={entry.item.url}
+                          photoCount={getItemPhotos(entry.item).length}
                           caption={entry.item.name}
                           price={entry.item.price}
                           city={entry.city}
@@ -565,6 +638,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                           key={i}
                           postId={hashPostId(entry.barber.uid, entry.item.url)}
                           photoUrl={entry.item.url}
+                          photoCount={getItemPhotos(entry.item).length}
                           caption={entry.item.name}
                           price={entry.item.price}
                           city={entry.city}

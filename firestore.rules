@@ -33,9 +33,11 @@ service cloud.firestore {
     // into a public text field to book clients off-platform (bypassing the commission) —
     // mirrors the client-side check in src/utils/contactInfoFilter.ts. Only usable on a
     // single string field (bio); Firestore rules can't loop over portfolioItems/services
-    // array elements, so those rely on the client-side check alone.
+    // array elements, so those rely on the client-side check alone. Zero-tolerance on
+    // digits (2+ anywhere in the text, not necessarily consecutive) — a long-unbroken-run
+    // check is trivially beaten by breaking a number up with letters ("07 80 9OH9OH9OH9O").
     function hasContactInfo(text) {
-      return text.matches('(?s).*[0-9][0-9 .\\-]{7,}[0-9].*')
+      return text.matches('(?s).*[0-9].*[0-9].*')
         || text.matches('(?is).*(whatsapp|wa\\.me).*')
         || text.matches('(?is).*[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}.*');
     }

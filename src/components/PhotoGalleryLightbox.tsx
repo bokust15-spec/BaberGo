@@ -5,6 +5,9 @@ import { formatRelativeTime } from '../utils/relativeTime';
 
 export interface LightboxPhoto {
   url: string;
+  // The full carousel for this post (1-15 photos, Instagram-style) when it has more
+  // than one — absent/single-entry means this post is just the one photo (`url`).
+  photoUrls?: string[];
   name?: string;
   price?: number;
   createdAt?: number;
@@ -32,38 +35,83 @@ interface PhotoGalleryLightboxProps {
 
 // Fullscreen photo viewer with left/right navigation through the rest of the set —
 // used for cover/avatar photos (single-item), "Réalisations" galleries (multi-item, one
-// pro), and search-results grids (multi-item, many pros) alike.
+// pro), and search-results grids (multi-item, many pros) alike. Each entry ("post") can
+// itself hold a carousel of 1-15 photos (photoUrls) — swiping steps through the current
+// post's own photos first, then rolls over into the next/previous post, same as
+// Instagram's fullscreen viewer.
 const SWIPE_THRESHOLD = 60;
 
 export default function PhotoGalleryLightbox({ photos, initialIndex, onClose, onFetchLikeState, onToggleLike }: PhotoGalleryLightboxProps) {
   const [index, setIndex] = useState(initialIndex);
+  const [subIndex, setSubIndex] = useState(0);
   // Real like state when a photo has a postId (fetched from Firestore); local-only
-  // fallback (keyed by url) for photos without one, so each swiped-to photo keeps its
+  // fallback (keyed by url) for photos without one, so each swiped-to post keeps its
   // own independent state either way.
   const [likedUrls, setLikedUrls] = useState<Record<string, boolean>>({});
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setIndex(initialIndex);
+    setSubIndex(0);
   }, [initialIndex]);
 
-  const hasMultiple = photos.length > 1;
+  const hasMultiplePosts = photos.length > 1;
+  const current = photos.length > 0 ? photos[Math.min(index, photos.length - 1)] : null;
+  const currentPhotos = current ? (current.photoUrls && current.photoUrls.length > 0 ? current.photoUrls : [current.url]) : [];
+  const hasSubPhotos = currentPhotos.length > 1;
+  const clampedSubIndex = Math.min(subIndex, Math.max(0, currentPhotos.length - 1));
+  const displayedUrl = currentPhotos[clampedSubIndex] || current?.url;
 
-  const goPrev = () => setIndex(i => (i - 1 + photos.length) % photos.length);
-  const goNext = () => setIndex(i => (i + 1) % photos.length);
+  const goToPost = (newIndex: number, subIdx: number) => {
+    setIndex((newIndex + photos.length) % photos.length);
+    setSubIndex(subIdx);
+  };
+
+  // Step forward: next photo within the current post first, then roll into the next post.
+  const stepNext = () => {
+    if (clampedSubIndex < currentPhotos.length - 1) {
+      setSubIndex(clampedSubIndex + 1);
+    } else if (hasMultiplePosts) {
+      goToPost(index + 1, 0);
+    }
+  };
+
+  // Step back: previous photo within the current post first, then roll into the
+  // previous post — landing on ITS last photo, so backward navigation feels continuous.
+  const stepPrev = () => {
+    if (clampedSubIndex > 0) {
+      setSubIndex(clampedSubIndex - 1);
+    } else if (hasMultiplePosts) {
+      const prevIdx = (index - 1 + photos.length) % photos.length;
+      const prevPost = photos[prevIdx];
+      const prevCount = prevPost.photoUrls && prevPost.photoUrls.length > 0 ? prevPost.photoUrls.length : 1;
+      goToPost(prevIdx, prevCount - 1);
+    }
+  };
+
+  const canStep = hasMultiplePosts || hasSubPhotos;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      else if (e.key === 'ArrowLeft' && hasMultiple) goPrev();
-      else if (e.key === 'ArrowRight' && hasMultiple) goNext();
+      else if (e.key === 'ArrowLeft' && canStep) stepPrev();
+      else if (e.key === 'ArrowRight' && canStep) stepNext();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasMultiple, onClose]);
+  }, [canStep, index, subIndex, onClose]);
 
-  const current = photos.length > 0 ? photos[Math.min(index, photos.length - 1)] : null;
+  if (!current) return null;
+
+  const handleDragEnd = (_e: any, info: { offset: { x: number } }) => {
+    if (!canStep) return;
+    if (info.offset.x > SWIPE_THRESHOLD) stepPrev();
+    else if (info.offset.x < -SWIPE_THRESHOLD) stepNext();
+  };
+
+  const liked = !!likedUrls[current.url];
+  const likeCount = likeCounts[current.url] || 0;
 
   useEffect(() => {
     if (!current?.postId || !onFetchLikeState) return;
@@ -76,17 +124,6 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose, on
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.postId, current?.url]);
-
-  if (!current) return null;
-
-  const handleDragEnd = (_e: any, info: { offset: { x: number } }) => {
-    if (!hasMultiple) return;
-    if (info.offset.x > SWIPE_THRESHOLD) goPrev();
-    else if (info.offset.x < -SWIPE_THRESHOLD) goNext();
-  };
-
-  const liked = !!likedUrls[current.url];
-  const likeCount = likeCounts[current.url] || 0;
 
   const toggleLike = async () => {
     setLikedUrls(prev => ({ ...prev, [current.url]: !prev[current.url] }));
@@ -101,7 +138,13 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose, on
   };
 
   const handleShare = async () => {
-    const shareData = { title: 'BarberGo', text: current.name ? `${current.name} sur BarberGo` : 'BarberGo', url: window.location.href };
+    // A "?post=" link lets whoever opens it land straight on this exact post (see the
+    // resolver in AppMVP) instead of just the generic homepage — only available when
+    // this photo has a postId (search-feed photos; not avatar/cover/own-portfolio views).
+    const shareUrl = current.postId
+      ? `${window.location.origin}${window.location.pathname}?post=${encodeURIComponent(current.postId)}`
+      : window.location.href;
+    const shareData = { title: 'BarberGo', text: current.name ? `${current.name} sur BarberGo` : 'BarberGo', url: shareUrl };
     try {
       if (navigator.share) await navigator.share(shareData);
       else if (navigator.clipboard) await navigator.clipboard.writeText(shareData.url);
@@ -130,13 +173,20 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose, on
           </button>
         )}
 
+        {/* Top-right: "X/Y" counter for the current post's own carousel (Instagram-style) */}
+        {hasSubPhotos && (
+          <span className="absolute top-4 right-16 z-20 bg-black/60 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+            {clampedSubIndex + 1}/{currentPhotos.length}
+          </span>
+        )}
+
         <button onClick={onClose} className="absolute top-4 right-4 text-white/70 hover:text-gold transition-colors z-20" aria-label="Fermer">
           <X size={28} />
         </button>
 
-        {hasMultiple && (
+        {canStep && (
           <button
-            onClick={(e) => { e.stopPropagation(); goPrev(); }}
+            onClick={(e) => { e.stopPropagation(); stepPrev(); }}
             className="absolute left-2 md:left-6 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:text-gold transition-colors z-20"
             aria-label="Photo précédente"
           >
@@ -146,11 +196,11 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose, on
 
         <div className="relative w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
           <motion.img
-            key={current.url}
+            key={displayedUrl}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.15 }}
-            src={current.url}
+            src={displayedUrl}
             alt=""
-            drag={hasMultiple ? 'x' : false}
+            drag={canStep ? 'x' : false}
             dragConstraints={{ left: 0, right: 0 }}
             dragElastic={0.7}
             onDragEnd={handleDragEnd}
@@ -168,8 +218,22 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose, on
             </button>
           </div>
 
+          {/* Dots for the current post's own carousel (Instagram-style) — sits above the
+              bottom caption block, whose height varies with name/price/timestamp/post
+              counter, so this needs enough clearance not to end up hidden behind it. */}
+          {hasSubPhotos && (
+            <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
+              {currentPhotos.map((_, i) => (
+                <span
+                  key={i}
+                  className={`w-1.5 h-1.5 rounded-full transition-colors ${i === clampedSubIndex ? 'bg-gold' : 'bg-white/40'}`}
+                />
+              ))}
+            </div>
+          )}
+
           {/* Bottom caption */}
-          {(current.name || current.price !== undefined || current.createdAt || hasMultiple) && (
+          {(current.name || current.price !== undefined || current.createdAt || hasMultiplePosts) && (
             <div className="absolute bottom-6 left-4 right-20 z-20 flex flex-col items-start gap-1">
               {(current.name || current.price !== undefined) && (
                 <div className="flex items-center gap-3 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full">
@@ -180,16 +244,16 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose, on
               {current.createdAt && (
                 <span className="text-white/50 text-[10px] uppercase tracking-widest px-1">{formatRelativeTime(current.createdAt)}</span>
               )}
-              {hasMultiple && (
+              {hasMultiplePosts && (
                 <span className="text-white/50 text-[10px] uppercase tracking-widest px-1">{index + 1} / {photos.length}</span>
               )}
             </div>
           )}
         </div>
 
-        {hasMultiple && (
+        {canStep && (
           <button
-            onClick={(e) => { e.stopPropagation(); goNext(); }}
+            onClick={(e) => { e.stopPropagation(); stepNext(); }}
             className="absolute right-2 md:right-6 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:text-gold transition-colors z-20"
             aria-label="Photo suivante"
           >

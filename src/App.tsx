@@ -18,6 +18,8 @@ export default function App() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [clientLocation, setClientLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [initialCategory, setInitialCategory] = useState<string | null>(null);
+  const [sharedPostId, setSharedPostId] = useState<string | null>(null);
+  const [sharedBarberId, setSharedBarberId] = useState<string | null>(null);
 
   const {
     user,
@@ -97,6 +99,23 @@ export default function App() {
     // Reset dismissal when user changes or logs out
     if (!user) setHasDismissedRegister(false);
   }, [user]);
+
+  // A "Partager" link (?post=<postId> or ?barber=<uid>) should drop the visitor
+  // straight onto that specific post or pro's profile instead of the generic landing
+  // page — skip straight to the search view and let AppMVP resolve the id once barbers
+  // load.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const postId = params.get('post');
+    const barberId = params.get('barber');
+    if (postId || barberId) {
+      if (postId) setSharedPostId(postId);
+      if (barberId) setSharedBarberId(barberId);
+      setView('app');
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
@@ -409,6 +428,8 @@ export default function App() {
         onFetchLikeState={getPostLikeState}
         onToggleLike={toggleLike}
         barbersLoading={barbersLoading}
+        sharedPostId={sharedPostId}
+        sharedBarberId={sharedBarberId}
       />
     );
   };

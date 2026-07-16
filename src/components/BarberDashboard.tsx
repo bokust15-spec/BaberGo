@@ -20,9 +20,11 @@ import {
   MapPin,
   Star,
   BadgeCheck,
-  Users
+  Users,
+  Layers,
+  Share2
 } from 'lucide-react';
-import { Appointment, UserProfile, Service, PortfolioItem, BarberService, Review, hashPostId } from '../hooks/useFirebase';
+import { Appointment, UserProfile, Service, PortfolioItem, BarberService, Review, hashPostId, getItemPhotos, MAX_PHOTOS_PER_POST } from '../hooks/useFirebase';
 import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
 import CategoryRail from './CategoryRail';
 import { SERVICE_CATEGORIES } from '../data/categories';
@@ -82,7 +84,7 @@ interface BarberDashboardProps {
   onUpdateLocation: (lat: number, lng: number, mode: 'manual' | 'auto') => Promise<void>;
   onUploadAvatar: (file: File) => Promise<string | undefined>;
   onUploadCover: (file: File) => Promise<string | undefined>;
-  onAddPortfolioItem: (file: File, name: string, price: number, category?: string) => Promise<PortfolioItem | undefined>;
+  onAddPortfolioItem: (files: File[], name: string, price: number, category?: string) => Promise<PortfolioItem | undefined>;
   onRemovePortfolioItem: (item: PortfolioItem) => Promise<void>;
   onUpdateAvailability: (updates: Partial<Pick<UserProfile, 'workingDays' | 'workStartHour' | 'workEndHour' | 'basePrice' | 'nightEnabled' | 'nightStartHour' | 'nightPrice'>>) => Promise<void>;
   onUpdateCategories: (categories: string[]) => Promise<void>;
@@ -597,6 +599,7 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
   // a single picture.
   const feedLightboxPhotos: LightboxPhoto[] = useMemo(() => postEntries.map(entry => ({
     url: entry.item.url,
+    photoUrls: getItemPhotos(entry.item),
     name: entry.item.name,
     price: entry.item.price,
     createdAt: entry.item.createdAt || entry.barber.createdAt,
@@ -636,6 +639,13 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
     });
     return rows.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
   }, [feedItems, viewerLocation]);
+
+  // The pro's real chosen specialties when they've set any; mock/demo entries fall back
+  // to the single category of the post itself so the row still shows something useful.
+  const entryCategories = (entry: FeedEntry): string[] =>
+    entry.barber.categories && entry.barber.categories.length > 0
+      ? entry.barber.categories
+      : (entry.item.category ? [entry.item.category] : []);
 
   return (
     <div className="space-y-6 text-left">
@@ -701,6 +711,7 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
                 rating={rating}
                 reviewCount={reviewCount}
                 distanceKm={distance}
+                categories={entryCategories(entry)}
                 theme={theme}
                 onClick={() => onSelectEntry(entry)}
               />
@@ -720,6 +731,7 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
               rating={rating}
               reviewCount={reviewCount}
               distanceKm={distance}
+              categories={entryCategories(entry)}
               theme={theme}
               onClick={() => onSelectEntry(entry)}
             />
@@ -747,6 +759,7 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
               key={i}
               postId={hashPostId(entry.barber.uid, entry.item.url)}
               photoUrl={entry.item.url}
+              photoCount={getItemPhotos(entry.item).length}
               caption={entry.item.name}
               price={entry.item.price}
               city={entry.city}
@@ -768,6 +781,7 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
               key={i}
               postId={hashPostId(entry.barber.uid, entry.item.url)}
               photoUrl={entry.item.url}
+              photoCount={getItemPhotos(entry.item).length}
               caption={entry.item.name}
               price={entry.item.price}
               city={entry.city}
@@ -850,7 +864,7 @@ function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook,
   }, [barber.uid, isMock, isSelf]);
   const galleryPhotos: LightboxPhoto[] = isMock
     ? PORTFOLIO_PHOTOS.map(url => ({ url, name: entryItem.name, price: entryItem.price, createdAt: entryItem.createdAt || barber.createdAt }))
-    : items.map(i => ({ url: i.url, name: i.name, price: i.price, createdAt: i.createdAt || barber.createdAt }));
+    : items.map(i => ({ url: i.url, photoUrls: getItemPhotos(i), name: i.name, price: i.price, createdAt: i.createdAt || barber.createdAt }));
   const coverUrl = isMock ? entryItem.url : barber.coverUrl;
   const avatarUrl = barber.avatarUrl || (isMock ? avatarFor(barber.uid) : '');
   const bio = isMock ? MOCK_BIO_TEXT : barber.bio;
@@ -886,6 +900,22 @@ function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook,
           >
             {coverUrl && <img src={coverUrl} className="w-full h-full object-cover" alt="" />}
             <div className={`absolute inset-0 bg-gradient-to-t ${theme === 'dark' ? 'from-mid-brown via-mid-brown/10' : 'from-white via-white/10'} to-transparent`} />
+          </button>
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              const shareUrl = `${window.location.origin}${window.location.pathname}?barber=${encodeURIComponent(barber.uid)}`;
+              const shareData = { title: 'BarberGo', text: `${barber.firstName} ${barber.lastName} sur BarberGo`, url: shareUrl };
+              try {
+                if (navigator.share) await navigator.share(shareData);
+                else if (navigator.clipboard) await navigator.clipboard.writeText(shareData.url);
+              } catch {
+                // User cancelled the native share sheet — nothing to do.
+              }
+            }}
+            className="absolute top-3 left-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 z-10"
+          >
+            <Share2 size={16} />
           </button>
           <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 z-10"><X size={16} /></button>
         </div>
@@ -961,6 +991,11 @@ function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook,
                   className="relative aspect-square rounded-sm overflow-hidden border-2 border-gold/15"
                 >
                   <img src={photo.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  {photo.photoUrls && photo.photoUrls.length > 1 && (
+                    <span className="absolute top-1 right-1 flex items-center gap-0.5 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                      <Layers size={9} /> {photo.photoUrls.length}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -1000,7 +1035,7 @@ interface MyProfileTabProps {
   onUpdateLocation: (lat: number, lng: number, mode: 'manual' | 'auto') => Promise<void>;
   onUploadAvatar: (file: File) => Promise<string | undefined>;
   onUploadCover: (file: File) => Promise<string | undefined>;
-  onAddPortfolioItem: (file: File, name: string, price: number, category?: string) => Promise<PortfolioItem | undefined>;
+  onAddPortfolioItem: (files: File[], name: string, price: number, category?: string) => Promise<PortfolioItem | undefined>;
   onRemovePortfolioItem: (item: PortfolioItem) => Promise<void>;
   onUpdateAvailability: (updates: Partial<Pick<UserProfile, 'workingDays' | 'workStartHour' | 'workEndHour' | 'basePrice' | 'nightEnabled' | 'nightStartHour' | 'nightPrice'>>) => Promise<void>;
   onUpdateCategories: (categories: string[]) => Promise<void>;
@@ -1095,8 +1130,8 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
   const [newServicePrice, setNewServicePrice] = useState('');
   const [newServiceDuration, setNewServiceDuration] = useState('30');
 
-  const [newItemFile, setNewItemFile] = useState<File | null>(null);
-  const [newItemPreview, setNewItemPreview] = useState<string | null>(null);
+  const [newItemFiles, setNewItemFiles] = useState<File[]>([]);
+  const [newItemPreviews, setNewItemPreviews] = useState<string[]>([]);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
   const [newItemCategory, setNewItemCategory] = useState(SERVICE_CATEGORIES[0].id);
@@ -1198,16 +1233,25 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
     setUploadingCover(false);
   };
 
-  const handleItemFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleItemFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files || []);
     e.target.value = '';
-    if (!file) return;
-    setNewItemFile(file);
-    setNewItemPreview(URL.createObjectURL(file));
+    if (picked.length === 0) return;
+    const combined = [...newItemFiles, ...picked].slice(0, MAX_PHOTOS_PER_POST);
+    setNewItemFiles(combined);
+    setNewItemPreviews(combined.map(f => URL.createObjectURL(f)));
+    if (newItemFiles.length + picked.length > MAX_PHOTOS_PER_POST) {
+      setError(`Maximum ${MAX_PHOTOS_PER_POST} photos par publication.`);
+    }
+  };
+
+  const handleRemoveNewItemPhoto = (index: number) => {
+    setNewItemFiles(prev => prev.filter((_, i) => i !== index));
+    setNewItemPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleAddItem = async () => {
-    if (!newItemFile || !newItemName.trim() || !newItemPrice) return;
+    if (newItemFiles.length === 0 || !newItemName.trim() || !newItemPrice) return;
     if (containsContactInfo(newItemName)) {
       setError(CONTACT_INFO_ERROR);
       return;
@@ -1215,9 +1259,9 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
     setAddingItem(true);
     setError(null);
     try {
-      await onAddPortfolioItem(newItemFile, newItemName.trim(), Number(newItemPrice), newItemCategory);
-      setNewItemFile(null);
-      setNewItemPreview(null);
+      await onAddPortfolioItem(newItemFiles, newItemName.trim(), Number(newItemPrice), newItemCategory);
+      setNewItemFiles([]);
+      setNewItemPreviews([]);
       setNewItemName('');
       setNewItemPrice('');
     } catch {
@@ -1905,17 +1949,35 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
           <p className={sectionLabel}>Mes réalisations</p>
           <div className={cardClass}>
             <div className="p-3 rounded-lg border border-dashed border-gold/20 mb-4 space-y-3">
-              <button
-                onClick={() => itemInputRef.current?.click()}
-                className={`w-full aspect-video rounded-lg flex items-center justify-center overflow-hidden ${theme === 'dark' ? 'bg-black/40' : 'bg-gray-100'}`}
-              >
-                {newItemPreview ? (
-                  <img src={newItemPreview} className="w-full h-full object-cover" alt="" />
-                ) : (
-                  <span className="text-warm-gray text-xs flex items-center gap-1.5"><Plus size={14} /> Choisir une photo</span>
-                )}
-              </button>
-              <input ref={itemInputRef} type="file" accept="image/*" className="hidden" onChange={handleItemFileSelected} />
+              <div>
+                <div className="grid grid-cols-4 gap-2 mb-2">
+                  {newItemPreviews.map((preview, i) => (
+                    <div key={i} className="relative aspect-square rounded-lg overflow-hidden">
+                      <img src={preview} className="w-full h-full object-cover" alt="" />
+                      {i === 0 && (
+                        <span className="absolute top-1 left-1 bg-gold text-black text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full">Couverture</span>
+                      )}
+                      <button
+                        onClick={() => handleRemoveNewItemPhoto(i)}
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center"
+                        aria-label="Retirer cette photo"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  {newItemPreviews.length < MAX_PHOTOS_PER_POST && (
+                    <button
+                      onClick={() => itemInputRef.current?.click()}
+                      className={`aspect-square rounded-lg flex items-center justify-center ${theme === 'dark' ? 'bg-black/40' : 'bg-gray-100'}`}
+                    >
+                      <span className="text-warm-gray text-[10px] flex flex-col items-center gap-1"><Plus size={16} /> Ajouter</span>
+                    </button>
+                  )}
+                </div>
+                <p className="text-[9px] text-warm-gray uppercase tracking-widest">{newItemPreviews.length}/{MAX_PHOTOS_PER_POST} photos — comme sur Instagram, une publication peut regrouper plusieurs photos</p>
+              </div>
+              <input ref={itemInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleItemFilesSelected} />
               <div className="grid grid-cols-2 gap-2">
                 <input
                   value={newItemName}
@@ -1943,7 +2005,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
               </select>
               <button
                 onClick={handleAddItem}
-                disabled={addingItem || !newItemFile || !newItemName.trim() || !newItemPrice}
+                disabled={addingItem || newItemFiles.length === 0 || !newItemName.trim() || !newItemPrice}
                 className="w-full py-2 bg-gold text-black text-[9px] font-bold uppercase tracking-widest rounded-lg disabled:opacity-40"
               >
                 {addingItem ? 'Publication...' : 'Publier cette réalisation'}
@@ -1955,10 +2017,15 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
                 {profile.portfolioItems.map((item, i) => (
                   <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-gold/15 group">
                     <button
-                      onClick={() => setLightbox({ photos: profile.portfolioItems!.map(p => ({ url: p.url, name: p.name, price: p.price, createdAt: p.createdAt || profile.createdAt })), index: i })}
+                      onClick={() => setLightbox({ photos: profile.portfolioItems!.map(p => ({ url: p.url, photoUrls: getItemPhotos(p), name: p.name, price: p.price, createdAt: p.createdAt || profile.createdAt })), index: i })}
                       className="absolute inset-0 w-full h-full"
                     >
                       <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
+                      {getItemPhotos(item).length > 1 && (
+                        <span className="absolute top-1 right-1 flex items-center gap-0.5 bg-black/60 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+                          <Layers size={8} /> {getItemPhotos(item).length}
+                        </span>
+                      )}
                     </button>
                     <div className="absolute inset-x-0 bottom-0 p-1.5 bg-black/70 pointer-events-none">
                       <p className="text-white text-[8px] truncate">{item.name}</p>

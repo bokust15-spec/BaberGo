@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Heart, Share2, MapPin, BadgeCheck } from 'lucide-react';
+import { Heart, Share2, MapPin, BadgeCheck, Layers } from 'lucide-react';
 
 interface MobilePostCardProps {
   postId: string;
   photoUrl: string;
+  // Total photos in this post's own carousel (1-15) — a "1/N" badge (top-right, like
+  // Instagram) shows only when there's more than one.
+  photoCount?: number;
   caption: string;
   price: number;
   city: string;
@@ -23,6 +26,7 @@ interface MobilePostCardProps {
 const MobilePostCard: React.FC<MobilePostCardProps> = ({
   postId,
   photoUrl,
+  photoCount,
   caption,
   price,
   city,
@@ -55,7 +59,10 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const shareData = { title: 'BarberGo', text: `${caption} par ${barberName} sur BarberGo`, url: window.location.href };
+    // A "?post=" link lets whoever opens it land straight on this exact post (see the
+    // resolver in AppMVP) instead of just the generic homepage.
+    const shareUrl = `${window.location.origin}${window.location.pathname}?post=${encodeURIComponent(postId)}`;
+    const shareData = { title: 'BarberGo', text: `${caption} par ${barberName} sur BarberGo`, url: shareUrl };
     try {
       if (navigator.share) {
         await navigator.share(shareData);
@@ -74,6 +81,13 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
     >
       <img src={photoUrl} alt={caption} className="w-full h-full object-cover" loading="lazy" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30 pointer-events-none" />
+
+      {/* Top-right: "1/N" carousel badge, Instagram-style — only when this post has more than one photo */}
+      {!!photoCount && photoCount > 1 && (
+        <span className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-full">
+          <Layers size={11} /> 1/{photoCount}
+        </span>
+      )}
 
       {/* Top-left: avatar + name, straight to profile — like tapping a name on Facebook */}
       <button

@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Heart, Share2, MapPin, BadgeCheck } from 'lucide-react';
+import { Heart, Share2, MapPin, BadgeCheck, Layers } from 'lucide-react';
 
 interface DesktopPostCardProps {
   postId: string;
   photoUrl: string;
+  // Total photos in this post's own carousel (1-15) — a "1/N" badge (top-right of the
+  // photo, like Instagram) shows only when there's more than one.
+  photoCount?: number;
   caption: string;
   price: number;
   city: string;
@@ -24,6 +27,7 @@ interface DesktopPostCardProps {
 const DesktopPostCard: React.FC<DesktopPostCardProps> = ({
   postId,
   photoUrl,
+  photoCount,
   caption,
   price,
   city,
@@ -56,7 +60,10 @@ const DesktopPostCard: React.FC<DesktopPostCardProps> = ({
   };
 
   const handleShare = async () => {
-    const shareData = { title: 'BarberGo', text: `${caption} par ${barberName} sur BarberGo`, url: window.location.href };
+    // A "?post=" link lets whoever opens it land straight on this exact post (see the
+    // resolver in AppMVP) instead of just the generic homepage.
+    const shareUrl = `${window.location.origin}${window.location.pathname}?post=${encodeURIComponent(postId)}`;
+    const shareData = { title: 'BarberGo', text: `${caption} par ${barberName} sur BarberGo`, url: shareUrl };
     try {
       if (navigator.share) await navigator.share(shareData);
       else if (navigator.clipboard) await navigator.clipboard.writeText(shareData.url);
@@ -83,8 +90,13 @@ const DesktopPostCard: React.FC<DesktopPostCardProps> = ({
       </button>
 
       {/* Photo */}
-      <button onClick={onOpenPhoto} className="w-full block">
+      <button onClick={onOpenPhoto} className="w-full block relative">
         <img src={photoUrl} alt={caption} className="w-full max-h-[520px] object-cover" loading="lazy" />
+        {!!photoCount && photoCount > 1 && (
+          <span className="absolute top-3 right-3 flex items-center gap-1 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-full">
+            <Layers size={11} /> 1/{photoCount}
+          </span>
+        )}
       </button>
 
       {/* Caption */}
