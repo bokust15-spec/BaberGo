@@ -261,22 +261,36 @@ export function useFirebase() {
   const [profileFetchError, setProfileFetchError] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    // Live-subscribed rather than a one-time getDoc — an admin approving/rejecting KYC
+    // or settling a commission happens from a *different* browser session, so without a
+    // listener here the pro would only ever see the change after logging out and back in.
+    let unsubscribeProfile: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = null;
+      }
       if (firebaseUser) {
-        try {
-          const docRef = doc(db, 'users', firebaseUser.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            setProfile({ ...docSnap.data(), uid: firebaseUser.uid } as UserProfile);
-          } else {
-            setProfile(null);
+        const docRef = doc(db, 'users', firebaseUser.uid);
+        unsubscribeProfile = onSnapshot(
+          docRef,
+          (docSnap) => {
+            if (docSnap.exists()) {
+              setProfile({ ...docSnap.data(), uid: firebaseUser.uid } as UserProfile);
+            } else {
+              setProfile(null);
+            }
+            setProfileFetchError(false);
+            setLoading(false);
+          },
+          (error) => {
+            console.error("Error fetching profile:", error);
+            setProfileFetchError(true);
+            setLoading(false);
           }
-          setProfileFetchError(false);
-        } catch (error) {
-          console.error("Error fetching profile:", error);
-          setProfileFetchError(true);
-        }
+        );
         try {
           const adminSnap = await getDoc(doc(db, 'admins', firebaseUser.uid));
           setIsAdmin(adminSnap.exists());
@@ -287,11 +301,14 @@ export function useFirebase() {
         setProfile(null);
         setProfileFetchError(false);
         setIsAdmin(false);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) unsubscribeProfile();
+    };
   }, []);
 
   // Clients browse prestations/profiles without an account — only booking requires
