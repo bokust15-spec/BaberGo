@@ -35,6 +35,7 @@ import DesktopPostCard from './DesktopPostCard';
 import ProfileRow from './ProfileRow';
 import SearchBar from './SearchBar';
 import BookingModal from './BookingModal';
+import AppointmentChat from './AppointmentChat';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { containsContactInfo, CONTACT_INFO_ERROR } from '../utils/contactInfoFilter';
 
@@ -195,11 +196,6 @@ export default function BarberDashboard({
       console.error('Error uploading KYC file:', e);
     }
     setUploading(false);
-  };
-
-  const handleCompleteSession = async (app: Appointment) => {
-    if (!onUpdateAppointment) return;
-    await onUpdateAppointment(app.id, { status: 'completed' });
   };
 
   // The Accueil feed shows every real barber's uploaded work — including the
@@ -420,9 +416,9 @@ export default function BarberDashboard({
             appointments={appointments}
             theme={theme}
             isBlocked={isBlocked}
+            barberServices={profile.services || []}
             onUpdateStatus={onUpdateStatus}
             onUpdateAppointment={onUpdateAppointment}
-            onCompleteSession={handleCompleteSession}
           />
         )}
       </main>
@@ -2066,12 +2062,12 @@ interface BookingsTabProps {
   appointments: Appointment[];
   theme: 'dark' | 'light';
   isBlocked: boolean;
+  barberServices: BarberService[];
   onUpdateStatus: (id: string, status: Appointment['status']) => Promise<void>;
   onUpdateAppointment?: (id: string, updates: Partial<Appointment>) => Promise<void>;
-  onCompleteSession: (app: Appointment) => Promise<void>;
 }
 
-function BookingsTab({ appointments, theme, isBlocked, onUpdateStatus, onUpdateAppointment, onCompleteSession }: BookingsTabProps) {
+function BookingsTab({ appointments, theme, isBlocked, barberServices, onUpdateStatus, onUpdateAppointment }: BookingsTabProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [proposingId, setProposingId] = useState<string | null>(null);
   const [proposedDateTime, setProposedDateTime] = useState('');
@@ -2207,12 +2203,14 @@ function BookingsTab({ appointments, theme, isBlocked, onUpdateStatus, onUpdateA
                         )}
 
                         {app.status === 'confirmed' && (
-                          <button
-                            onClick={() => onCompleteSession(app)}
-                            className="w-full py-2.5 bg-emerald-500 text-black text-[9.5px] font-bold uppercase tracking-widest rounded-lg"
-                          >
-                            Marquer la séance comme terminée
-                          </button>
+                          <AppointmentChat
+                            appointment={app}
+                            role="barber"
+                            theme={theme}
+                            serviceDuration={barberServices.find(s => s.id === app.serviceId)?.duration}
+                            onUpdateAppointment={async (id, updates) => { if (onUpdateAppointment) await onUpdateAppointment(id, updates); }}
+                            onUpdateStatus={onUpdateStatus}
+                          />
                         )}
 
                         {isBlocked && app.status === 'pending' && (

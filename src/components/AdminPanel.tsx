@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ShieldCheck, FileImage, Check, X as XIcon, Banknote, CalendarClock, RefreshCw, Search } from 'lucide-react';
-import { UserProfile, Appointment } from '../hooks/useFirebase';
+import { ArrowLeft, ShieldCheck, FileImage, Check, X as XIcon, Banknote, CalendarClock, RefreshCw, Search, MessageCircle, MapPin } from 'lucide-react';
+import { UserProfile, Appointment, AppointmentChatMeta, ChatMessage } from '../hooks/useFirebase';
+import { cannedMessageLabel, cancelReasonLabel } from '../data/chatMessages';
 
 interface KycSubmission {
   cinUrl: string;
@@ -18,6 +19,7 @@ interface AdminPanelProps {
   approveBarberKyc: (barberUid: string) => Promise<void>;
   rejectBarberKyc: (barberUid: string) => Promise<void>;
   settleCommission: (barberUid: string) => Promise<void>;
+  getAppointmentChatForAdmin: (appointmentId: string) => Promise<{ meta: AppointmentChatMeta | null; messages: ChatMessage[] }>;
 }
 
 function toDate(value: any): Date {
@@ -38,11 +40,25 @@ const STATUS_CLASS: Record<Appointment['status'], string> = {
   cancelled: 'bg-red-500/10 text-red-400'
 };
 
-export default function AdminPanel({ barbers, allAppointments, onRefreshAppointments, theme, onClose, getKycSubmission, approveBarberKyc, rejectBarberKyc, settleCommission }: AdminPanelProps) {
+export default function AdminPanel({ barbers, allAppointments, onRefreshAppointments, theme, onClose, getKycSubmission, approveBarberKyc, rejectBarberKyc, settleCommission, getAppointmentChatForAdmin }: AdminPanelProps) {
   const [dossiers, setDossiers] = useState<Record<string, KycSubmission | null>>({});
   const [busyUid, setBusyUid] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<Appointment['status'] | 'all'>('all');
   const [search, setSearch] = useState('');
+  const [expandedChatId, setExpandedChatId] = useState<string | null>(null);
+  const [chatData, setChatData] = useState<Record<string, { meta: AppointmentChatMeta | null; messages: ChatMessage[] } | 'loading'>>({});
+
+  const handleToggleChat = (appointmentId: string) => {
+    if (expandedChatId === appointmentId) {
+      setExpandedChatId(null);
+      return;
+    }
+    setExpandedChatId(appointmentId);
+    if (!(appointmentId in chatData)) {
+      setChatData(prev => ({ ...prev, [appointmentId]: 'loading' }));
+      getAppointmentChatForAdmin(appointmentId).then(data => setChatData(prev => ({ ...prev, [appointmentId]: data })));
+    }
+  };
 
   const pendingKyc = barbers.filter(b => b.kycStatus === 'pending');
   const owingCommission = barbers.filter(b => (b.unpaidCommissionsCount || 0) > 0);
@@ -187,6 +203,49 @@ export default function AdminPanel({ barbers, allAppointments, onRefreshAppointm
                   </div>
                   {app.negotiationStatus && (
                     <p className="text-[9px] text-warm-gray/70 mt-1 uppercase tracking-widest">Négociation : {app.negotiationStatus}</p>
+                  )}
+                  {app.status === 'cancelled' && app.cancelledBy && (
+                    <p className="text-[9px] text-red-400/90 mt-1 uppercase tracking-widest">
+                      Annulée par le {app.cancelledBy === 'client' ? 'client' : 'pro'}
+                      {app.cancelReason && ` — ${cancelReasonLabel(app.cancelReason)}`}
+                      {app.cancelReasonDetail && ` (${app.cancelReasonDetail})`}
+                    </p>
+                  )}
+
+                  {app.status !== 'pending' && (
+                    <button
+                      onClick={() => handleToggleChat(app.id)}
+                      className="mt-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gold"
+                    >
+                      <MessageCircle size={11} /> {expandedChatId === app.id ? 'Masquer la conversation' : 'Voir la conversation'}
+                    </button>
+                  )}
+
+                  {expandedChatId === app.id && (
+                    <div className={`mt-2 p-3 rounded-lg border space-y-1.5 max-h-56 overflow-y-auto ${theme === 'dark' ? 'border-white/10 bg-black/20' : 'border-gray-200 bg-gray-50'}`}>
+                      {chatData[app.id] === 'loading' || chatData[app.id] === undefined ? (
+                        <p className="text-[10px] text-warm-gray">Chargement...</p>
+                      ) : (chatData[app.id] as { meta: AppointmentChatMeta | null; messages: ChatMessage[] }).messages.length === 0 ? (
+                        <p className="text-[10px] text-warm-gray">Aucun message échangé.</p>
+                      ) : (
+                        (chatData[app.id] as { meta: AppointmentChatMeta | null; messages: ChatMessage[] }).messages.map(msg => (
+                          <p key={msg.id} className="text-[10px]">
+                            <span className="font-bold text-gold">{msg.senderRole === 'client' ? 'Client' : 'Pro'} :</span>{' '}
+                            {msg.type === 'canned' && cannedMessageLabel(msg.cannedKey || '')}
+                            {msg.type === 'location' && (
+                              <span className="inline-flex items-center gap-1"><MapPin size={9} /> Localisation partagée ({msg.location?.lat.toFixed(4)}, {msg.location?.lng.toFixed(4)})</span>
+                            )}
+                            {msg.type === 'reschedule_proposal' && `Propose le créneau du ${toDate(msg.proposedDateTime).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}`}
+                            {msg.type === 'reschedule_response' && (msg.accepted ? 'Accepte le nouveau créneau' : 'Refuse le nouveau créneau')}
+                          </p>
+                        ))
+                      )}
+                      {(chatData[app.id] as { meta: AppointmentChatMeta | null; messages: ChatMessage[] } | undefined)?.meta?.clientSharedPhone && (
+                        <p className="text-[10px] text-emerald-400 pt-1 border-t border-white/5">
+                          Numéro partagé par le client : {(chatData[app.id] as { meta: AppointmentChatMeta | null; messages: ChatMessage[] }).meta?.clientSharedPhone}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               ))}

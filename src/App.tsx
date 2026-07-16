@@ -54,6 +54,7 @@ export default function App() {
     uploadKycFile,
     submitKycDossier,
     getAllAppointments,
+    getAppointmentChatForAdmin,
     getKycSubmission,
     approveBarberKyc,
     rejectBarberKyc,
@@ -346,6 +347,7 @@ export default function App() {
           approveBarberKyc={approveBarberKyc}
           rejectBarberKyc={rejectBarberKyc}
           settleCommission={settleCommission}
+          getAppointmentChatForAdmin={getAppointmentChatForAdmin}
         />
       );
     }

@@ -17,6 +17,7 @@ import {
   addDoc,
   query,
   where,
+  orderBy,
   updateDoc,
   arrayUnion,
   arrayRemove,
@@ -116,6 +117,37 @@ export interface Appointment {
   negotiationStatus?: 'client_proposed' | 'barber_countered' | 'accepted' | 'declined';
   clientLocationShared?: boolean;
   clientNotes?: string;
+  cancelledBy?: 'client' | 'barber';
+  cancelReason?: 'late' | 'asked_to_cancel' | 'busy' | 'other';
+  cancelReasonDetail?: string;
+}
+
+// Chat guidé attaché à une réservation confirmée — messages pré-écrits uniquement
+// (jamais de texte libre) pour empêcher client et pro de s'échanger leurs coordonnées
+// et de filer hors plateforme. Un seul doc meta par réservation (id = id de la
+// réservation), plus une sous-collection immuable de messages (journal consultable par
+// l'admin).
+export interface AppointmentChatMeta {
+  clientId: string;
+  barberId: string;
+  frozen: boolean;
+  frozenReason?: 'cancelled' | 'session_ended';
+  frozenAt?: any;
+  phoneSharedAt?: any;
+  clientSharedPhone?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderRole: 'client' | 'barber';
+  type: 'canned' | 'location' | 'reschedule_proposal' | 'reschedule_response';
+  cannedKey?: string;
+  location?: { lat: number; lng: number; label?: string };
+  proposedDateTime?: any;
+  respondsToMessageId?: string;
+  accepted?: boolean;
+  createdAt: any;
 }
 
 export interface Review {
@@ -138,6 +170,30 @@ export function hashPostId(barberUid: string, url: string): string {
     hash = (hash * 31 + str.charCodeAt(i)) | 0;
   }
   return 'p' + Math.abs(hash).toString(36);
+}
+
+// The end of a booked session — start time + the matched service's duration (falls back
+// to 30 min for legacy/ad-hoc entries with no matching service) — used to know when a
+// location shared in the appointment chat should stop being shown.
+export function getAppointmentEndTime(appointment: Appointment, service?: { duration: number }): Date {
+  const start = appointment.dateTime instanceof Date ? appointment.dateTime : appointment.dateTime.toDate();
+  const durationMin = service?.duration ?? 30;
+  return new Date(start.getTime() + durationMin * 60000);
+}
+
+// Free, no-API-key forward geocoding (OpenStreetMap/Nominatim) — turns an address or
+// place name the client types into a short list of candidate coordinates, so they can
+// share a specific location in the appointment chat without needing a paid maps SDK.
+// Best-effort: returns an empty list on any failure.
+export async function geocodeAddress(queryText: string): Promise<{ lat: number; lng: number; label: string }[]> {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(queryText)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data as any[]).map(item => ({ lat: parseFloat(item.lat), lng: parseFloat(item.lon), label: item.display_name as string }));
+  } catch {
+    return [];
+  }
 }
 
 // Free, no-API-key reverse geocoding (client-side use is explicitly supported by
@@ -584,6 +640,148 @@ export function useFirebase() {
     await updateAppointment(id, { status });
   };
 
+  // --- Appointment chat (guided, canned-messages-only) ---------------------------------
+  // See AppointmentChatMeta/ChatMessage in the interfaces above and firestore.rules'
+  // appointmentChats match block for the server-side enforcement this all leans on.
+
+  const freezeAppointmentChat = async (appointmentId: string, reason: 'cancelled' | 'session_ended') => {
+    try {
+      await updateDoc(doc(db, 'appointmentChats', appointmentId), {
+        frozen: true,
+        frozenReason: reason,
+        frozenAt: serverTimestamp(),
+      });
+    } catch (error) {
+      // Non-fatal — if the chat was never opened, there's no meta doc to freeze, and
+      // that's fine: an unopened chat can't have leaked anything to freeze against.
+      console.error('Error freezing appointment chat:', error);
+    }
+  };
+
+  // Called once the chat panel is opened on a confirmed booking — creates the meta doc
+  // the first time either party looks at it, no-op afterwards.
+  const getOrCreateAppointmentChat = async (appointmentId: string, clientId: string, barberId: string): Promise<AppointmentChatMeta> => {
+    const ref = doc(db, 'appointmentChats', appointmentId);
+    try {
+      const snap = await getDoc(ref);
+      if (snap.exists()) return snap.data() as AppointmentChatMeta;
+      const meta: AppointmentChatMeta = { clientId, barberId, frozen: false };
+      await setDoc(ref, meta);
+      return meta;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `appointmentChats/${appointmentId}`);
+      return { clientId, barberId, frozen: false };
+    }
+  };
+
+  const subscribeToAppointmentChatMeta = (appointmentId: string, callback: (meta: AppointmentChatMeta | null) => void) => {
+    return onSnapshot(doc(db, 'appointmentChats', appointmentId), (snap) => {
+      callback(snap.exists() ? (snap.data() as AppointmentChatMeta) : null);
+    }, (error) => console.error('Error subscribing to appointment chat:', error));
+  };
+
+  const subscribeToAppointmentMessages = (appointmentId: string, callback: (messages: ChatMessage[]) => void) => {
+    const q = query(collection(db, 'appointmentChats', appointmentId, 'messages'), orderBy('createdAt', 'asc'));
+    return onSnapshot(q, (snapshot) => {
+      callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ChatMessage)));
+    }, (error) => console.error('Error subscribing to appointment chat messages:', error));
+  };
+
+  const sendCannedMessage = async (appointmentId: string, senderRole: 'client' | 'barber', cannedKey: string) => {
+    if (!user) return;
+    try {
+      await addDoc(collection(db, 'appointmentChats', appointmentId, 'messages'), {
+        senderId: user.uid,
+        senderRole,
+        type: 'canned',
+        cannedKey,
+        createdAt: serverTimestamp(),
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `appointmentChats/${appointmentId}/messages`);
+    }
+  };
+
+  const sendLocationMessage = async (appointmentId: string, senderRole: 'client' | 'barber', location: { lat: number; lng: number; label?: string }) => {
+    if (!user) return;
+    try {
+      await addDoc(collection(db, 'appointmentChats', appointmentId, 'messages'), {
+        senderId: user.uid,
+        senderRole,
+        type: 'location',
+        location,
+        createdAt: serverTimestamp(),
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `appointmentChats/${appointmentId}/messages`);
+    }
+  };
+
+  const proposeReschedule = async (appointmentId: string, senderRole: 'client' | 'barber', dateTime: Date) => {
+    if (!user) return;
+    try {
+      await addDoc(collection(db, 'appointmentChats', appointmentId, 'messages'), {
+        senderId: user.uid,
+        senderRole,
+        type: 'reschedule_proposal',
+        proposedDateTime: dateTime,
+        createdAt: serverTimestamp(),
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `appointmentChats/${appointmentId}/messages`);
+    }
+  };
+
+  // Only records the response message — moving the appointment's real dateTime on
+  // acceptance is the caller's job (via the same onUpdateAppointment path every other
+  // appointment mutation already goes through), so the UI that's showing this booking
+  // list stays in sync instead of a parallel write it never refetches after.
+  const respondToReschedule = async (appointmentId: string, senderRole: 'client' | 'barber', messageId: string, accepted: boolean) => {
+    if (!user) return;
+    try {
+      await addDoc(collection(db, 'appointmentChats', appointmentId, 'messages'), {
+        senderId: user.uid,
+        senderRole,
+        type: 'reschedule_response',
+        respondsToMessageId: messageId,
+        accepted,
+        createdAt: serverTimestamp(),
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `appointmentChats/${appointmentId}/messages`);
+    }
+  };
+
+  // Only the client can call this, and only once — enforced by firestore.rules, which
+  // also rejects it more than 90 minutes before the session starts.
+  const shareClientPhone = async (appointmentId: string, phone: string) => {
+    try {
+      await updateDoc(doc(db, 'appointmentChats', appointmentId), {
+        phoneSharedAt: serverTimestamp(),
+        clientSharedPhone: phone,
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `appointmentChats/${appointmentId}`);
+    }
+  };
+
+  // Admin-only (enforced by firestore.rules) — the full transcript for a reservation, so
+  // a suspicious cancellation can be reviewed by hand.
+  const getAppointmentChatForAdmin = async (appointmentId: string): Promise<{ meta: AppointmentChatMeta | null; messages: ChatMessage[] }> => {
+    try {
+      const metaSnap = await getDoc(doc(db, 'appointmentChats', appointmentId));
+      const q = query(collection(db, 'appointmentChats', appointmentId, 'messages'), orderBy('createdAt', 'asc'));
+      const msgSnap = await getDocs(q);
+      return {
+        meta: metaSnap.exists() ? (metaSnap.data() as AppointmentChatMeta) : null,
+        messages: msgSnap.docs.map(d => ({ id: d.id, ...d.data() } as ChatMessage)),
+      };
+    } catch (error) {
+      console.error('Error fetching appointment chat for admin:', error);
+      return { meta: null, messages: [] };
+    }
+  };
+
   const addReview = async (review: Omit<Review, 'id' | 'createdAt'>) => {
     try {
       const data = {
@@ -907,6 +1105,16 @@ export function useFirebase() {
     getAppointments,
     updateAppointment,
     updateAppointmentStatus,
+    getOrCreateAppointmentChat,
+    subscribeToAppointmentChatMeta,
+    subscribeToAppointmentMessages,
+    sendCannedMessage,
+    sendLocationMessage,
+    proposeReschedule,
+    respondToReschedule,
+    shareClientPhone,
+    freezeAppointmentChat,
+    getAppointmentChatForAdmin,
     addReview,
     updateBio,
     updatePhone,

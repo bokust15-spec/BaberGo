@@ -11,6 +11,7 @@ import SkeletonCard from './SkeletonCard';
 import MobilePostCard from './MobilePostCard';
 import DesktopPostCard from './DesktopPostCard';
 import ProfileRow from './ProfileRow';
+import AppointmentChat from './AppointmentChat';
 import { formatRelativeTime } from '../utils/relativeTime';
 
 // A single bookable "look": either a real barber's own uploaded realization, or one
@@ -393,6 +394,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
             services={services}
             theme={theme}
             clientId={user?.uid}
+            clientPhone={profile?.phone}
             onUpdateStatus={onUpdateStatus}
             onUpdateAppointment={onUpdateAppointment}
             onAddReview={onAddReview}
@@ -788,15 +790,16 @@ function toDate(value: any): Date {
 interface MyBookingsSectionProps {
   appointments: Appointment[];
   barbers: UserProfile[];
-  services: { id: string; name: string }[];
+  services: { id: string; name: string; duration?: number }[];
   theme: 'dark' | 'light';
   clientId?: string;
+  clientPhone?: string;
   onUpdateStatus: (id: string, status: Appointment['status']) => Promise<void>;
   onUpdateAppointment: (id: string, updates: Partial<Appointment>) => Promise<void>;
   onAddReview: (review: { clientId: string; barberId: string; appointmentId: string; rating: number; comment: string }) => Promise<void>;
 }
 
-function MyBookingsSection({ appointments, barbers, services, theme, clientId, onUpdateStatus, onUpdateAppointment, onAddReview }: MyBookingsSectionProps) {
+function MyBookingsSection({ appointments, barbers, services, theme, clientId, clientPhone, onUpdateStatus, onUpdateAppointment, onAddReview }: MyBookingsSectionProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
   const [ratingDraft, setRatingDraft] = useState<Record<string, number>>({});
@@ -992,13 +995,15 @@ function MyBookingsSection({ appointments, barbers, services, theme, clientId, o
                         )}
 
                         {app.status === 'confirmed' && (
-                          <button
-                            disabled={busy}
-                            onClick={() => handleCancel(app)}
-                            className="w-full py-2.5 border border-red-500/20 text-red-400 text-[9.5px] font-bold uppercase tracking-widest rounded-lg disabled:opacity-40"
-                          >
-                            Annuler la réservation
-                          </button>
+                          <AppointmentChat
+                            appointment={app}
+                            role="client"
+                            theme={theme}
+                            clientPhone={clientPhone}
+                            serviceDuration={services.find(s => s.id === app.serviceId)?.duration}
+                            onUpdateAppointment={onUpdateAppointment}
+                            onUpdateStatus={onUpdateStatus}
+                          />
                         )}
 
                         {app.status === 'completed' && (

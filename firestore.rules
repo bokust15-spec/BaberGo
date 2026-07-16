@@ -143,6 +143,54 @@ service cloud.firestore {
         && (!('proposedPrice' in data) || (isNum(data.proposedPrice) && data.proposedPrice > 0 && data.proposedPrice <= 20000));
     }
 
+    // A cancellation reason is required from the client (never the pro) so the admin can
+    // review patterns of abuse — 'other' is the one place in the whole chat feature with
+    // free text, so it gets the same anti-contournement check as the bio.
+    function isValidCancelReason(data) {
+      return (!('cancelReason' in data) || data.cancelReason in ['late', 'asked_to_cancel', 'busy', 'other'])
+        && (!('cancelReasonDetail' in data) || (data.cancelReasonDetail is string && data.cancelReasonDetail.size() <= 200 && !hasContactInfo(data.cancelReasonDetail)))
+        && (!('cancelledBy' in data) || data.cancelledBy in ['client', 'barber']);
+    }
+
+    // The pro can cancel a confirmed booking right up until the client has shared their
+    // phone number for that session — once shared, cancelling in-app is blocked, closing
+    // the "get the number, cancel here, do it off-platform" loophole.
+    function barberCanCancelAppointment(appointmentId) {
+      return !exists(/databases/$(database)/documents/appointmentChats/$(appointmentId))
+        || !('phoneSharedAt' in get(/databases/$(database)/documents/appointmentChats/$(appointmentId)).data);
+    }
+
+    // Helpers for the appointment chat — reads the parent appointment (get() results are
+    // cached per-document within a single rule evaluation, so calling this more than once
+    // for the same appointmentId is cheap) to check the caller is one of the two parties.
+    function appointmentOf(appointmentId) {
+      return get(/databases/$(database)/documents/appointments/$(appointmentId)).data;
+    }
+
+    function isChatParty(appointmentId) {
+      return isSignedIn() && (
+        appointmentOf(appointmentId).clientId == request.auth.uid
+        || appointmentOf(appointmentId).barberId == request.auth.uid
+      );
+    }
+
+    // Every chat message must be one of a fixed set of shapes — never free text — so this
+    // channel can't be used to swap real contact details.
+    function isValidChatMessage(data) {
+      return data.senderRole in ['client', 'barber']
+        && data.type in ['canned', 'location', 'reschedule_proposal', 'reschedule_response']
+        && (
+          (data.type == 'canned' && data.cannedKey in ['bonjour', 'en_route', 'indisponible', 'ok', 'envoyez_localisation'])
+          || (data.type == 'location'
+              && data.location is map
+              && isNum(data.location.lat) && data.location.lat >= -90 && data.location.lat <= 90
+              && isNum(data.location.lng) && data.location.lng >= -180 && data.location.lng <= 180
+              && (!('label' in data.location) || (data.location.label is string && data.location.label.size() <= 200 && !hasContactInfo(data.location.label))))
+          || (data.type == 'reschedule_proposal' && data.proposedDateTime is timestamp)
+          || (data.type == 'reschedule_response' && data.respondsToMessageId is string && data.accepted is bool)
+        );
+    }
+
     function isValidMail(data) {
       return data.keys().hasOnly(['to', 'message'])
         && data.to is list && data.to.size() == 1 && data.to[0] is string && data.to[0].size() <= 200
@@ -308,14 +356,77 @@ service cloud.firestore {
       allow list: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber' || isAdmin());
       allow create: if isSignedIn() && isValidAppointment(request.resource.data);
       allow update: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber')
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'totalPrice', 'proposedPrice', 'counterPriceByBarber', 'counterDateTime', 'dateTime', 'negotiationStatus', 'clientLocationShared', 'clientNotes', 'barberId'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'totalPrice', 'proposedPrice', 'counterPriceByBarber', 'counterDateTime', 'dateTime', 'negotiationStatus', 'clientLocationShared', 'clientNotes', 'barberId', 'cancelledBy', 'cancelReason', 'cancelReasonDetail'])
         && (!('totalPrice' in request.resource.data) || (isNum(request.resource.data.totalPrice) && request.resource.data.totalPrice > 0 && request.resource.data.totalPrice <= 20000))
         && (!('proposedPrice' in request.resource.data) || (isNum(request.resource.data.proposedPrice) && request.resource.data.proposedPrice > 0 && request.resource.data.proposedPrice <= 20000))
         && (!('counterPriceByBarber' in request.resource.data) || (isNum(request.resource.data.counterPriceByBarber) && request.resource.data.counterPriceByBarber > 0 && request.resource.data.counterPriceByBarber <= 20000))
+        && isValidCancelReason(request.resource.data)
         && (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['barberId'])
           || (resource.data.barberId == 'dummy_barber' && request.resource.data.barberId == request.auth.uid)
+        )
+        && (
+          // Pro-initiated cancellation is refused once the client has already shared
+          // their phone number for this session (see barberCanCancelAppointment above).
+          !(request.resource.data.status == 'cancelled' && request.auth.uid == resource.data.barberId)
+          || barberCanCancelAppointment(appointmentId)
+        )
+        && (
+          // A reason is mandatory when the CLIENT cancels — never required from the pro.
+          !(request.resource.data.status == 'cancelled' && request.auth.uid == resource.data.clientId)
+          || 'cancelReason' in request.resource.data
         );
+    }
+
+    // Chat guidé attaché à une réservation confirmée — voir AppointmentChatMeta/ChatMessage
+    // dans useFirebase.ts. Messages pré-écrits uniquement (cannedKey borné à une liste
+    // fixe), jamais de texte libre, pour empêcher client et pro de s'échanger leurs vraies
+    // coordonnées via ce canal.
+    match /appointmentChats/{appointmentId} {
+      allow get: if isChatParty(appointmentId) || isAdmin();
+      allow list: if false;
+
+      allow create: if isChatParty(appointmentId)
+        && request.resource.data.keys().hasOnly(['clientId', 'barberId', 'frozen'])
+        && request.resource.data.clientId == appointmentOf(appointmentId).clientId
+        && request.resource.data.barberId == appointmentOf(appointmentId).barberId
+        && request.resource.data.frozen == false;
+
+      allow update: if isChatParty(appointmentId) && resource.data.frozen == false && (
+        (
+          // Freezing the chat — cancellation or end-of-session, either party.
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['frozen', 'frozenReason', 'frozenAt'])
+          && request.resource.data.frozen == true
+          && request.resource.data.frozenReason in ['cancelled', 'session_ended']
+          && request.resource.data.frozenAt == request.time
+        ) || (
+          // The client sharing their phone number — once only, and only once the
+          // session is close enough (< 90 min away) that the pro actually needs it.
+          request.auth.uid == resource.data.clientId
+          && !('phoneSharedAt' in resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['phoneSharedAt', 'clientSharedPhone'])
+          && request.resource.data.phoneSharedAt == request.time
+          && request.resource.data.clientSharedPhone is string
+          && request.resource.data.clientSharedPhone.size() > 0
+          && request.resource.data.clientSharedPhone.size() <= 20
+          && request.time >= appointmentOf(appointmentId).dateTime - duration.value(90, 'm')
+        )
+      );
+
+      match /messages/{messageId} {
+        allow get, list: if isChatParty(appointmentId) || isAdmin();
+        allow create: if isChatParty(appointmentId)
+          && get(/databases/$(database)/documents/appointmentChats/$(appointmentId)).data.frozen == false
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.keys().size() <= 9
+          && (
+            (request.resource.data.senderRole == 'client' && request.auth.uid == appointmentOf(appointmentId).clientId)
+            || (request.resource.data.senderRole == 'barber' && request.auth.uid == appointmentOf(appointmentId).barberId)
+          )
+          && isValidChatMessage(request.resource.data);
+        allow update, delete: if false;
+      }
     }
 
     // Transactional email queue — the "Trigger Email from Firestore" extension (running
