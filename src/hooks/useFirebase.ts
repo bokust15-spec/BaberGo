@@ -999,12 +999,26 @@ export function useFirebase() {
   const saveKycFile = async (type: 'cin' | 'selfie', url: string) => {
     if (!user) return;
     try {
-      const field = type === 'cin' ? 'cinUrl' : 'selfieUrl';
       const submissionRef = doc(db, 'kycSubmissions', user.uid);
-      await setDoc(submissionRef, { [field]: url, submittedAt: serverTimestamp() }, { merge: true });
-      const snap = await getDoc(submissionRef);
-      const data = snap.data();
-      if (data?.cinUrl && data?.selfieUrl) {
+      const existingSnap = await getDoc(submissionRef);
+      const existing = existingSnap.data();
+      // Full overwrite (no merge) built from only the fields the current schema knows
+      // about — a document created by an older version of this feature could carry a
+      // field no longer in the schema, which would fail firestore.rules' strict
+      // hasOnly() check on every future merge write forever (a real bug hit in
+      // production: the write kept getting "Missing or insufficient permissions" with
+      // no way to self-heal). Reconstructing the document from scratch each time
+      // clears any such leftover instead of merging on top of it.
+      const cleanData: { cinUrl?: string; selfieUrl?: string; submittedAt: any } = { submittedAt: serverTimestamp() };
+      if (type === 'cin') {
+        cleanData.cinUrl = url;
+        if (existing?.selfieUrl) cleanData.selfieUrl = existing.selfieUrl;
+      } else {
+        cleanData.selfieUrl = url;
+        if (existing?.cinUrl) cleanData.cinUrl = existing.cinUrl;
+      }
+      await setDoc(submissionRef, cleanData);
+      if (cleanData.cinUrl && cleanData.selfieUrl) {
         await updateDoc(doc(db, 'users', user.uid), { kycStatus: 'pending' });
         setProfile(prev => prev ? { ...prev, kycStatus: 'pending' } : prev);
       }
