@@ -1033,6 +1033,37 @@ export function useFirebase() {
     // revalidates the *entire* users/{uid} document, not just kycStatus) look identical
     // to a kycSubmissions failure and impossible to tell apart from the error message.
     if (cleanData.cinUrl && cleanData.selfieUrl) {
+      // This update revalidates the pro's *entire* profile document against the current
+      // schema (firestore.rules can't validate just the one changed field in isolation),
+      // and Firestore never says which check failed — just a flat permission error. A
+      // long-lived account can easily carry a field that predates a rule (an old bio
+      // written before the anti-contact-info filter existed, a portfolio grown past a
+      // size cap since raised elsewhere, etc.), which then blocks *every* future write,
+      // not just this one. Replaying the same checks client-side here means a real
+      // mismatch surfaces as an actionable message instead of a dead end.
+      const issues: string[] = [];
+      const p = profile;
+      if (p) {
+        const hasContactInfoJS = (text: string) =>
+          /[0-9][\s\S]*[0-9]/.test(text) || /(whatsapp|wa\.me)/i.test(text) || /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(text);
+        if (!(p.firstName && p.firstName.length >= 1 && p.firstName.length <= 100)) issues.push('prénom');
+        if (p.lastName && p.lastName.length > 100) issues.push('nom (trop long)');
+        if (!['homme', 'femme', 'autre'].includes(p.gender)) issues.push(`genre invalide ("${p.gender}")`);
+        if (!(p.phone.length <= 20 && (p.phone.length === 0 || p.phone.length >= 8))) issues.push(`téléphone invalide ("${p.phone}")`);
+        if (p.email && p.email.length > 200) issues.push('email trop long');
+        if (p.bio && (p.bio.length > 500 || hasContactInfoJS(p.bio))) issues.push('bio (trop longue ou contient des chiffres/coordonnées détectés comme contact)');
+        if (p.city && p.city.length > 50) issues.push('ville (trop longue)');
+        if (p.portfolioItems && p.portfolioItems.length > 60) issues.push(`portfolio (${p.portfolioItems.length} publications, max 60)`);
+        if (p.categories && p.categories.length > 20) issues.push(`catégories (${p.categories.length}, max 20)`);
+        if (p.services && p.services.length > 30) issues.push(`services (${p.services.length}, max 30)`);
+        const fieldCount = Object.keys(p).filter(k => k !== 'uid' && (p as any)[k] !== undefined).length;
+        if (fieldCount > 45) issues.push(`profil trop volumineux (${fieldCount} champs, max 45)`);
+      }
+      if (issues.length > 0) {
+        const message = `Le profil du pro contient un champ qui bloque toute mise à jour : ${issues.join(', ')}. Corrige-le dans "Mon Profil" avant de réessayer.`;
+        console.error('Profile validation issue blocking KYC status update:', issues);
+        throw new Error(message);
+      }
       try {
         await updateDoc(doc(db, 'users', user.uid), { kycStatus: 'pending' });
         setProfile(prev => prev ? { ...prev, kycStatus: 'pending' } : prev);
