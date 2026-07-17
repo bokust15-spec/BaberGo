@@ -998,32 +998,47 @@ export function useFirebase() {
   // admin can move it to 'verified' afterward.
   const saveKycFile = async (type: 'cin' | 'selfie', url: string) => {
     if (!user) return;
+    // Full overwrite (no merge) built from only the fields the current schema knows
+    // about — a document created by an older version of this feature could carry a
+    // field no longer in the schema, which would fail firestore.rules' strict
+    // hasOnly() check on every future merge write forever (a real bug hit in
+    // production: the write kept getting "Missing or insufficient permissions" with
+    // no way to self-heal). Reconstructing the document from scratch each time clears
+    // any such leftover instead of merging on top of it. The OTHER field is carried
+    // forward only if it's still shaped the way the current schema expects (a
+    // non-empty string) — an older version of this feature may have stored it
+    // differently (e.g. an object instead of a plain URL string), and blindly copying
+    // that value forward would keep failing the same schema check this fix clears.
+    const isValidUrl = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
+    const cleanData: { cinUrl?: string; selfieUrl?: string; submittedAt: any } = { submittedAt: serverTimestamp() };
     try {
       const submissionRef = doc(db, 'kycSubmissions', user.uid);
       const existingSnap = await getDoc(submissionRef);
       const existing = existingSnap.data();
-      // Full overwrite (no merge) built from only the fields the current schema knows
-      // about — a document created by an older version of this feature could carry a
-      // field no longer in the schema, which would fail firestore.rules' strict
-      // hasOnly() check on every future merge write forever (a real bug hit in
-      // production: the write kept getting "Missing or insufficient permissions" with
-      // no way to self-heal). Reconstructing the document from scratch each time
-      // clears any such leftover instead of merging on top of it.
-      const cleanData: { cinUrl?: string; selfieUrl?: string; submittedAt: any } = { submittedAt: serverTimestamp() };
       if (type === 'cin') {
         cleanData.cinUrl = url;
-        if (existing?.selfieUrl) cleanData.selfieUrl = existing.selfieUrl;
+        if (isValidUrl(existing?.selfieUrl)) cleanData.selfieUrl = existing.selfieUrl;
       } else {
         cleanData.selfieUrl = url;
-        if (existing?.cinUrl) cleanData.cinUrl = existing.cinUrl;
+        if (isValidUrl(existing?.cinUrl)) cleanData.cinUrl = existing.cinUrl;
       }
       await setDoc(submissionRef, cleanData);
-      if (cleanData.cinUrl && cleanData.selfieUrl) {
-        await updateDoc(doc(db, 'users', user.uid), { kycStatus: 'pending' });
-        setProfile(prev => prev ? { ...prev, kycStatus: 'pending' } : prev);
-      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `kycSubmissions/${user.uid}`);
+    }
+    // Separate try/catch from the write above — both used to share one catch block that
+    // hardcoded "kycSubmissions/..." as the failing path no matter which of the two
+    // writes actually threw, which made a real failure here (e.g. some other field on
+    // this pro's own profile no longer matching the current schema, since this update
+    // revalidates the *entire* users/{uid} document, not just kycStatus) look identical
+    // to a kycSubmissions failure and impossible to tell apart from the error message.
+    if (cleanData.cinUrl && cleanData.selfieUrl) {
+      try {
+        await updateDoc(doc(db, 'users', user.uid), { kycStatus: 'pending' });
+        setProfile(prev => prev ? { ...prev, kycStatus: 'pending' } : prev);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+      }
     }
   };
 
