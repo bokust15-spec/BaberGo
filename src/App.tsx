@@ -484,7 +484,7 @@ export default function App() {
           onClick={() => setView('admin')}
           aria-label="Panneau admin"
           title="Panneau admin"
-          className={`fixed z-[100] p-2.5 rounded-full shadow-lg backdrop-blur-md transition-colors relative ${
+          className={`fixed z-[100] p-2.5 rounded-full shadow-lg backdrop-blur-md transition-colors ${
             view === 'landing' || (view === 'app' && profile?.role !== 'barber') ? 'top-4 right-16 md:right-24' : 'top-3 left-14'
           } ${theme === 'dark' ? 'bg-white/10 text-gold hover:bg-white/20' : 'bg-black/10 text-gold hover:bg-black/20'}`}
         >
