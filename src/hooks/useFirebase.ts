@@ -61,8 +61,6 @@ export interface UserProfile {
   role: 'client' | 'barber';
   createdAt: any;
   kycStatus?: 'unverified' | 'pending' | 'verified';
-  kycCinUrl?: string;
-  kycSelfieUrl?: string;
   bio?: string;
   ageRange?: '18-25' | '26-35' | '36-45' | '46-55' | '56+'; // pro only, shown on their public profile
   completedCount?: number; // pro only, real count of appointments they've marked completed
