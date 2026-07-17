@@ -436,6 +436,19 @@ service cloud.firestore {
           && isValidChatMessage(request.resource.data);
         allow update, delete: if false;
       }
+
+      // Suivi de lecture par utilisateur, pour le badge "non lu" de la rubrique Chat —
+      // une sous-collection à part plutôt qu'un champ sur le doc meta ci-dessus, pour ne
+      // jamais toucher aux formes de mise à jour déjà verrouillées par hasOnly() plus haut
+      // (geler le chat, partage de numéro). Chacun ne peut lire/écrire que SON PROPRE
+      // doc de lecture — jamais celui de l'autre partie.
+      match /reads/{uid} {
+        allow get: if isOwner(uid) || isAdmin();
+        allow list: if false;
+        allow create, update: if isOwner(uid) && isChatParty(appointmentId)
+          && request.resource.data.keys().hasOnly(['lastReadAt'])
+          && request.resource.data.lastReadAt == request.time;
+      }
     }
 
     // Transactional email queue — the "Trigger Email from Firestore" extension (running

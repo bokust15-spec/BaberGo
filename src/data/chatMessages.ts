@@ -1,3 +1,5 @@
+import { ChatMessage } from '../hooks/useFirebase';
+
 export interface CannedMessage {
   key: string;
   label: string;
@@ -35,4 +37,21 @@ export const CANCEL_REASONS: { key: 'late' | 'asked_to_cancel' | 'busy' | 'other
 
 export function cancelReasonLabel(key?: string): string {
   return CANCEL_REASONS.find(r => r.key === key)?.label || key || '';
+}
+
+// One-line preview of a message for the Chat inbox list row — mirrors how each message
+// type actually renders inside AppointmentChat, just condensed to fit a list row.
+export function chatPreviewLabel(message: ChatMessage): string {
+  switch (message.type) {
+    case 'canned':
+      return cannedMessageLabel(message.cannedKey || '');
+    case 'location':
+      return '📍 Localisation partagée';
+    case 'reschedule_proposal':
+      return 'Nouveau créneau proposé';
+    case 'reschedule_response':
+      return message.accepted ? 'Créneau accepté' : 'Créneau refusé';
+    default:
+      return '';
+  }
 }

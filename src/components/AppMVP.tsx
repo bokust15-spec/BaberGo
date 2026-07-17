@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Search, Scissors, Star, User, ChevronRight, ChevronDown, X, ArrowLeft, BadgeCheck, CalendarDays, CalendarCheck, Navigation, Clock, AlertTriangle, Check, Layers, Share2 } from 'lucide-react';
-import { UserProfile, useFirebase, Appointment, Review, hashPostId, getItemPhotos } from '../hooks/useFirebase';
+import { MapPin, Search, Scissors, Star, User, ChevronRight, ChevronDown, X, ArrowLeft, BadgeCheck, CalendarDays, CalendarCheck, MessageCircle, Navigation, Clock, AlertTriangle, Check, Layers, Share2 } from 'lucide-react';
+import { UserProfile, useFirebase, Appointment, ChatMessage, Review, hashPostId, getItemPhotos } from '../hooks/useFirebase';
 import { STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, SALON_COVER_PHOTO, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
 import BookingModal from './BookingModal';
 import SearchBar from './SearchBar';
@@ -11,7 +11,8 @@ import SkeletonCard from './SkeletonCard';
 import MobilePostCard from './MobilePostCard';
 import DesktopPostCard from './DesktopPostCard';
 import ProfileRow from './ProfileRow';
-import AppointmentChat from './AppointmentChat';
+import ChatListTab from './ChatListTab';
+import { useChatInbox } from '../hooks/useChatInbox';
 import { formatRelativeTime } from '../utils/relativeTime';
 
 // A single bookable "look": either a real barber's own uploaded realization, or one
@@ -58,10 +59,14 @@ interface AppMVPProps {
   barbersLoading: boolean;
   sharedPostId?: string | null;
   sharedBarberId?: string | null;
+  subscribeToLastChatMessage: (appointmentId: string, callback: (message: ChatMessage | null) => void) => () => void;
+  subscribeToChatReadReceipt: (appointmentId: string, callback: (lastReadAt: any | null) => void) => () => void;
+  markChatAsRead: (appointmentId: string) => Promise<void>;
 }
 
-export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews, onIncrementProfileView, onFetchLikeState, onToggleLike, barbersLoading, sharedPostId, sharedBarberId }: AppMVPProps) {
-  const [activeTab, setActiveTab] = useState<'search' | 'bookings'>('search');
+export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews, onIncrementProfileView, onFetchLikeState, onToggleLike, barbersLoading, sharedPostId, sharedBarberId, subscribeToLastChatMessage, subscribeToChatReadReceipt, markChatAsRead }: AppMVPProps) {
+  const [activeTab, setActiveTab] = useState<'search' | 'bookings' | 'chat'>('search');
+  const [chatInitialSelectedId, setChatInitialSelectedId] = useState<string | null>(null);
   const [resultsTab, setResultsTab] = useState<'pourVous' | 'profils'>('pourVous');
   const [selectedEntry, setSelectedEntry] = useState<FeedEntry | null>(null);
   const selectedBarber = selectedEntry?.barber ?? null;
@@ -133,6 +138,15 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   const moroccanCities = useMemo(() => Object.keys(CITY_COORDS).sort(), []);
 
   const { services, barbers, user } = useFirebase();
+
+  // Kept mounted here (not inside the Chat tab itself) so the bottom-nav badge stays
+  // live even while the client is on a different tab — see useChatInbox.ts.
+  const { conversations: chatConversations, totalUnread: chatTotalUnread } = useChatInbox(
+    appointments,
+    profile?.uid,
+    subscribeToLastChatMessage,
+    subscribeToChatReadReceipt
+  );
 
   // Real distance between the client and a barber's own saved GPS location when the pro
   // has set one (Mon Profil > Localisation) — falls back to a city-level approximation
@@ -388,7 +402,21 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
       </div>
 
       <div className={`flex-1 overflow-y-auto pb-20 transition-colors duration-300 ${theme === 'dark' ? 'bg-black' : 'bg-gray-50'}`}>
-        {activeTab === 'bookings' ? (
+        {activeTab === 'chat' ? (
+          <ChatListTab
+            role="client"
+            theme={theme}
+            conversations={chatConversations}
+            barbers={barbers}
+            services={services}
+            clientPhone={profile?.phone}
+            onUpdateAppointment={onUpdateAppointment}
+            onUpdateStatus={onUpdateStatus}
+            onMarkAsRead={markChatAsRead}
+            initialSelectedAppointmentId={chatInitialSelectedId}
+            onInitialSelectedConsumed={() => setChatInitialSelectedId(null)}
+          />
+        ) : activeTab === 'bookings' ? (
           <MyBookingsSection
             appointments={appointments}
             barbers={barbers}
@@ -399,6 +427,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
             onUpdateStatus={onUpdateStatus}
             onUpdateAppointment={onUpdateAppointment}
             onAddReview={onAddReview}
+            onOpenChat={(appointmentId) => { setChatInitialSelectedId(appointmentId); setActiveTab('chat'); }}
           />
         ) : (
         <AnimatePresence mode="wait">
@@ -675,15 +704,16 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
 
       {/* BOTTOM NAV */}
       <nav className={`fixed bottom-0 inset-x-0 z-40 border-t backdrop-blur-md ${theme === 'dark' ? 'bg-black/90 border-gold/20' : 'bg-white/95 border-gray-200'}`}>
-        <div className="max-w-md mx-auto grid grid-cols-2">
+        <div className="max-w-md mx-auto grid grid-cols-3">
           {([
             { id: 'search' as const, label: 'Rechercher', Icon: Search, badge: 0 },
-            { id: 'bookings' as const, label: 'Mes Réservations', Icon: CalendarCheck, badge: newProposalsCount }
+            { id: 'bookings' as const, label: 'Mes Réservations', Icon: CalendarCheck, badge: newProposalsCount },
+            { id: 'chat' as const, label: 'Chat', Icon: MessageCircle, badge: chatTotalUnread }
           ]).map(tab => (
             <button
               key={tab.id}
               onClick={() => {
-                if (tab.id === 'bookings' && !profile) { onLogin(); return; }
+                if (tab.id !== 'search' && !profile) { onLogin(); return; }
                 setActiveTab(tab.id);
                 setSelectedEntry(null);
               }}
@@ -814,9 +844,10 @@ interface MyBookingsSectionProps {
   onUpdateStatus: (id: string, status: Appointment['status']) => Promise<void>;
   onUpdateAppointment: (id: string, updates: Partial<Appointment>) => Promise<void>;
   onAddReview: (review: { clientId: string; barberId: string; appointmentId: string; rating: number; comment: string }) => Promise<void>;
+  onOpenChat: (appointmentId: string) => void;
 }
 
-function MyBookingsSection({ appointments, barbers, services, theme, clientId, clientPhone, onUpdateStatus, onUpdateAppointment, onAddReview }: MyBookingsSectionProps) {
+function MyBookingsSection({ appointments, barbers, services, theme, clientId, clientPhone, onUpdateStatus, onUpdateAppointment, onAddReview, onOpenChat }: MyBookingsSectionProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
   const [ratingDraft, setRatingDraft] = useState<Record<string, number>>({});
@@ -1012,15 +1043,12 @@ function MyBookingsSection({ appointments, barbers, services, theme, clientId, c
                         )}
 
                         {app.status === 'confirmed' && (
-                          <AppointmentChat
-                            appointment={app}
-                            role="client"
-                            theme={theme}
-                            clientPhone={clientPhone}
-                            serviceDuration={services.find(s => s.id === app.serviceId)?.duration}
-                            onUpdateAppointment={onUpdateAppointment}
-                            onUpdateStatus={onUpdateStatus}
-                          />
+                          <button
+                            onClick={() => onOpenChat(app.id)}
+                            className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-gold/10 border border-gold/30 text-gold text-[9.5px] font-bold uppercase tracking-widest rounded-lg hover:bg-gold/20 transition-colors"
+                          >
+                            <MessageCircle size={12} /> Voir la conversation
+                          </button>
                         )}
 
                         {app.status === 'completed' && (

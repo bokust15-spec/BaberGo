@@ -22,9 +22,10 @@ import {
   BadgeCheck,
   Users,
   Layers,
-  Share2
+  Share2,
+  MessageCircle
 } from 'lucide-react';
-import { Appointment, UserProfile, Service, PortfolioItem, BarberService, Review, hashPostId, getItemPhotos, MAX_PHOTOS_PER_POST } from '../hooks/useFirebase';
+import { Appointment, UserProfile, Service, PortfolioItem, BarberService, ChatMessage, Review, hashPostId, getItemPhotos, MAX_PHOTOS_PER_POST } from '../hooks/useFirebase';
 import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
 import CategoryRail from './CategoryRail';
 import { SERVICE_CATEGORIES } from '../data/categories';
@@ -35,7 +36,8 @@ import DesktopPostCard from './DesktopPostCard';
 import ProfileRow from './ProfileRow';
 import SearchBar from './SearchBar';
 import BookingModal from './BookingModal';
-import AppointmentChat from './AppointmentChat';
+import ChatListTab from './ChatListTab';
+import { useChatInbox } from '../hooks/useChatInbox';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { containsContactInfo, CONTACT_INFO_ERROR } from '../utils/contactInfoFilter';
 
@@ -99,6 +101,9 @@ interface BarberDashboardProps {
   onFetchLikeState: (postId: string) => Promise<{ count: number; liked: boolean }>;
   onToggleLike: (postId: string) => Promise<{ count: number; liked: boolean } | undefined>;
   barbersLoading: boolean;
+  subscribeToLastChatMessage: (appointmentId: string, callback: (message: ChatMessage | null) => void) => () => void;
+  subscribeToChatReadReceipt: (appointmentId: string, callback: (lastReadAt: any | null) => void) => () => void;
+  markChatAsRead: (appointmentId: string) => Promise<void>;
 }
 
 export default function BarberDashboard({
@@ -130,9 +135,21 @@ export default function BarberDashboard({
   onIncrementProfileView,
   onFetchLikeState,
   onToggleLike,
-  barbersLoading
+  barbersLoading,
+  subscribeToLastChatMessage,
+  subscribeToChatReadReceipt,
+  markChatAsRead
 }: BarberDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'home' | 'profile' | 'bookings'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'profile' | 'bookings' | 'chat'>('home');
+  const [chatInitialSelectedId, setChatInitialSelectedId] = useState<string | null>(null);
+  // Kept mounted here (not inside the Chat tab itself) so the bottom-nav badge stays
+  // live even while the pro is on a different tab — see useChatInbox.ts.
+  const { conversations: chatConversations, totalUnread: chatTotalUnread } = useChatInbox(
+    appointments,
+    profile.uid,
+    subscribeToLastChatMessage,
+    subscribeToChatReadReceipt
+  );
   const [kycCinUrl, setKycCinUrl] = useState<string | null>(null);
   const [kycSelfieUrl, setKycSelfieUrl] = useState<string | null>(null);
   const [uploadingCin, setUploadingCin] = useState(false);
@@ -449,17 +466,33 @@ export default function BarberDashboard({
             barberServices={profile.services || []}
             onUpdateStatus={onUpdateStatus}
             onUpdateAppointment={onUpdateAppointment}
+            onOpenChat={(appointmentId) => { setChatInitialSelectedId(appointmentId); setActiveTab('chat'); }}
+          />
+        )}
+
+        {activeTab === 'chat' && (
+          <ChatListTab
+            role="barber"
+            theme={theme}
+            conversations={chatConversations}
+            services={profile.services || []}
+            onUpdateAppointment={async (id, updates) => { if (onUpdateAppointment) await onUpdateAppointment(id, updates); }}
+            onUpdateStatus={onUpdateStatus}
+            onMarkAsRead={markChatAsRead}
+            initialSelectedAppointmentId={chatInitialSelectedId}
+            onInitialSelectedConsumed={() => setChatInitialSelectedId(null)}
           />
         )}
       </main>
 
       {/* BOTTOM NAV */}
       <nav className={`fixed bottom-0 inset-x-0 z-40 border-t backdrop-blur-md ${theme === 'dark' ? 'bg-black/90 border-gold/20' : 'bg-white/95 border-gray-200'}`}>
-        <div className="max-w-md mx-auto grid grid-cols-3">
+        <div className="max-w-md mx-auto grid grid-cols-4">
           {([
             { id: 'home' as const, label: 'Accueil', Icon: Home, badge: 0 },
             { id: 'profile' as const, label: 'Mon Profil', Icon: User, badge: 0 },
-            { id: 'bookings' as const, label: 'Réservation', Icon: CalendarCheck, badge: pendingBookingsCount }
+            { id: 'bookings' as const, label: 'Réservation', Icon: CalendarCheck, badge: pendingBookingsCount },
+            { id: 'chat' as const, label: 'Chat', Icon: MessageCircle, badge: chatTotalUnread }
           ]).map(tab => (
             <button
               key={tab.id}
@@ -2111,9 +2144,10 @@ interface BookingsTabProps {
   barberServices: BarberService[];
   onUpdateStatus: (id: string, status: Appointment['status']) => Promise<void>;
   onUpdateAppointment?: (id: string, updates: Partial<Appointment>) => Promise<void>;
+  onOpenChat: (appointmentId: string) => void;
 }
 
-function BookingsTab({ appointments, theme, isBlocked, barberServices, onUpdateStatus, onUpdateAppointment }: BookingsTabProps) {
+function BookingsTab({ appointments, theme, isBlocked, barberServices, onUpdateStatus, onUpdateAppointment, onOpenChat }: BookingsTabProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [proposingId, setProposingId] = useState<string | null>(null);
   const [proposedDateTime, setProposedDateTime] = useState('');
@@ -2249,14 +2283,12 @@ function BookingsTab({ appointments, theme, isBlocked, barberServices, onUpdateS
                         )}
 
                         {app.status === 'confirmed' && (
-                          <AppointmentChat
-                            appointment={app}
-                            role="barber"
-                            theme={theme}
-                            serviceDuration={barberServices.find(s => s.id === app.serviceId)?.duration}
-                            onUpdateAppointment={async (id, updates) => { if (onUpdateAppointment) await onUpdateAppointment(id, updates); }}
-                            onUpdateStatus={onUpdateStatus}
-                          />
+                          <button
+                            onClick={() => onOpenChat(app.id)}
+                            className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-gold/10 border border-gold/30 text-gold text-[9.5px] font-bold uppercase tracking-widest rounded-lg hover:bg-gold/20 transition-colors"
+                          >
+                            <MessageCircle size={12} /> Voir la conversation
+                          </button>
                         )}
 
                         {isBlocked && app.status === 'pending' && (

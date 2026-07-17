@@ -93,6 +93,9 @@ export default function App() {
     saveKycFile,
     getAllAppointments,
     getAppointmentChatForAdmin,
+    subscribeToLastChatMessage,
+    subscribeToChatReadReceipt,
+    markChatAsRead,
     getKycSubmission,
     approveBarberKyc,
     rejectBarberKyc,
@@ -465,6 +468,9 @@ export default function App() {
           onFetchLikeState={getPostLikeState}
           onToggleLike={toggleLike}
           barbersLoading={barbersLoading}
+          subscribeToLastChatMessage={subscribeToLastChatMessage}
+          subscribeToChatReadReceipt={subscribeToChatReadReceipt}
+          markChatAsRead={markChatAsRead}
         />
       );
     }
@@ -491,6 +497,9 @@ export default function App() {
         barbersLoading={barbersLoading}
         sharedPostId={sharedPostId}
         sharedBarberId={sharedBarberId}
+        subscribeToLastChatMessage={subscribeToLastChatMessage}
+        subscribeToChatReadReceipt={subscribeToChatReadReceipt}
+        markChatAsRead={markChatAsRead}
       />
     );
   };

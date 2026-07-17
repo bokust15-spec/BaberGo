@@ -18,6 +18,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
   updateDoc,
   arrayUnion,
   arrayRemove,
@@ -706,6 +707,39 @@ export function useFirebase() {
     }, (error) => console.error('Error subscribing to appointment chat messages:', error));
   };
 
+  // The 3 below back the "Chat" inbox tab (conversation list + unread badge) — kept
+  // separate from the functions above, which back the chat detail view itself.
+
+  // Just the newest message per conversation, for the list preview — same query shape
+  // as subscribeToAppointmentMessages but capped to 1 and reversed, so the inbox list
+  // doesn't have to subscribe to a whole transcript per conversation just to show a
+  // one-line preview.
+  const subscribeToLastChatMessage = (appointmentId: string, callback: (message: ChatMessage | null) => void) => {
+    const q = query(collection(db, 'appointmentChats', appointmentId, 'messages'), orderBy('createdAt', 'desc'), limit(1));
+    return onSnapshot(q, (snapshot) => {
+      callback(snapshot.empty ? null : ({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as ChatMessage));
+    }, (error) => console.error('Error subscribing to last chat message:', error));
+  };
+
+  const subscribeToChatReadReceipt = (appointmentId: string, callback: (lastReadAt: any | null) => void) => {
+    if (!user) return () => {};
+    return onSnapshot(doc(db, 'appointmentChats', appointmentId, 'reads', user.uid), (snap) => {
+      callback(snap.exists() ? snap.data().lastReadAt : null);
+    }, (error) => console.error('Error subscribing to chat read receipt:', error));
+  };
+
+  // Called when the inbox opens a conversation, and again whenever a new message
+  // arrives while it's the one currently open — a fresh doc each time (never merge),
+  // matching the single-field shape firestore.rules requires for this subcollection.
+  const markChatAsRead = async (appointmentId: string) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'appointmentChats', appointmentId, 'reads', user.uid), { lastReadAt: serverTimestamp() });
+    } catch (error) {
+      console.error('Error marking chat as read:', error);
+    }
+  };
+
   const sendCannedMessage = async (appointmentId: string, senderRole: 'client' | 'barber', cannedKey: string) => {
     if (!user) return;
     try {
@@ -1201,6 +1235,9 @@ export function useFirebase() {
     shareClientPhone,
     freezeAppointmentChat,
     getAppointmentChatForAdmin,
+    subscribeToLastChatMessage,
+    subscribeToChatReadReceipt,
+    markChatAsRead,
     addReview,
     updateBio,
     updatePhone,
