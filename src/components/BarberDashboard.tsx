@@ -150,6 +150,7 @@ export default function BarberDashboard({
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
   const [uidCopied, setUidCopied] = useState(false);
+  const [kycError, setKycError] = useState<string | null>(null);
 
   // Notification badge on the "Réservation" tab — real count of new booking requests
   // awaiting the pro's response, like an unread count.
@@ -202,6 +203,7 @@ export default function BarberDashboard({
     const setUploading = type === 'cin' ? setUploadingCin : setUploadingSelfie;
     const setUrl = type === 'cin' ? setKycCinUrl : setKycSelfieUrl;
     setUploading(true);
+    setKycError(null);
     try {
       const url = await onUploadKycFile(file, type);
       if (url) {
@@ -214,6 +216,10 @@ export default function BarberDashboard({
       }
     } catch (e) {
       console.error('Error uploading KYC file:', e);
+      // Surfaced in the UI, not just the console — KYC failures were previously silent,
+      // which made them impossible to diagnose without opening dev tools (hard to do on
+      // a phone, where this flow is mostly used).
+      setKycError(e instanceof Error ? e.message : String(e));
     }
     setUploading(false);
   };
@@ -370,6 +376,10 @@ export default function BarberDashboard({
                 <p className="text-xs text-warm-gray">Dossier en cours d'examen par l'équipe BarberGo (24–48h).</p>
               </div>
             ) : null}
+
+            {kycError && (
+              <p className="text-[10px] text-red-400 leading-relaxed">Erreur : {kycError}</p>
+            )}
           </div>
         )}
 
