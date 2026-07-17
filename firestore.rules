@@ -46,7 +46,12 @@ service cloud.firestore {
     // since on update createdAt must stay equal to its original value, not "now").
     function isValidUserFields(data) {
       return data.keys().hasAll(['firstName', 'lastName', 'gender', 'phone', 'email', 'role', 'createdAt'])
-        && data.keys().size() >= 7 && data.keys().size() <= 30
+        // 7 required + up to 27 optional fields below = 34 possible on a fully-populated
+        // barber profile (GPS location, night pricing, KYC, reviews, commissions...) —
+        // the old cap of 30 was set before the schema grew this large and silently
+        // locked EVERY write (not just KYC) on any long-standing, fully-featured pro
+        // account. Some headroom is left for fields added later.
+        && data.keys().size() >= 7 && data.keys().size() <= 45
         && data.firstName is string && data.firstName.size() >= 1 && data.firstName.size() <= 100
         // lastName may be empty — a guest completing a booking only has to give a first name and email.
         && data.lastName is string && data.lastName.size() <= 100
