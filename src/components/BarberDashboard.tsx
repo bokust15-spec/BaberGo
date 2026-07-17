@@ -149,6 +149,7 @@ export default function BarberDashboard({
   const [savingPhone, setSavingPhone] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
+  const [uidCopied, setUidCopied] = useState(false);
 
   // Notification badge on the "Réservation" tab — real count of new booking requests
   // awaiting the pro's response, like an unread count.
@@ -559,6 +560,22 @@ export default function BarberDashboard({
                     <span className="text-[10px] text-warm-gray uppercase font-bold">Mobile</span>
                     <span className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{profile.phone}</span>
                   </div>
+                  {/* Pour donner/vérifier un accès admin dans Firebase Console, il faut
+                      l'UID exact de ce compte — copier-coller ici évite toute erreur de
+                      recopie manuelle d'un identifiant qui mélange l, I, O, 0... */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(profile.uid).then(() => {
+                        setUidCopied(true);
+                        setTimeout(() => setUidCopied(false), 2000);
+                      });
+                    }}
+                    className={`w-full p-4 rounded-sm border flex justify-between items-center text-left ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}
+                  >
+                    <span className="text-[10px] text-warm-gray uppercase font-bold">Identifiant (UID)</span>
+                    <span className="text-[10px] text-gold font-bold uppercase tracking-widest">{uidCopied ? 'Copié !' : 'Copier'}</span>
+                  </button>
                 </div>
                 <button
                   onClick={handleLogoutAll}
