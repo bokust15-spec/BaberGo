@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Sun, Moon, AlertTriangle, X, ShieldCheck } from 'lucide-react';
 import LandingPage from './components/LandingPage';
 import AppMVP from './components/AppMVP';
@@ -9,8 +9,46 @@ import BarberDashboard from './components/BarberDashboard';
 import AdminPanel from './components/AdminPanel';
 import { useFirebase, Appointment } from './hooks/useFirebase';
 
+type View = 'landing' | 'app' | 'profile' | 'admin';
+
 export default function App() {
-  const [view, setView] = useState<'landing' | 'app' | 'profile' | 'admin'>('landing');
+  // Previously plain useState, meaning every screen change was invisible to the
+  // browser: refreshing always reset to 'landing', and the back button did nothing
+  // (no history entries existed to go back to). Now backed by the real History API —
+  // the initial value is read from history.state so a refresh restores whatever
+  // screen was actually open instead of bouncing to the home page.
+  const [view, setView] = useState<View>(() => (window.history.state?.view as View) || 'landing');
+  const isFirstViewRender = useRef(true);
+
+  useEffect(() => {
+    // Give the very first entry (a fresh page load with no history.state yet) a state
+    // object matching the initial view, so navigating back to it later works correctly.
+    if (!window.history.state) {
+      window.history.replaceState({ view }, '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (isFirstViewRender.current) {
+      isFirstViewRender.current = false;
+      return;
+    }
+    // Only push a fresh entry when this change didn't already come from the user
+    // clicking back/forward (popstate below updates `view` to match history.state,
+    // which would otherwise cause this effect to push a duplicate entry).
+    if (window.history.state?.view !== view) {
+      window.history.pushState({ view }, '');
+    }
+  }, [view]);
+
+  useEffect(() => {
+    const onPopState = (e: PopStateEvent) => {
+      setView((e.state?.view as View) || 'landing');
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -247,11 +285,13 @@ export default function App() {
     setAppointments(apps);
   };
 
-  // A guest can fill out the whole booking flow before creating an account — only a
-  // first name and email are asked, right before confirming, and double as their
-  // registration (a random password is generated behind the scenes).
+  // A guest can fill out the whole booking flow before creating an account — first name,
+  // email and a real chosen password are asked right before confirming, and double as
+  // their registration. Previously the password was auto-generated and never shown,
+  // which left the resulting account impossible to log back into — a real bug hit while
+  // creating a test account for this exact flow.
   const handleGuestRegisterAndBook = async (
-    registerData: { firstName: string; email: string },
+    registerData: { firstName: string; email: string; password: string },
     barberId: string,
     serviceId: string,
     serviceName: string,
@@ -259,7 +299,6 @@ export default function App() {
     totalPrice: number,
     clientNotes?: string
   ) => {
-    const password = Math.random().toString(36).slice(-10) + Date.now().toString(36);
     const uid = await registerProfile({
       firstName: registerData.firstName,
       lastName: '',
@@ -267,7 +306,7 @@ export default function App() {
       phone: '',
       email: registerData.email,
       role: 'client',
-      password
+      password: registerData.password
     });
     if (!uid) return;
     await createAppointment({

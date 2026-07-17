@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Calendar, Clock, Scissors, CreditCard, CheckCircle2, ChevronRight, AlertTriangle, User, Mail } from 'lucide-react';
+import { X, Calendar, Clock, Scissors, CreditCard, CheckCircle2, ChevronRight, AlertTriangle, User, Mail, Lock } from 'lucide-react';
 import { Service, UserProfile } from '../hooks/useFirebase';
 
 interface BookingModalProps {
@@ -11,7 +11,7 @@ interface BookingModalProps {
   onBook: (serviceId: string, serviceName: string, dateTime: Date, totalPrice: number, proposedPrice?: number, clientNotes?: string) => Promise<void>;
   profile: UserProfile | null;
   onGuestRegisterAndBook: (
-    registerData: { firstName: string; email: string },
+    registerData: { firstName: string; email: string; password: string },
     serviceId: string,
     serviceName: string,
     dateTime: Date,
@@ -47,9 +47,12 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Only asked as the very last step, for guests — filling it out doubles as their
-  // account creation, so they don't need to sign up before browsing/booking.
+  // account creation, so they don't need to sign up before browsing/booking. A real
+  // chosen password (not the old auto-generated, never-shown one) means the account is
+  // actually usable to log back in afterward.
   const [regFirstName, setRegFirstName] = useState('');
   const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
 
   const totalSteps = profile ? 3 : 4;
 
@@ -60,7 +63,7 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
     timeSlots.push(`${String(h).padStart(2, '0')}:00`);
   }
 
-  const isGuestFormValid = regFirstName.trim().length > 0 && /\S+@\S+\.\S+/.test(regEmail.trim());
+  const isGuestFormValid = regFirstName.trim().length > 0 && /\S+@\S+\.\S+/.test(regEmail.trim()) && regPassword.length >= 6;
 
   const handleBook = async () => {
     if (!selectedService || !selectedDate || !selectedTime) return;
@@ -77,7 +80,7 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
         await onBook(selectedService.id, selectedService.name, appointmentDate, selectedService.price, undefined, clientNotes);
       } else {
         await onGuestRegisterAndBook(
-          { firstName: regFirstName.trim(), email: regEmail.trim() },
+          { firstName: regFirstName.trim(), email: regEmail.trim(), password: regPassword },
           selectedService.id,
           selectedService.name,
           appointmentDate,
@@ -113,6 +116,7 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
     setSubmitError(null);
     setRegFirstName('');
     setRegEmail('');
+    setRegPassword('');
     onClose();
   };
 
@@ -286,7 +290,7 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
                         <User size={16} className="text-gold" />
                         <span className={`text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Créez votre compte pour valider</span>
                       </div>
-                      <p className="text-xs text-warm-gray -mt-2 mb-2">Votre rendez-vous est prêt — indiquez votre prénom et votre email pour finaliser votre inscription et confirmer.</p>
+                      <p className="text-xs text-warm-gray -mt-2 mb-2">Votre rendez-vous est prêt — indiquez votre prénom, votre email et un mot de passe pour finaliser votre inscription et confirmer.</p>
 
                       <div className="relative">
                         <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gold" />
@@ -307,6 +311,23 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
                           placeholder="Email"
                           className={`w-full p-3 pl-9 rounded-sm border outline-none text-xs focus:border-gold transition-colors ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
                         />
+                        {regEmail.trim().length > 0 && !/\S+@\S+\.\S+/.test(regEmail.trim()) && (
+                          <p className="text-[10px] text-red-400 mt-1">Adresse email invalide.</p>
+                        )}
+                      </div>
+
+                      <div className="relative">
+                        <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gold" />
+                        <input
+                          type="password"
+                          value={regPassword}
+                          onChange={(e) => setRegPassword(e.target.value)}
+                          placeholder="Mot de passe (6 caractères min.)"
+                          className={`w-full p-3 pl-9 rounded-sm border outline-none text-xs focus:border-gold transition-colors ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                        />
+                        {regPassword.length > 0 && regPassword.length < 6 && (
+                          <p className="text-[10px] text-red-400 mt-1">6 caractères minimum.</p>
+                        )}
                       </div>
 
                       {submitError && (

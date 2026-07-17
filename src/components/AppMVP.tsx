@@ -42,7 +42,7 @@ interface AppMVPProps {
   onAddReview: (review: { clientId: string; barberId: string; appointmentId: string; rating: number; comment: string }) => Promise<void>;
   onClientBook: (barberId: string, serviceId: string, serviceName: string, dateTime: Date, totalPrice: number, proposedPrice?: number, clientNotes?: string) => Promise<void>;
   onGuestRegisterAndBook: (
-    registerData: { firstName: string; email: string },
+    registerData: { firstName: string; email: string; password: string },
     barberId: string,
     serviceId: string,
     serviceName: string,
@@ -346,7 +346,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   };
 
   const handleGuestBook = async (
-    registerData: { firstName: string; email: string },
+    registerData: { firstName: string; email: string; password: string },
     serviceId: string,
     serviceName: string,
     dateTime: Date,
