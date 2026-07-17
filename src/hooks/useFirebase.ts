@@ -295,6 +295,10 @@ export function useFirebase() {
           const adminSnap = await getDoc(doc(db, 'admins', firebaseUser.uid));
           setIsAdmin(adminSnap.exists());
         } catch (error) {
+          // Was silently swallowed before — logged now so a real failure (permission
+          // denied, wrong doc ID, network) is visible in the console instead of just
+          // looking identical to "not an admin" with zero diagnostic trail.
+          console.error('Error checking admin status:', error);
           setIsAdmin(false);
         }
       } else {
