@@ -61,7 +61,7 @@ export interface UserProfile {
   email: string;
   role: 'client' | 'barber';
   createdAt: any;
-  kycStatus?: 'unverified' | 'pending' | 'verified';
+  kycStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
   bio?: string;
   ageRange?: '18-25' | '26-35' | '36-45' | '46-55' | '56+'; // pro only, shown on their public profile
   completedCount?: number; // pro only, real count of appointments they've marked completed
@@ -1130,8 +1130,13 @@ export function useFirebase() {
     await updateDoc(doc(db, 'users', barberUid), { kycStatus: 'verified' });
   };
 
+  // Distinct from 'unverified' (never submitted) — 'rejected' is what actually tells the
+  // pro their dossier was reviewed and refused, not silently reset to looking like they
+  // never sent anything (a real bug: the pro had no way to know a submission was
+  // reviewed and turned down, and the old kycCinUrl/kycSelfieUrl checkmarks stayed
+  // visible in the UI as if the upload were still accepted).
   const rejectBarberKyc = async (barberUid: string) => {
-    await updateDoc(doc(db, 'users', barberUid), { kycStatus: 'unverified' });
+    await updateDoc(doc(db, 'users', barberUid), { kycStatus: 'rejected' });
   };
 
   const settleCommission = async (barberUid: string) => {

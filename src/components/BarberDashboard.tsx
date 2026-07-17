@@ -186,7 +186,13 @@ export default function BarberDashboard({
   // page (or uploading the CIN and the selfie in two separate sessions) made the
   // upload UI look like nothing had ever been sent, even though the file had gone
   // through and was sitting in Storage/Firestore the whole time.
+  //
+  // Skipped when the dossier was rejected — those old checkmarks would otherwise keep
+  // showing "✔ CIN téléversée" for files an admin already turned down, with no sign
+  // anything was wrong. A rejection needs to look like a clean slate so the pro
+  // actually re-submits instead of assuming the old upload is still under review.
   useEffect(() => {
+    if (profile.kycStatus === 'rejected') return;
     let cancelled = false;
     onGetKycSubmission(profile.uid).then(submission => {
       if (cancelled || !submission) return;
@@ -196,6 +202,16 @@ export default function BarberDashboard({
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile.uid]);
+
+  // profile is live-synced (onSnapshot), so an admin rejecting a dossier while the pro
+  // has this screen open updates kycStatus instantly — this clears the stale local
+  // checkmarks at that exact moment too, not just on the next fresh page load.
+  useEffect(() => {
+    if (profile.kycStatus === 'rejected') {
+      setKycCinUrl(null);
+      setKycSelfieUrl(null);
+    }
+  }, [profile.kycStatus]);
 
   const kycStatus = profile.kycStatus || 'unverified';
   const unpaidCount = profile.unpaidCommissionsCount || 0;
@@ -357,8 +373,15 @@ export default function BarberDashboard({
               </div>
             )}
 
-            {kycStatus === 'unverified' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {(kycStatus === 'unverified' || kycStatus === 'rejected') ? (
+              <div className="space-y-3">
+                {kycStatus === 'rejected' && (
+                  <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                    <AlertTriangle size={14} className="text-red-400 shrink-0" />
+                    <p className="text-xs text-red-400">Votre dossier a été refusé par l'équipe BarberGo. Vérifiez que vos documents sont lisibles et à jour, puis téléversez-les à nouveau.</p>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <label
                   className={`p-3 border border-dashed rounded-lg text-left flex items-center justify-between text-xs transition-colors cursor-pointer ${
                     kycCinUrl ? 'border-emerald-500 text-emerald-400 bg-emerald-500/5' : 'border-white/10 hover:border-gold/30 text-warm-gray'
@@ -387,6 +410,7 @@ export default function BarberDashboard({
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) handleKycFileSelected('selfie', f); }}
                   />
                 </label>
+                </div>
               </div>
             ) : kycStatus === 'pending' ? (
               <div className="flex items-center gap-3 bg-amber-500/5 p-3 rounded-lg border border-amber-500/10">

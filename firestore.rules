@@ -74,7 +74,7 @@ service cloud.firestore {
         && (!('nightEnabled' in data) || data.nightEnabled is bool)
         && (!('nightStartHour' in data) || isNum(data.nightStartHour))
         && (!('nightPrice' in data) || isNum(data.nightPrice))
-        && (!('kycStatus' in data) || data.kycStatus in ['unverified', 'pending', 'verified'])
+        && (!('kycStatus' in data) || data.kycStatus in ['unverified', 'pending', 'verified', 'rejected'])
         && (!('completedCount' in data) || (isNum(data.completedCount) && data.completedCount >= 0))
         && (!('profileViews' in data) || (isNum(data.profileViews) && data.profileViews >= 0))
         && (!('unpaidCommissionsCount' in data) || (isNum(data.unpaidCommissionsCount) && data.unpaidCommissionsCount >= 0))
@@ -272,7 +272,7 @@ service cloud.firestore {
         || (isAdmin()
           && resource.data.role == 'barber'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['kycStatus'])
-          && request.resource.data.kycStatus in ['unverified', 'pending', 'verified']
+          && request.resource.data.kycStatus in ['unverified', 'pending', 'verified', 'rejected']
         )
         || (isAdmin()
           && resource.data.role == 'barber'
