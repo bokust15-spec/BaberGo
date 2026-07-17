@@ -9,8 +9,8 @@ import {
   Clock,
   CalendarClock,
   Send,
-  Search,
   Navigation,
+  Map as MapIcon,
   Lock,
   MessageCircle,
 } from 'lucide-react';
@@ -20,9 +20,9 @@ import {
   AppointmentChatMeta,
   ChatMessage,
   getAppointmentEndTime,
-  geocodeAddress,
 } from '../hooks/useFirebase';
 import { CLIENT_CANNED_MESSAGES, PRO_CANNED_MESSAGES, cannedMessageLabel, CANCEL_REASONS } from '../data/chatMessages';
+import LocationPickerModal from './LocationPickerModal';
 
 interface AppointmentChatProps {
   appointment: Appointment;
@@ -75,9 +75,7 @@ export default function AppointmentChat({ appointment, role, theme, clientPhone,
   const [rescheduleDateTime, setRescheduleDateTime] = useState('');
 
   const [showLocationPicker, setShowLocationPicker] = useState(false);
-  const [locationSearch, setLocationSearch] = useState('');
-  const [locationResults, setLocationResults] = useState<{ lat: number; lng: number; label: string }[]>([]);
-  const [searchingLocation, setSearchingLocation] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
 
   const [showPhoneShare, setShowPhoneShare] = useState(false);
   const [phoneInput, setPhoneInput] = useState(clientPhone || '');
@@ -126,8 +124,7 @@ export default function AppointmentChat({ appointment, role, theme, clientPhone,
     setBusy(true);
     await sendLocationMessage(appointment.id, role, loc);
     setShowLocationPicker(false);
-    setLocationSearch('');
-    setLocationResults([]);
+    setShowMapPicker(false);
     setBusy(false);
   };
 
@@ -138,14 +135,6 @@ export default function AppointmentChat({ appointment, role, theme, clientPhone,
       (pos) => handleSendLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, label: 'Position actuelle' }),
       () => setBusy(false)
     );
-  };
-
-  const handleSearchLocation = async () => {
-    if (!locationSearch.trim()) return;
-    setSearchingLocation(true);
-    const results = await geocodeAddress(locationSearch.trim());
-    setLocationResults(results);
-    setSearchingLocation(false);
   };
 
   const handlePropose = async () => {
@@ -348,28 +337,25 @@ export default function AppointmentChat({ appointment, role, theme, clientPhone,
             )}
           </div>
 
-          {/* LOCATION PICKER */}
+          {/* LOCATION PICKER — no typing: GPS or a tap/drag pin on a free map, never a
+              text address search (that meant writing something out every time). */}
           {showLocationPicker && (
             <div className={`p-3 rounded-lg border space-y-2 ${theme === 'dark' ? 'border-white/10 bg-black/20' : 'border-gray-200 bg-gray-50'}`}>
               <button onClick={handleUseMyPosition} disabled={busy} className="w-full flex items-center justify-center gap-1.5 py-2 bg-gold text-black text-[9.5px] font-bold uppercase tracking-widest rounded-lg disabled:opacity-40">
                 <Navigation size={12} /> Ma position actuelle
               </button>
-              <div className="flex gap-2">
-                <input value={locationSearch} onChange={(e) => setLocationSearch(e.target.value)} placeholder="Rechercher un lieu..." className={inputClass} />
-                <button onClick={handleSearchLocation} disabled={searchingLocation} className="shrink-0 px-3 rounded-lg bg-gold/10 text-gold disabled:opacity-40">
-                  <Search size={14} />
-                </button>
-              </div>
-              {locationResults.length > 0 && (
-                <div className="space-y-1">
-                  {locationResults.map((r, i) => (
-                    <button key={i} onClick={() => handleSendLocation(r)} className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[10px] ${theme === 'dark' ? 'bg-black/30 text-white hover:bg-black/50' : 'bg-white text-gray-700 hover:bg-gray-100'}`}>
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <button onClick={() => setShowMapPicker(true)} disabled={busy} className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[9.5px] font-bold uppercase tracking-widest disabled:opacity-40 ${theme === 'dark' ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>
+                <MapIcon size={12} /> Choisir sur la carte
+              </button>
             </div>
+          )}
+
+          {showMapPicker && (
+            <LocationPickerModal
+              theme={theme}
+              onConfirm={(loc) => handleSendLocation(loc)}
+              onClose={() => setShowMapPicker(false)}
+            />
           )}
 
           {/* RESCHEDULE FORM */}
