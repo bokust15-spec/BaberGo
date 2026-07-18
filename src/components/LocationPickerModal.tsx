@@ -138,7 +138,11 @@ export default function LocationPickerModal({ theme, initialCenter, onConfirm, o
           </div>
           {searchError && <p className="text-[10px] text-red-400 mt-1.5">{searchError}</p>}
           {searchResults.length > 0 && (
-            <div className={`absolute left-4 right-4 z-10 mt-1 rounded-lg border max-h-48 overflow-y-auto shadow-lg ${theme === 'dark' ? 'bg-mid-brown border-gold/20' : 'bg-white border-gray-200'}`}>
+            // z-[1100]: Leaflet's own panes/controls use z-index up to 1000 (see
+            // leaflet.css), and since neither this modal card nor the map container
+            // establishes its own stacking context, a lower z-index here gets painted
+            // over by the map once it's mounted — this must clear 1000 to stay visible.
+            <div className={`absolute left-4 right-4 z-[1100] mt-1 rounded-lg border max-h-48 overflow-y-auto shadow-lg ${theme === 'dark' ? 'bg-mid-brown border-gold/20' : 'bg-white border-gray-200'}`}>
               {searchResults.map((place, i) => (
                 <button
                   key={i}
