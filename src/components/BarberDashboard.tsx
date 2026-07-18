@@ -1979,6 +1979,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
                   <input
                     value={newServiceName}
                     onChange={(e) => setNewServiceName(e.target.value)}
+                    maxLength={40}
                     placeholder="Nom de la prestation"
                     className={`col-span-3 sm:col-span-1 p-2.5 rounded-sm border outline-none text-xs ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
                   />
@@ -1994,7 +1995,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
                     type="number"
                     min={5}
                     value={newServiceDuration}
-                    onChange={(e) => setNewServiceDuration(e.target.value)}
+                    onChange={(e) => setNewServiceDuration(e.target.value.slice(0, 3))}
                     placeholder="Durée (min)"
                     className={`p-2.5 rounded-sm border outline-none text-xs ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
                   />
