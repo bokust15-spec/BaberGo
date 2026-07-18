@@ -2238,6 +2238,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
                 <input
                   value={newItemName}
                   onChange={(e) => setNewItemName(e.target.value)}
+                  maxLength={40}
                   placeholder="Nom de la prestation"
                   className={`px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
                 />
@@ -2245,7 +2246,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
                   type="number"
                   min={0}
                   value={newItemPrice}
-                  onChange={(e) => setNewItemPrice(e.target.value)}
+                  onChange={(e) => setNewItemPrice(e.target.value.slice(0, 6))}
                   placeholder="Prix (DH)"
                   className={`px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
                 />
