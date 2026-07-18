@@ -23,7 +23,8 @@ import {
   Users,
   Layers,
   Share2,
-  MessageCircle
+  MessageCircle,
+  Search
 } from 'lucide-react';
 import { Appointment, UserProfile, Service, PortfolioItem, BarberService, ChatMessage, Review, hashPostId, getItemPhotos, MAX_PHOTOS_PER_POST } from '../hooks/useFirebase';
 import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
@@ -39,6 +40,7 @@ import SearchBar from './SearchBar';
 import BookingModal from './BookingModal';
 import ChatListTab from './ChatListTab';
 import MyBookingsSection from './MyBookingsSection';
+import LocationPickerModal from './LocationPickerModal';
 import { useChatInbox } from '../hooks/useChatInbox';
 import { useHiddenAppointments } from '../hooks/useHiddenAppointments';
 import { formatRelativeTime } from '../utils/relativeTime';
@@ -1311,7 +1313,23 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
   const [locationMode, setLocationMode] = useState<'manual' | 'auto'>(profile.locationMode || 'manual');
   const [savingLocation, setSavingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [showLocationSearch, setShowLocationSearch] = useState(false);
   const lastAutoWriteRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
+
+  // Same "search a place by name" picker already used in the chat's location-sharing
+  // flow (see LocationPickerModal.tsx) — lets a pro set their reference point off a
+  // well-known landmark instead of only their live GPS position.
+  const handleConfirmSearchedLocation = async (loc: { lat: number; lng: number }) => {
+    setShowLocationSearch(false);
+    setSavingLocation(true);
+    setLocationError(null);
+    try {
+      await onUpdateLocation(loc.lat, loc.lng, 'manual');
+    } catch {
+      setLocationError("Impossible d'enregistrer la position pour le moment.");
+    }
+    setSavingLocation(false);
+  };
 
   const handleSaveManualLocation = () => {
     if (!('geolocation' in navigator)) {
@@ -1776,6 +1794,14 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
                   <MapPin size={14} />
                   {savingLocation ? 'Enregistrement...' : 'Enregistrer ma position actuelle'}
                 </button>
+                <button
+                  onClick={() => setShowLocationSearch(true)}
+                  disabled={savingLocation}
+                  className={`w-full mt-2 py-2.5 border border-dashed rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${theme === 'dark' ? 'border-white/20 text-warm-gray hover:border-gold/50 hover:text-gold' : 'border-gray-300 text-gray-500 hover:border-gold/50 hover:text-gold'}`}
+                >
+                  <Search size={14} />
+                  Choisir un lieu de référence
+                </button>
               </>
             ) : (
               <p className="text-[10px] text-warm-gray leading-relaxed">
@@ -1794,6 +1820,15 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
             </p>
           </div>
         </section>
+
+        {showLocationSearch && (
+          <LocationPickerModal
+            theme={theme}
+            initialCenter={profile.locationLat !== undefined && profile.locationLng !== undefined ? { lat: profile.locationLat, lng: profile.locationLng } : undefined}
+            onConfirm={handleConfirmSearchedLocation}
+            onClose={() => setShowLocationSearch(false)}
+          />
+        )}
 
         {/* BIO */}
         <section className="mb-6">
