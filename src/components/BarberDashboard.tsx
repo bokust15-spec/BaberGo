@@ -586,6 +586,10 @@ export default function BarberDashboard({
             onUpdateStatus={onUpdateStatus}
             onMarkAsRead={markChatAsRead}
             onDeleteConversation={hideChatForMe}
+            onViewBarberProfile={(uid) => {
+              const match = feedItems.find(e => e.barber.uid === uid);
+              if (match) { setQuickBookRequested(false); setViewingEntry(match); }
+            }}
             initialSelectedAppointmentId={chatInitialSelectedId}
             onInitialSelectedConsumed={() => setChatInitialSelectedId(null)}
           />

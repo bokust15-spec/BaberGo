@@ -19,6 +19,9 @@ interface ChatListTabProps {
   onUpdateStatus: (id: string, status: Appointment['status']) => Promise<void>;
   onMarkAsRead: (appointmentId: string) => Promise<void>;
   onDeleteConversation: (appointmentId: string) => Promise<void>;
+  // Opens the other party's public profile — only fires for a real barber account (see
+  // otherPartyInfo's barberUid below); a plain client has no browsable profile to open.
+  onViewBarberProfile?: (barberUid: string) => void;
   initialSelectedAppointmentId?: string | null;
   onInitialSelectedConsumed?: () => void;
 }
@@ -38,7 +41,7 @@ const LONG_PRESS_MS = 550;
 // a pro account can itself be the client on an appointment (booked another pro), and
 // firestore.rules requires the message's senderRole to match the uid's actual relationship
 // to that specific appointment, not the account's usual role.
-export default function ChatListTab({ currentUid, theme, conversations, barbers, services, clientPhone, onUpdateAppointment, onUpdateStatus, onMarkAsRead, onDeleteConversation, initialSelectedAppointmentId, onInitialSelectedConsumed }: ChatListTabProps) {
+export default function ChatListTab({ currentUid, theme, conversations, barbers, services, clientPhone, onUpdateAppointment, onUpdateStatus, onMarkAsRead, onDeleteConversation, onViewBarberProfile, initialSelectedAppointmentId, onInitialSelectedConsumed }: ChatListTabProps) {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [revealedId, setRevealedId] = useState<string | null>(null);
@@ -68,12 +71,20 @@ export default function ChatListTab({ currentUid, theme, conversations, barbers,
   const roleFor = (appointment: Appointment): 'client' | 'barber' =>
     appointment.clientId === currentUid ? 'client' : 'barber';
 
-  const otherPartyInfo = (appointment: Appointment): { name: string; avatarUrl?: string } => {
+  // barberUid is set only when the other party is a real, browsable barber account —
+  // always true when this account is the client (appointment.barberId), and true when
+  // this account is the barber ONLY if the other party (appointment.clientId) also turns
+  // out to be a barber-role account (the pro-books-pro case). An ordinary client has no
+  // public profile, so barberUid stays undefined and the header isn't made clickable.
+  const otherPartyInfo = (appointment: Appointment): { name: string; avatarUrl?: string; barberUid?: string } => {
     if (roleFor(appointment) === 'client') {
       const barber = barbers?.find(b => b.uid === appointment.barberId);
-      return { name: barber ? `${barber.firstName} ${barber.lastName}`.trim() : 'Professionnel', avatarUrl: barber?.avatarUrl };
+      return { name: barber ? `${barber.firstName} ${barber.lastName}`.trim() : 'Professionnel', avatarUrl: barber?.avatarUrl, barberUid: appointment.barberId };
     }
-    return { name: appointment.clientName || 'Client' };
+    const barber = barbers?.find(b => b.uid === appointment.clientId);
+    return barber
+      ? { name: `${barber.firstName} ${barber.lastName}`.trim(), avatarUrl: barber.avatarUrl, barberUid: barber.uid }
+      : { name: appointment.clientName || 'Client' };
   };
 
   const startLongPress = (appointmentId: string) => {
@@ -114,8 +125,20 @@ export default function ChatListTab({ currentUid, theme, conversations, barbers,
             >
               <ArrowLeft size={20} />
             </button>
-            <Avatar src={other.avatarUrl} size="w-9 h-9" className="border border-gold/30" />
-            <span className={`text-base font-bold truncate ${textClass}`}>{other.name}</span>
+            {other.barberUid ? (
+              <button
+                onClick={() => { const uid = other.barberUid!; setSelectedId(null); onViewBarberProfile?.(uid); }}
+                className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
+              >
+                <Avatar src={other.avatarUrl} size="w-9 h-9" className="border border-gold/30" />
+                <span className={`text-base font-bold truncate ${textClass}`}>{other.name}</span>
+              </button>
+            ) : (
+              <>
+                <Avatar src={other.avatarUrl} size="w-9 h-9" className="border border-gold/30" />
+                <span className={`text-base font-bold truncate ${textClass}`}>{other.name}</span>
+              </>
+            )}
           </div>
 
           <AppointmentChat

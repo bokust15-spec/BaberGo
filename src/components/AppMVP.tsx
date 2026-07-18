@@ -481,6 +481,10 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
             onUpdateStatus={onUpdateStatus}
             onMarkAsRead={markChatAsRead}
             onDeleteConversation={hideChatForMe}
+            onViewBarberProfile={(uid) => {
+              const match = feedEntries.find(e => e.barber.uid === uid);
+              if (match) { setActiveTab('search'); openEntry(match); }
+            }}
             initialSelectedAppointmentId={chatInitialSelectedId}
             onInitialSelectedConsumed={() => setChatInitialSelectedId(null)}
           />
