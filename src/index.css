@@ -45,6 +45,23 @@
   @apply bg-linear-to-r from-gold via-gold-light to-gold bg-clip-text text-transparent;
 }
 
+/* Liquid-gold glossy surface used site-wide for every solid-gold button, pill
+   and badge (bg-gold utility + .btn-primary) — a soft diagonal sheen over a
+   gradient fill, with a slight transparency, so it reads as glossy glass
+   rather than a flat block of color. */
+.bg-gold,
+.btn-primary {
+  background-color: rgba(201, 168, 76, 0.92);
+  background-image:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 22%, rgba(255, 255, 255, 0) 55%, rgba(255, 255, 255, 0.3) 70%, rgba(255, 255, 255, 0) 88%),
+    linear-gradient(150deg, rgba(232, 201, 126, 0.96) 0%, rgba(201, 168, 76, 0.9) 50%, rgba(163, 129, 51, 0.94) 100%);
+  background-blend-mode: screen, normal;
+}
+.bg-gold:hover,
+.btn-primary:hover {
+  filter: brightness(1.07) saturate(1.06);
+}
+
 .glass-nav {
   @apply transition-all duration-300 border-b;
 }
