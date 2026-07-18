@@ -776,6 +776,26 @@ export function useFirebase() {
     }
   };
 
+  // "Supprimer la réservation" — pour moi seulement, même principe que
+  // subscribeToChatHidden/hideChatForMe ci-dessus mais sur appointments/{id}/hidden/{uid}.
+  // Une fois masquée, useHiddenAppointments la retire de la propre liste "Mes
+  // réservations" de cet utilisateur ; l'autre partie et les admins ne sont pas affectés.
+  const subscribeToAppointmentHidden = (appointmentId: string, callback: (hidden: boolean) => void) => {
+    if (!user) return () => {};
+    return onSnapshot(doc(db, 'appointments', appointmentId, 'hidden', user.uid), (snap) => {
+      callback(snap.exists());
+    }, (error) => console.error('Error subscribing to appointment hidden state:', error));
+  };
+
+  const hideAppointmentForMe = async (appointmentId: string) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'appointments', appointmentId, 'hidden', user.uid), { hiddenAt: serverTimestamp() });
+    } catch (error) {
+      console.error('Error hiding appointment:', error);
+    }
+  };
+
   const sendCannedMessage = async (appointmentId: string, senderRole: 'client' | 'barber', cannedKey: string) => {
     if (!user) return;
     try {
@@ -1186,6 +1206,20 @@ export function useFirebase() {
     }
   };
 
+  // Admin-only (enforced by firestore.rules) — real, permanent deletion of an old
+  // reservation from the platform-wide "Réservations" list. Deliberately does NOT touch
+  // appointmentChats/{appointmentId} — its messages are immutable by design, so a clean
+  // cascade delete isn't possible; the orphaned meta/messages docs stay admin-readable
+  // exactly like today. Caller is responsible for removing the id from local state, since
+  // getAllAppointments is a one-time fetch, not a live subscription.
+  const adminDeleteAppointment = async (appointmentId: string) => {
+    try {
+      await deleteDoc(doc(db, 'appointments', appointmentId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `appointments/${appointmentId}`);
+    }
+  };
+
   // Either field may be missing — a pro can have saved just one of the two files so far.
   const getKycSubmission = async (barberUid: string) => {
     const snap = await getDoc(doc(db, 'kycSubmissions', barberUid));
@@ -1311,6 +1345,8 @@ export function useFirebase() {
     markChatAsRead,
     subscribeToChatHidden,
     hideChatForMe,
+    subscribeToAppointmentHidden,
+    hideAppointmentForMe,
     addReview,
     updateBio,
     updatePhone,
@@ -1326,6 +1362,7 @@ export function useFirebase() {
     uploadKycFile,
     saveKycFile,
     getAllAppointments,
+    adminDeleteAppointment,
     getKycSubmission,
     approveBarberKyc,
     rejectBarberKyc,

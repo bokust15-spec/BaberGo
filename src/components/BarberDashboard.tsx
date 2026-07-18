@@ -40,6 +40,7 @@ import BookingModal from './BookingModal';
 import ChatListTab from './ChatListTab';
 import MyBookingsSection from './MyBookingsSection';
 import { useChatInbox } from '../hooks/useChatInbox';
+import { useHiddenAppointments } from '../hooks/useHiddenAppointments';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { containsContactInfo, CONTACT_INFO_ERROR } from '../utils/contactInfoFilter';
 
@@ -99,6 +100,8 @@ interface BarberDashboardProps {
   markChatAsRead: (appointmentId: string) => Promise<void>;
   subscribeToChatHidden: (appointmentId: string, callback: (hidden: boolean) => void) => () => void;
   hideChatForMe: (appointmentId: string) => Promise<void>;
+  subscribeToAppointmentHidden: (appointmentId: string, callback: (hidden: boolean) => void) => () => void;
+  hideAppointmentForMe: (appointmentId: string) => Promise<void>;
 }
 
 export default function BarberDashboard({
@@ -138,7 +141,9 @@ export default function BarberDashboard({
   subscribeToChatReadReceipt,
   markChatAsRead,
   subscribeToChatHidden,
-  hideChatForMe
+  hideChatForMe,
+  subscribeToAppointmentHidden,
+  hideAppointmentForMe
 }: BarberDashboardProps) {
   const [activeTab, setActiveTab] = useState<'home' | 'profile' | 'bookings' | 'chat'>('home');
   const [chatInitialSelectedId, setChatInitialSelectedId] = useState<string | null>(null);
@@ -163,6 +168,13 @@ export default function BarberDashboard({
     () => appointments.filter(a => a.clientId === profile.uid && a.barberId !== profile.uid),
     [appointments, profile.uid]
   );
+  // "Supprimer la réservation" — for this user only, see firestore.rules'
+  // appointments/{id}/hidden/{uid}. pendingBookingsCount below deliberately stays based
+  // on the unfiltered receivedAppointments, not this filtered view — hiding a pending
+  // request shouldn't silently clear the bottom-nav badge for an action still awaiting a
+  // response.
+  const visibleReceivedAppointments = useHiddenAppointments(receivedAppointments, profile.uid, subscribeToAppointmentHidden);
+  const visibleMadeAppointments = useHiddenAppointments(madeAppointments, profile.uid, subscribeToAppointmentHidden);
   const [kycCinUrl, setKycCinUrl] = useState<string | null>(null);
   const [kycSelfieUrl, setKycSelfieUrl] = useState<string | null>(null);
   const [uploadingCin, setUploadingCin] = useState(false);
@@ -530,7 +542,7 @@ export default function BarberDashboard({
         {activeTab === 'bookings' && (
           <>
             <BookingsTab
-              appointments={receivedAppointments}
+              appointments={visibleReceivedAppointments}
               theme={theme}
               isBlocked={isBlocked}
               barberServices={profile.services || []}
@@ -538,10 +550,11 @@ export default function BarberDashboard({
               onUpdateStatus={onUpdateStatus}
               onUpdateAppointment={onUpdateAppointment}
               onOpenChat={(appointmentId) => { setChatInitialSelectedId(appointmentId); setActiveTab('chat'); }}
+              onDeleteAppointment={hideAppointmentForMe}
             />
-            {madeAppointments.length > 0 && (
+            {visibleMadeAppointments.length > 0 && (
               <MyBookingsSection
-                appointments={madeAppointments}
+                appointments={visibleMadeAppointments}
                 barbers={barbers}
                 services={services}
                 theme={theme}
@@ -553,6 +566,7 @@ export default function BarberDashboard({
                 onUpdateAppointment={async (id, updates) => { if (onUpdateAppointment) await onUpdateAppointment(id, updates); }}
                 onAddReview={onAddReview}
                 onOpenChat={(appointmentId) => { setChatInitialSelectedId(appointmentId); setActiveTab('chat'); }}
+                onDeleteAppointment={hideAppointmentForMe}
               />
             )}
           </>
@@ -2306,12 +2320,21 @@ interface BookingsTabProps {
   onUpdateStatus: (id: string, status: Appointment['status']) => Promise<void>;
   onUpdateAppointment?: (id: string, updates: Partial<Appointment>) => Promise<void>;
   onOpenChat: (appointmentId: string) => void;
+  onDeleteAppointment: (id: string) => Promise<void>;
 }
 
-function BookingsTab({ appointments, theme, isBlocked, barberServices, barberLocation, onUpdateStatus, onUpdateAppointment, onOpenChat }: BookingsTabProps) {
+// How far a row slides left to reveal the "Supprimer" button, in px — same values as
+// ChatListTab's "delete conversation" gesture, reused here for "delete reservation".
+const BOOKINGS_REVEAL_WIDTH = 84;
+const BOOKINGS_LONG_PRESS_MS = 550;
+
+function BookingsTab({ appointments, theme, isBlocked, barberServices, barberLocation, onUpdateStatus, onUpdateAppointment, onOpenChat, onDeleteAppointment }: BookingsTabProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [proposingId, setProposingId] = useState<string | null>(null);
   const [proposedDateTime, setProposedDateTime] = useState('');
+  const [revealedId, setRevealedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const sorted = useMemo(
     () => [...appointments].sort((a, b) => toDate(a.dateTime).getTime() - toDate(b.dateTime).getTime()),
@@ -2357,6 +2380,27 @@ function BookingsTab({ appointments, theme, isBlocked, barberServices, barberLoc
     setProposedDateTime('');
   };
 
+  const startLongPress = (id: string) => {
+    longPressTimer.current = setTimeout(() => setRevealedId(id), BOOKINGS_LONG_PRESS_MS);
+  };
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleDeleteAppointment = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await onDeleteAppointment(id);
+    } catch (e) {
+      console.error('Error deleting appointment:', e);
+    }
+    setDeletingId(null);
+    setRevealedId(null);
+  };
+
   return (
     <div className="space-y-4 text-left">
       <div>
@@ -2376,10 +2420,33 @@ function BookingsTab({ appointments, theme, isBlocked, barberServices, barberLoc
             const expanded = expandedId === app.id;
             const conflict = app.status === 'pending' && hasConflict(app);
             const distance = appointmentDistanceKm(app);
+            const isRevealed = revealedId === app.id;
             return (
-              <div key={app.id} className={`rounded-xl border overflow-hidden ${theme === 'dark' ? 'bg-mid-brown/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}>
+              <div key={app.id} className="relative overflow-hidden rounded-xl">
+                <div className="absolute inset-y-0 right-0 flex items-stretch" style={{ width: BOOKINGS_REVEAL_WIDTH }}>
+                  <button
+                    onClick={() => handleDeleteAppointment(app.id)}
+                    disabled={deletingId === app.id}
+                    className="flex-1 flex flex-col items-center justify-center gap-1 bg-red-500 text-white disabled:opacity-60"
+                  >
+                    <Trash2 size={16} />
+                    <span className="text-[8px] font-bold uppercase tracking-widest">{deletingId === app.id ? '...' : 'Supprimer'}</span>
+                  </button>
+                </div>
+                <motion.div
+                  drag="x"
+                  dragConstraints={{ left: -BOOKINGS_REVEAL_WIDTH, right: 0 }}
+                  dragElastic={0.1}
+                  animate={{ x: isRevealed ? -BOOKINGS_REVEAL_WIDTH : 0 }}
+                  transition={{ type: 'tween', duration: 0.18 }}
+                  onDragEnd={(_e, info) => setRevealedId(info.offset.x < -BOOKINGS_REVEAL_WIDTH / 2 ? app.id : null)}
+                  onPointerDown={() => startLongPress(app.id)}
+                  onPointerUp={cancelLongPress}
+                  onPointerLeave={cancelLongPress}
+                  className={`relative rounded-xl border overflow-hidden touch-pan-y ${theme === 'dark' ? 'bg-mid-brown/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}
+                >
                 <button
-                  onClick={() => setExpandedId(expanded ? null : app.id)}
+                  onClick={() => { if (isRevealed) { setRevealedId(null); return; } setExpandedId(expanded ? null : app.id); }}
                   className="w-full p-4 flex items-center gap-4 text-left"
                 >
                   <div className={`w-12 h-12 shrink-0 flex flex-col items-center justify-center rounded-lg text-center leading-none ${theme === 'dark' ? 'bg-gold/10 text-gold' : 'bg-gray-100 text-gray-500'}`}>
@@ -2500,6 +2567,7 @@ function BookingsTab({ appointments, theme, isBlocked, barberServices, barberLoc
                     </motion.div>
                   )}
                 </AnimatePresence>
+                </motion.div>
               </div>
             );
           })}

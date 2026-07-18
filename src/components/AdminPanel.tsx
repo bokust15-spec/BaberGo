@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ShieldCheck, FileImage, Check, X as XIcon, Banknote, CalendarClock, RefreshCw, Search, MessageCircle, MapPin } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, FileImage, Check, X as XIcon, Banknote, CalendarClock, RefreshCw, Search, MessageCircle, MapPin, Trash2 } from 'lucide-react';
 import { UserProfile, Appointment, AppointmentChatMeta, ChatMessage } from '../hooks/useFirebase';
 import { cannedMessageLabel, cancelReasonLabel } from '../data/chatMessages';
 
@@ -20,6 +20,7 @@ interface AdminPanelProps {
   rejectBarberKyc: (barberUid: string) => Promise<void>;
   settleCommission: (barberUid: string) => Promise<void>;
   getAppointmentChatForAdmin: (appointmentId: string) => Promise<{ meta: AppointmentChatMeta | null; messages: ChatMessage[] }>;
+  onDeleteAppointment: (id: string) => Promise<void>;
 }
 
 function toDate(value: any): Date {
@@ -42,14 +43,18 @@ const STATUS_CLASS: Record<Appointment['status'], string> = {
 
 type AdminTab = 'reservations' | 'kyc' | 'commissions';
 
-export default function AdminPanel({ barbers, allAppointments, onRefreshAppointments, theme, onClose, getKycSubmission, approveBarberKyc, rejectBarberKyc, settleCommission, getAppointmentChatForAdmin }: AdminPanelProps) {
+export default function AdminPanel({ barbers, allAppointments, onRefreshAppointments, theme, onClose, getKycSubmission, approveBarberKyc, rejectBarberKyc, settleCommission, getAppointmentChatForAdmin, onDeleteAppointment }: AdminPanelProps) {
   const [dossiers, setDossiers] = useState<Record<string, KycSubmission | null>>({});
   const [busyUid, setBusyUid] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<Appointment['status'] | 'all'>('all');
   const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [expandedChatId, setExpandedChatId] = useState<string | null>(null);
   const [chatData, setChatData] = useState<Record<string, { meta: AppointmentChatMeta | null; messages: ChatMessage[] } | 'loading'>>({});
   const [activeTab, setActiveTab] = useState<AdminTab>('reservations');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingAppointmentId, setDeletingAppointmentId] = useState<string | null>(null);
 
   const handleToggleChat = (appointmentId: string) => {
     if (expandedChatId === appointmentId) {
@@ -81,14 +86,19 @@ export default function AdminPanel({ barbers, allAppointments, onRefreshAppointm
 
   const filteredAppointments = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const fromTime = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null;
+    const toTime = dateTo ? new Date(`${dateTo}T23:59:59`).getTime() : null;
     return sortedAppointments.filter(app => {
       if (statusFilter !== 'all' && app.status !== statusFilter) return false;
+      const appTime = toDate(app.dateTime).getTime();
+      if (fromTime !== null && appTime < fromTime) return false;
+      if (toTime !== null && appTime > toTime) return false;
       if (!q) return true;
       const haystack = `${app.clientName || ''} ${app.clientEmail || ''} ${barberName(app.barberId)} ${app.serviceName || ''}`.toLowerCase();
       return haystack.includes(q);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortedAppointments, statusFilter, search, barbers]);
+  }, [sortedAppointments, statusFilter, search, dateFrom, dateTo, barbers]);
 
   const statusCounts = useMemo(() => {
     const counts: Record<Appointment['status'], number> = { pending: 0, confirmed: 0, completed: 0, cancelled: 0 };
@@ -121,6 +131,17 @@ export default function AdminPanel({ barbers, allAppointments, onRefreshAppointm
     setBusyUid(uid);
     try { await settleCommission(uid); } catch (e) { console.error(e); }
     setBusyUid(null);
+  };
+
+  const handleDeleteAppointment = async (id: string) => {
+    setDeletingAppointmentId(id);
+    try {
+      await onDeleteAppointment(id);
+    } catch (e) {
+      console.error(e);
+    }
+    setDeletingAppointmentId(null);
+    setConfirmDeleteId(null);
   };
 
   const cardClass = theme === 'dark' ? 'bg-mid-brown/30 border-gold/15' : 'bg-white border-gray-200';
@@ -202,7 +223,7 @@ export default function AdminPanel({ barbers, allAppointments, onRefreshAppointm
             ))}
           </div>
 
-          <div className="relative mb-4">
+          <div className="relative mb-3">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-gray" />
             <input
               type="text"
@@ -213,8 +234,37 @@ export default function AdminPanel({ barbers, allAppointments, onRefreshAppointm
             />
           </div>
 
+          <div className="flex items-end gap-2 mb-4">
+            <div className="flex-1">
+              <label className="block text-[8px] uppercase font-bold text-warm-gray mb-1">De</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-[8px] uppercase font-bold text-warm-gray mb-1">À</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+              />
+            </div>
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => { setDateFrom(''); setDateTo(''); }}
+                className="px-2 py-2 text-[9px] text-warm-gray hover:text-gold uppercase font-bold tracking-widest shrink-0"
+              >
+                Effacer
+              </button>
+            )}
+          </div>
+
           {filteredAppointments.length === 0 ? (
-            <p className="text-xs text-warm-gray">Aucune réservation {statusFilter !== 'all' || search ? 'pour ces critères' : "pour le moment"}.</p>
+            <p className="text-xs text-warm-gray">Aucune réservation {statusFilter !== 'all' || search || dateFrom || dateTo ? 'pour ces critères' : "pour le moment"}.</p>
           ) : (
             <div className="space-y-2">
               {filteredAppointments.map(app => (
@@ -226,9 +276,36 @@ export default function AdminPanel({ barbers, allAppointments, onRefreshAppointm
                         {app.clientName || 'Client'}{app.clientEmail ? ` · ${app.clientEmail}` : ''} → {barberName(app.barberId)}
                       </p>
                     </div>
-                    <span className={`shrink-0 px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest ${STATUS_CLASS[app.status]}`}>
-                      {STATUS_LABEL[app.status]}
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className={`px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest ${STATUS_CLASS[app.status]}`}>
+                        {STATUS_LABEL[app.status]}
+                      </span>
+                      {confirmDeleteId === app.id ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleDeleteAppointment(app.id)}
+                            disabled={deletingAppointmentId === app.id}
+                            className="px-2 py-1 bg-red-500 text-white text-[8px] font-bold uppercase tracking-widest rounded disabled:opacity-40"
+                          >
+                            {deletingAppointmentId === app.id ? '...' : 'Confirmer'}
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="px-2 py-1 border border-white/10 text-warm-gray text-[8px] font-bold uppercase tracking-widest rounded"
+                          >
+                            Annuler
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteId(app.id)}
+                          className="p-1.5 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/10"
+                          aria-label="Supprimer la réservation"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center justify-between text-[10px] text-warm-gray">
                     <span>{toDate(app.dateTime).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}</span>

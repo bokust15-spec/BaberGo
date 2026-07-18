@@ -392,6 +392,26 @@ service cloud.firestore {
           !(request.resource.data.status == 'cancelled' && request.auth.uid == resource.data.clientId)
           || 'cancelReason' in request.resource.data
         );
+
+      // Admin-only real deletion (platform cleanup of old reservations) — the update
+      // rule above still deliberately grants admins NO write access to a live
+      // appointment; delete is a separate, narrower grant. Deliberately does NOT cascade
+      // to appointmentChats/{appointmentId} — its messages are immutable by design (see
+      // below), so the chat doc/messages simply become a harmless orphan, still readable
+      // by isAdmin() exactly as before.
+      allow delete: if isAdmin();
+
+      // "Supprimer la réservation" — pour moi seulement, même schéma que
+      // appointmentChats/{appointmentId}/hidden/{uid} plus bas : la réservation reste
+      // intacte pour l'autre partie et pour l'admin, seule la présence dans la propre
+      // liste "Mes réservations" de celui qui supprime change.
+      match /hidden/{uid} {
+        allow get: if isOwner(uid) || isAdmin();
+        allow list: if false;
+        allow create: if isOwner(uid) && isChatParty(appointmentId)
+          && request.resource.data.keys().hasOnly(['hiddenAt'])
+          && request.resource.data.hiddenAt == request.time;
+      }
     }
 
     // Chat guidé attaché à une réservation confirmée — voir AppointmentChatMeta/ChatMessage

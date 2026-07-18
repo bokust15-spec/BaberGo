@@ -15,6 +15,7 @@ import Avatar from './Avatar';
 import ChatListTab from './ChatListTab';
 import MyBookingsSection from './MyBookingsSection';
 import { useChatInbox } from '../hooks/useChatInbox';
+import { useHiddenAppointments } from '../hooks/useHiddenAppointments';
 import { formatRelativeTime } from '../utils/relativeTime';
 
 // A single bookable "look": either a real barber's own uploaded realization, or one
@@ -66,11 +67,13 @@ interface AppMVPProps {
   markChatAsRead: (appointmentId: string) => Promise<void>;
   subscribeToChatHidden: (appointmentId: string, callback: (hidden: boolean) => void) => () => void;
   hideChatForMe: (appointmentId: string) => Promise<void>;
+  subscribeToAppointmentHidden: (appointmentId: string, callback: (hidden: boolean) => void) => () => void;
+  hideAppointmentForMe: (appointmentId: string) => Promise<void>;
   onUpdatePhone: (phone: string) => Promise<void>;
   onDeleteAccount: (password: string) => Promise<void>;
 }
 
-export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews, onIncrementProfileView, onFetchLikeState, onToggleLike, barbersLoading, sharedPostId, sharedBarberId, subscribeToLastChatMessage, subscribeToChatReadReceipt, markChatAsRead, subscribeToChatHidden, hideChatForMe, onUpdatePhone, onDeleteAccount }: AppMVPProps) {
+export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews, onIncrementProfileView, onFetchLikeState, onToggleLike, barbersLoading, sharedPostId, sharedBarberId, subscribeToLastChatMessage, subscribeToChatReadReceipt, markChatAsRead, subscribeToChatHidden, hideChatForMe, subscribeToAppointmentHidden, hideAppointmentForMe, onUpdatePhone, onDeleteAccount }: AppMVPProps) {
   const [activeTab, setActiveTab] = useState<'search' | 'bookings' | 'chat'>('search');
   const [chatInitialSelectedId, setChatInitialSelectedId] = useState<string | null>(null);
   const [resultsTab, setResultsTab] = useState<'pourVous' | 'profils'>('pourVous');
@@ -161,6 +164,12 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
     subscribeToChatReadReceipt,
     subscribeToChatHidden
   );
+
+  // "Supprimer la réservation" — for this user only, see firestore.rules'
+  // appointments/{id}/hidden/{uid}. appointments (unfiltered) stays the source for
+  // newProposalsCount and useChatInbox above; only the "Mes réservations" list below
+  // uses this filtered view.
+  const visibleAppointments = useHiddenAppointments(appointments, profile?.uid, subscribeToAppointmentHidden);
 
   // Real distance between the client and a barber's own saved GPS location when the pro
   // has set one (Mon Profil > Localisation) — falls back to a city-level approximation
@@ -477,7 +486,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
           />
         ) : activeTab === 'bookings' ? (
           <MyBookingsSection
-            appointments={appointments}
+            appointments={visibleAppointments}
             barbers={barbers}
             services={services}
             theme={theme}
@@ -487,6 +496,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
             onUpdateAppointment={onUpdateAppointment}
             onAddReview={onAddReview}
             onOpenChat={(appointmentId) => { setChatInitialSelectedId(appointmentId); setActiveTab('chat'); }}
+            onDeleteAppointment={hideAppointmentForMe}
           />
         ) : (
         <AnimatePresence mode="wait">

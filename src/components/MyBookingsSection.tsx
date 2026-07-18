@@ -1,12 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CalendarCheck, ChevronDown, Clock, AlertTriangle, Check, MessageCircle, Star } from 'lucide-react';
+import { CalendarCheck, ChevronDown, Clock, AlertTriangle, Check, MessageCircle, Star, Trash2 } from 'lucide-react';
 import { UserProfile, Appointment } from '../hooks/useFirebase';
 import { STYLE_POSTS, avatarFor } from '../data/mockBarberFeed';
 
 function toDate(value: any): Date {
   return value instanceof Date ? value : value.toDate();
 }
+
+// How far a row slides left to reveal the "Supprimer" button, in px — same values as
+// ChatListTab's "delete conversation" gesture, reused here for "delete reservation".
+const REVEAL_WIDTH = 84;
+const LONG_PRESS_MS = 550;
 
 // ============================================================
 // CLIENT-SIDE booking history: response to barber counter-proposals
@@ -27,6 +32,7 @@ interface MyBookingsSectionProps {
   onUpdateAppointment: (id: string, updates: Partial<Appointment>) => Promise<void>;
   onAddReview: (review: { clientId: string; barberId: string; appointmentId: string; rating: number; comment: string }) => Promise<void>;
   onOpenChat: (appointmentId: string) => void;
+  onDeleteAppointment: (id: string) => Promise<void>;
 }
 
 export default function MyBookingsSection({
@@ -41,7 +47,8 @@ export default function MyBookingsSection({
   onUpdateStatus,
   onUpdateAppointment,
   onAddReview,
-  onOpenChat
+  onOpenChat,
+  onDeleteAppointment
 }: MyBookingsSectionProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
@@ -49,6 +56,9 @@ export default function MyBookingsSection({
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
   const [submittingReview, setSubmittingReview] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [revealedId, setRevealedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const sorted = useMemo(
     () => [...appointments].sort((a, b) => toDate(b.dateTime).getTime() - toDate(a.dateTime).getTime()),
@@ -132,6 +142,27 @@ export default function MyBookingsSection({
     setSubmittingReview(null);
   };
 
+  const startLongPress = (id: string) => {
+    longPressTimer.current = setTimeout(() => setRevealedId(id), LONG_PRESS_MS);
+  };
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleDeleteAppointment = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await onDeleteAppointment(id);
+    } catch (e) {
+      console.error('Error deleting appointment:', e);
+    }
+    setDeletingId(null);
+    setRevealedId(null);
+  };
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 md:py-12 text-left">
       <div className="mb-6">
@@ -151,10 +182,33 @@ export default function MyBookingsSection({
             const expanded = expandedId === app.id;
             const barberInfo = getBarberInfo(app);
             const busy = busyId === app.id;
+            const isRevealed = revealedId === app.id;
             return (
-              <div key={app.id} className={`rounded-xl border overflow-hidden ${theme === 'dark' ? 'bg-mid-brown/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}>
+              <div key={app.id} className="relative overflow-hidden rounded-xl">
+                <div className="absolute inset-y-0 right-0 flex items-stretch" style={{ width: REVEAL_WIDTH }}>
+                  <button
+                    onClick={() => handleDeleteAppointment(app.id)}
+                    disabled={deletingId === app.id}
+                    className="flex-1 flex flex-col items-center justify-center gap-1 bg-red-500 text-white disabled:opacity-60"
+                  >
+                    <Trash2 size={16} />
+                    <span className="text-[8px] font-bold uppercase tracking-widest">{deletingId === app.id ? '...' : 'Supprimer'}</span>
+                  </button>
+                </div>
+                <motion.div
+                  drag="x"
+                  dragConstraints={{ left: -REVEAL_WIDTH, right: 0 }}
+                  dragElastic={0.1}
+                  animate={{ x: isRevealed ? -REVEAL_WIDTH : 0 }}
+                  transition={{ type: 'tween', duration: 0.18 }}
+                  onDragEnd={(_e, info) => setRevealedId(info.offset.x < -REVEAL_WIDTH / 2 ? app.id : null)}
+                  onPointerDown={() => startLongPress(app.id)}
+                  onPointerUp={cancelLongPress}
+                  onPointerLeave={cancelLongPress}
+                  className={`relative rounded-xl border overflow-hidden touch-pan-y ${theme === 'dark' ? 'bg-mid-brown/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}
+                >
                 <button
-                  onClick={() => setExpandedId(expanded ? null : app.id)}
+                  onClick={() => { if (isRevealed) { setRevealedId(null); return; } setExpandedId(expanded ? null : app.id); }}
                   className="w-full p-4 flex items-center gap-4 text-left"
                 >
                   {barberInfo.avatarUrl ? (
@@ -290,6 +344,7 @@ export default function MyBookingsSection({
                     </motion.div>
                   )}
                 </AnimatePresence>
+                </motion.div>
               </div>
             );
           })}

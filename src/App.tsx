@@ -93,12 +93,15 @@ export default function App() {
     uploadKycFile,
     saveKycFile,
     getAllAppointments,
+    adminDeleteAppointment,
     getAppointmentChatForAdmin,
     subscribeToLastChatMessage,
     subscribeToChatReadReceipt,
     markChatAsRead,
     subscribeToChatHidden,
     hideChatForMe,
+    subscribeToAppointmentHidden,
+    hideAppointmentForMe,
     getKycSubmission,
     approveBarberKyc,
     rejectBarberKyc,
@@ -405,6 +408,14 @@ export default function App() {
     }
   };
 
+  // getAllAppointments is a one-time fetch, not a live subscription — refetching the
+  // whole platform after every single delete would be wasteful, so this just filters the
+  // deleted id out of local state instead.
+  const handleAdminDeleteAppointment = async (id: string) => {
+    await adminDeleteAppointment(id);
+    setAllAppointments(prev => prev.filter(a => a.id !== id));
+  };
+
   // Live count of items actually waiting on an admin (new KYC dossier, commission owed)
   // — `barbers` is kept fresh via onSnapshot, so this updates the moment a pro submits
   // their CIN/selfie, without the admin needing to open the panel to find out.
@@ -427,6 +438,7 @@ export default function App() {
           rejectBarberKyc={rejectBarberKyc}
           settleCommission={settleCommission}
           getAppointmentChatForAdmin={getAppointmentChatForAdmin}
+          onDeleteAppointment={handleAdminDeleteAppointment}
         />
       );
     }
@@ -504,6 +516,8 @@ export default function App() {
           markChatAsRead={markChatAsRead}
           subscribeToChatHidden={subscribeToChatHidden}
           hideChatForMe={hideChatForMe}
+          subscribeToAppointmentHidden={subscribeToAppointmentHidden}
+          hideAppointmentForMe={hideAppointmentForMe}
         />
       );
     }
@@ -535,6 +549,8 @@ export default function App() {
         markChatAsRead={markChatAsRead}
         subscribeToChatHidden={subscribeToChatHidden}
         hideChatForMe={hideChatForMe}
+        subscribeToAppointmentHidden={subscribeToAppointmentHidden}
+        hideAppointmentForMe={hideAppointmentForMe}
         onUpdatePhone={updatePhone}
         onDeleteAccount={deleteAccount}
       />
