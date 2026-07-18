@@ -12,7 +12,6 @@ import {
   Navigation,
   Map as MapIcon,
   Lock,
-  MessageCircle,
 } from 'lucide-react';
 import {
   useFirebase,
@@ -110,7 +109,6 @@ export default function AppointmentChat({ appointment, role, theme, clientPhone,
   const canSharePhone = role === 'client' && !meta?.phoneSharedAt && now >= phoneShareOpensAt.getTime();
   const barberCanCancel = role === 'barber' && !meta?.phoneSharedAt;
 
-  const cardClass = theme === 'dark' ? 'bg-mid-brown/30 border-gold/15' : 'bg-white border-gray-200';
   const inputClass = `w-full px-3 py-2 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`;
 
   const handleSendCanned = async (key: string) => {
@@ -187,20 +185,9 @@ export default function AppointmentChat({ appointment, role, theme, clientPhone,
   const responsesToProposal = (proposalId: string) => messages.filter(m => m.type === 'reschedule_response' && m.respondsToMessageId === proposalId);
 
   return (
-    <div className={`rounded-xl border p-3 space-y-3 ${cardClass}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase font-bold tracking-widest text-gold flex items-center gap-1.5">
-          <MessageCircle size={14} /> Discussion de la séance
-        </span>
-        {frozen && (
-          <span className="flex items-center gap-1 text-[9px] uppercase font-bold tracking-widest text-red-400">
-            <Lock size={11} /> {meta?.frozenReason === 'session_ended' ? 'Séance terminée' : 'Séance annulée'}
-          </span>
-        )}
-      </div>
-
-      {/* MESSAGES */}
-      <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+    <div className="flex-1 flex flex-col min-h-0">
+      {/* MESSAGES — flex-1, fills the remaining height under ChatListTab's header */}
+      <div className="flex-1 overflow-y-auto min-h-0 px-3 py-3 space-y-2">
         {messages.length === 0 && (
           <p className="text-[10px] text-warm-gray text-center py-4">Aucun message pour le moment.</p>
         )}
@@ -213,7 +200,7 @@ export default function AppointmentChat({ appointment, role, theme, clientPhone,
           return (
             <div key={msg.id} className={`max-w-[80%] ${isMe ? 'ml-auto' : ''}`}>
               {msg.type === 'canned' && (
-                <div className={`px-3 py-2 rounded-lg text-xs ${bubbleClass}`}>{cannedMessageLabel(msg.cannedKey || '')}</div>
+                <div className={`px-3.5 py-2.5 rounded-lg text-sm ${bubbleClass}`}>{cannedMessageLabel(msg.cannedKey || '')}</div>
               )}
               {msg.type === 'location' && (
                 (() => {
@@ -230,7 +217,7 @@ export default function AppointmentChat({ appointment, role, theme, clientPhone,
                       href={`https://www.google.com/maps?q=${msg.location?.lat},${msg.location?.lng}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold ${bubbleClass}`}
+                      className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-sm font-bold ${bubbleClass}`}
                     >
                       <MapPin size={14} className="shrink-0" />
                       <span className="truncate">{msg.location?.label || 'Localisation partagée'} — ouvrir dans Maps</span>
@@ -243,7 +230,7 @@ export default function AppointmentChat({ appointment, role, theme, clientPhone,
                 const responded = responses.length > 0;
                 const canRespond = !isMe && !responded && !frozen;
                 return (
-                  <div className={`px-3 py-2 rounded-lg text-xs space-y-2 ${theme === 'dark' ? 'bg-black/30 text-white border border-gold/20' : 'bg-gray-100 text-gray-900 border border-gray-200'}`}>
+                  <div className={`px-3.5 py-2.5 rounded-lg text-sm space-y-2 ${theme === 'dark' ? 'bg-black/30 text-white border border-gold/20' : 'bg-gray-100 text-gray-900 border border-gray-200'}`}>
                     <p className="flex items-center gap-1.5 font-bold"><CalendarClock size={13} className="text-gold" /> Nouveau créneau proposé</p>
                     <p>{toDate(msg.proposedDateTime).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}</p>
                     {responded && (
@@ -265,8 +252,14 @@ export default function AppointmentChat({ appointment, role, theme, clientPhone,
         })}
       </div>
 
-      {!frozen && (
-        <>
+      {/* BOTTOM-PINNED COMPOSER (or a frozen banner in its place) — does not scroll away
+          with the message history, like a WhatsApp compose bar. */}
+      {frozen ? (
+        <div className={`shrink-0 border-t px-4 py-3 flex items-center justify-center gap-1.5 text-xs font-bold uppercase tracking-widest text-red-400 ${theme === 'dark' ? 'border-white/10 bg-mid-brown/50' : 'border-gray-200 bg-white'}`}>
+          <Lock size={14} /> {meta?.frozenReason === 'session_ended' ? 'Séance terminée' : 'Séance annulée'}
+        </div>
+      ) : (
+        <div className={`shrink-0 border-t px-3 py-2 space-y-2 ${theme === 'dark' ? 'border-white/10 bg-mid-brown/50' : 'border-gray-200 bg-white'}`}>
           {/* CANNED QUICK REPLIES */}
           <div className="flex flex-wrap gap-1.5">
             {cannedCatalog.map(m => (
@@ -377,13 +370,13 @@ export default function AppointmentChat({ appointment, role, theme, clientPhone,
               </button>
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* CANCEL CONFIRM DIALOG */}
       <AnimatePresence>
         {showCancelConfirm && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm" onClick={() => { setShowCancelConfirm(false); setShowCancelReasonForm(false); }}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[160] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm" onClick={() => { setShowCancelConfirm(false); setShowCancelReasonForm(false); }}>
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} onClick={(e) => e.stopPropagation()} className={`w-full max-w-sm rounded-xl border p-5 space-y-4 ${theme === 'dark' ? 'bg-mid-brown border-gold/30' : 'bg-white border-gray-200'}`}>
               {!showCancelReasonForm ? (
                 <>

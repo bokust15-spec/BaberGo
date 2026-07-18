@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ChevronLeft, ChevronRight, Heart, Share2 } from 'lucide-react';
 import { formatRelativeTime } from '../utils/relativeTime';
@@ -46,6 +46,10 @@ interface PhotoGalleryLightboxProps {
 // post's own photos first, then rolls over into the next/previous post, same as
 // Instagram's fullscreen viewer.
 const SWIPE_THRESHOLD = 60;
+const MIN_SCALE = 1;
+const MAX_SCALE = 4;
+const DOUBLE_TAP_SCALE = 2.5;
+const DOUBLE_TAP_MS = 300;
 
 export default function PhotoGalleryLightbox({ photos, initialIndex, onClose, onFetchLikeState, onToggleLike, isLoggedIn = true, onRequireAuth }: PhotoGalleryLightboxProps) {
   const [index, setIndex] = useState(initialIndex);
@@ -56,9 +60,22 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose, on
   const [likedUrls, setLikedUrls] = useState<Record<string, boolean>>({});
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
 
+  // Pinch (mobile) / wheel (desktop) zoom on the currently displayed image, plus
+  // double-tap/double-click to toggle. `imgWrapRef` is the container both the zoom
+  // handlers and the pan-bounds math measure against — not the <motion.img> itself, so
+  // hit-testing stays consistent even when the rendered image is smaller than its box.
+  const [scale, setScale] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const imgWrapRef = useRef<HTMLDivElement>(null);
+  const lastTouchDistRef = useRef<number | null>(null);
+  const lastTapRef = useRef(0);
+  const dragStartOffsetRef = useRef({ x: 0, y: 0 });
+
   useEffect(() => {
     setIndex(initialIndex);
     setSubIndex(0);
+    setScale(1);
+    setPanOffset({ x: 0, y: 0 });
   }, [initialIndex]);
 
   const hasMultiplePosts = photos.length > 1;
@@ -67,6 +84,15 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose, on
   const hasSubPhotos = currentPhotos.length > 1;
   const clampedSubIndex = Math.min(subIndex, Math.max(0, currentPhotos.length - 1));
   const displayedUrl = currentPhotos[clampedSubIndex] || current?.url;
+
+  // stepNext/stepPrev/goToPost mutate index/subIndex directly (never initialIndex), so
+  // displayedUrl changing is the only reliable signal that the user navigated to a
+  // different photo — without this, zoom/pan would carry over onto the next image.
+  useEffect(() => {
+    setScale(1);
+    setPanOffset({ x: 0, y: 0 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayedUrl]);
 
   const goToPost = (newIndex: number, subIdx: number) => {
     setIndex((newIndex + photos.length) % photos.length);
@@ -114,6 +140,74 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose, on
     if (!canStep) return;
     if (info.offset.x > SWIPE_THRESHOLD) stepPrev();
     else if (info.offset.x < -SWIPE_THRESHOLD) stepNext();
+  };
+
+  const isZoomed = scale > 1;
+
+  // Pans are bounded so the zoomed image can't be dragged past its own edges — derived
+  // from the rendered image size × scale vs. its container's box.
+  const computePanConstraints = () => {
+    const rect = imgWrapRef.current?.getBoundingClientRect();
+    if (!rect) return { left: 0, right: 0, top: 0, bottom: 0 };
+    const maxX = Math.max(0, (rect.width * scale - rect.width) / 2);
+    const maxY = Math.max(0, (rect.height * scale - rect.height) / 2);
+    return { left: -maxX, right: maxX, top: -maxY, bottom: maxY };
+  };
+
+  const zoomToward = (clientX: number, clientY: number, targetScale: number) => {
+    const rect = imgWrapRef.current?.getBoundingClientRect();
+    if (!rect) { setScale(targetScale); return; }
+    setScale(targetScale);
+    setPanOffset({
+      x: (rect.width / 2 - (clientX - rect.left)) * (targetScale - 1),
+      y: (rect.height / 2 - (clientY - rect.top)) * (targetScale - 1),
+    });
+  };
+
+  const toggleZoomAt = (clientX: number, clientY: number) => {
+    if (isZoomed) {
+      setScale(1);
+      setPanOffset({ x: 0, y: 0 });
+    } else {
+      zoomToward(clientX, clientY, DOUBLE_TAP_SCALE);
+    }
+  };
+
+  // Desktop: mouse wheel zooms in/out, clamped; double-click toggles 1x/2.5x centered on
+  // the click point.
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale - e.deltaY * 0.0015 * scale));
+    setScale(next);
+    if (next === MIN_SCALE) setPanOffset({ x: 0, y: 0 });
+  };
+  const handleDoubleClick = (e: React.MouseEvent) => toggleZoomAt(e.clientX, e.clientY);
+
+  // Mobile: raw two-finger pinch (Framer Motion's drag/PanInfo is single-pointer only)
+  // plus double-tap, mirroring the desktop double-click behavior.
+  const touchDistance = (t: React.TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      lastTouchDistRef.current = touchDistance(e.touches);
+    } else if (e.touches.length === 1) {
+      const now = Date.now();
+      if (now - lastTapRef.current < DOUBLE_TAP_MS) {
+        toggleZoomAt(e.touches[0].clientX, e.touches[0].clientY);
+      }
+      lastTapRef.current = now;
+    }
+  };
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && lastTouchDistRef.current != null) {
+      const dist = touchDistance(e.touches);
+      const delta = dist - lastTouchDistRef.current;
+      lastTouchDistRef.current = dist;
+      setScale(s => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s + delta * 0.01)));
+    }
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (e.touches.length < 2) lastTouchDistRef.current = null;
+    if (scale <= 1) setPanOffset({ x: 0, y: 0 });
   };
 
   const liked = !!likedUrls[current.url];
@@ -201,17 +295,29 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose, on
           </button>
         )}
 
-        <div className="relative w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+        <div
+          ref={imgWrapRef}
+          className="relative w-full h-full flex items-center justify-center"
+          onClick={(e) => e.stopPropagation()}
+          onWheel={handleWheel}
+          onDoubleClick={handleDoubleClick}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           <motion.img
             key={displayedUrl}
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.15 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1, scale, x: panOffset.x, y: panOffset.y }} transition={{ duration: 0.15 }}
             src={displayedUrl}
             alt=""
-            drag={canStep ? 'x' : false}
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.7}
-            onDragEnd={handleDragEnd}
-            className="max-w-full max-h-full object-contain cursor-grab active:cursor-grabbing touch-pan-y"
+            drag={isZoomed ? true : (canStep ? 'x' : false)}
+            dragConstraints={isZoomed ? computePanConstraints() : { left: 0, right: 0 }}
+            dragElastic={isZoomed ? 0.05 : 0.7}
+            dragMomentum={!isZoomed}
+            onDragStart={isZoomed ? () => { dragStartOffsetRef.current = panOffset; } : undefined}
+            onDrag={isZoomed ? (_e, info) => setPanOffset({ x: dragStartOffsetRef.current.x + info.offset.x, y: dragStartOffsetRef.current.y + info.offset.y }) : undefined}
+            onDragEnd={isZoomed ? undefined : handleDragEnd}
+            className={`max-w-full max-h-full object-contain ${isZoomed ? 'cursor-move touch-none' : 'cursor-grab active:cursor-grabbing touch-pan-y'}`}
           />
 
           {/* Right side: like + share icon rail */}

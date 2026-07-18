@@ -103,26 +103,31 @@ export default function ChatListTab({ currentUid, theme, conversations, barbers,
   if (selected) {
     const other = otherPartyInfo(selected.appointment);
     return (
-      <div className="p-4 space-y-3 max-w-3xl mx-auto w-full">
-        <button
-          onClick={() => setSelectedId(null)}
-          className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-warm-gray hover:text-gold' : 'text-gray-500 hover:text-gold'}`}
-        >
-          <ArrowLeft size={14} /> Retour aux conversations
-        </button>
-        <div className="flex items-center gap-2 mb-1">
-          <Avatar src={other.avatarUrl} size="w-8 h-8" className="border border-gold/30" />
-          <span className={`text-sm font-bold ${textClass}`}>{other.name}</span>
+      <div className={`fixed inset-0 z-[150] flex flex-col ${theme === 'dark' ? 'bg-black' : 'bg-gray-50'}`}>
+        <div className="flex flex-col h-full max-w-3xl mx-auto w-full">
+          {/* FIXED HEADER — full-screen, WhatsApp-style conversation view */}
+          <div className={`shrink-0 flex items-center gap-3 px-4 py-3 border-b ${theme === 'dark' ? 'border-gold/15 bg-mid-brown' : 'border-gray-200 bg-white'}`}>
+            <button
+              onClick={() => setSelectedId(null)}
+              aria-label="Retour aux conversations"
+              className={`shrink-0 ${theme === 'dark' ? 'text-warm-gray hover:text-gold' : 'text-gray-500 hover:text-gold'}`}
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <Avatar src={other.avatarUrl} size="w-9 h-9" className="border border-gold/30" />
+            <span className={`text-base font-bold truncate ${textClass}`}>{other.name}</span>
+          </div>
+
+          <AppointmentChat
+            appointment={selected.appointment}
+            role={roleFor(selected.appointment)}
+            theme={theme}
+            clientPhone={clientPhone}
+            serviceDuration={services?.find(s => s.id === selected.appointment.serviceId)?.duration}
+            onUpdateAppointment={onUpdateAppointment}
+            onUpdateStatus={onUpdateStatus}
+          />
         </div>
-        <AppointmentChat
-          appointment={selected.appointment}
-          role={roleFor(selected.appointment)}
-          theme={theme}
-          clientPhone={clientPhone}
-          serviceDuration={services?.find(s => s.id === selected.appointment.serviceId)?.duration}
-          onUpdateAppointment={onUpdateAppointment}
-          onUpdateStatus={onUpdateStatus}
-        />
       </div>
     );
   }
