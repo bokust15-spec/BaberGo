@@ -205,7 +205,7 @@ export default function MyBookingsSection({
                   onPointerDown={() => startLongPress(app.id)}
                   onPointerUp={cancelLongPress}
                   onPointerLeave={cancelLongPress}
-                  className={`relative rounded-xl border overflow-hidden touch-pan-y ${theme === 'dark' ? 'bg-mid-brown/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}
+                  className={`relative rounded-xl border overflow-hidden touch-pan-y ${theme === 'dark' ? 'bg-mid-brown border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}
                 >
                 <button
                   onClick={() => { if (isRevealed) { setRevealedId(null); return; } setExpandedId(expanded ? null : app.id); }}
