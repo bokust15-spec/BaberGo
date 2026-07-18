@@ -1531,6 +1531,10 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
       setCustomSpecialtyInput('');
       return;
     }
+    if (containsContactInfo(word)) {
+      setError(CONTACT_INFO_ERROR);
+      return;
+    }
     setCategories(prev => [...prev, word]);
     setCustomSpecialtyInput('');
   };
