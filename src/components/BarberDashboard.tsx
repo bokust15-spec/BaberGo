@@ -2231,7 +2231,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
                     </button>
                   )}
                 </div>
-                <p className="text-[9px] text-warm-gray uppercase tracking-widest">{newItemPreviews.length}/{MAX_PHOTOS_PER_POST} photos — comme sur Instagram, une publication peut regrouper plusieurs photos</p>
+                <p className="text-[9px] text-warm-gray uppercase tracking-widest">{newItemPreviews.length}/{MAX_PHOTOS_PER_POST} photos — une publication peut regrouper plusieurs photos</p>
               </div>
               <input ref={itemInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleItemFilesSelected} />
               <div className="grid grid-cols-2 gap-2">
