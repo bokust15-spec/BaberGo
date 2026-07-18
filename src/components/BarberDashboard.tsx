@@ -756,7 +756,6 @@ export default function BarberDashboard({
                   </div>
 
                   <div className="border border-red-500/30 rounded-sm p-4 space-y-3">
-                    <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Zone dangereuse</p>
                     <p className="text-xs text-warm-gray leading-relaxed">La suppression de votre compte est définitive et irréversible.</p>
                     {!showDeleteConfirm ? (
                       <button
@@ -1715,23 +1714,26 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
           <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-lg">{error}</div>
         )}
 
-        {/* AGE RANGE — editable here, shown publicly on the profile clients/other pros consult */}
-        <section className="mb-6">
-          <p className={sectionLabel}>Tranche d'âge</p>
-          <div className={cardClass}>
-            <select
-              value={profile.ageRange || ''}
-              onChange={(e) => handleChangeAgeRange(e.target.value)}
-              disabled={savingAgeRange}
-              className={`w-full text-xs p-3 rounded-lg border outline-none disabled:opacity-50 ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
-            >
-              <option value="" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Préférer ne pas préciser</option>
-              {AGE_RANGES.map(a => (
-                <option key={a} value={a} className={theme === 'dark' ? 'bg-mid-brown' : ''}>{a} ans</option>
-              ))}
-            </select>
-          </div>
-        </section>
+        {/* AGE RANGE — chosen once; shown publicly on the profile clients/other pros
+            consult. Once set, there's no reason to keep showing the picker. */}
+        {!profile.ageRange && (
+          <section className="mb-6">
+            <p className={sectionLabel}>Tranche d'âge</p>
+            <div className={cardClass}>
+              <select
+                value={profile.ageRange || ''}
+                onChange={(e) => handleChangeAgeRange(e.target.value)}
+                disabled={savingAgeRange}
+                className={`w-full text-xs p-3 rounded-lg border outline-none disabled:opacity-50 ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+              >
+                <option value="" className={theme === 'dark' ? 'bg-mid-brown' : ''}>Préférer ne pas préciser</option>
+                {AGE_RANGES.map(a => (
+                  <option key={a} value={a} className={theme === 'dark' ? 'bg-mid-brown' : ''}>{a} ans</option>
+                ))}
+              </select>
+            </div>
+          </section>
+        )}
 
         {/* LOCALISATION — real GPS reference point used to compute real distance to
             clients/other pros, instead of the previous city-level approximation. */}

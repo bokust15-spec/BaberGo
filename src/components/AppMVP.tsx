@@ -920,7 +920,6 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                     </div>
 
                     <div className="border border-red-500/30 rounded-sm p-4 space-y-3">
-                      <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Zone dangereuse</p>
                       <p className="text-xs text-warm-gray leading-relaxed">La suppression de votre compte est définitive et irréversible.</p>
                       {!showDeleteConfirm ? (
                         <button
