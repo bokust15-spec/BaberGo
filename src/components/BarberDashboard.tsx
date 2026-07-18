@@ -2259,6 +2259,11 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
                 {SERVICE_CATEGORIES.map(cat => (
                   <option key={cat.id} value={cat.id} className={theme === 'dark' ? 'bg-mid-brown' : ''}>{cat.label}</option>
                 ))}
+                {/* This pro's own custom categories added via "+ Autre" above (e.g. "Tatouage")
+                    — so a réalisation can be tagged with them too, not just the fixed list. */}
+                {customSpecialties.map(word => (
+                  <option key={word} value={word} className={theme === 'dark' ? 'bg-mid-brown' : ''}>{word}</option>
+                ))}
               </select>
               <button
                 onClick={handleAddItem}
