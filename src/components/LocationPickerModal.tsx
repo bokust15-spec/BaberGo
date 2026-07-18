@@ -1,7 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { X, Check } from 'lucide-react';
+import { X, Check, Search } from 'lucide-react';
+
+interface PlaceResult {
+  label: string;
+  lat: number;
+  lng: number;
+}
 
 interface LocationPickerModalProps {
   theme: 'dark' | 'light';
@@ -23,6 +29,10 @@ export default function LocationPickerModal({ theme, initialCenter, onConfirm, o
   const [position, setPosition] = useState<{ lat: number; lng: number }>(
     initialCenter || { lat: DEFAULT_CENTER[0], lng: DEFAULT_CENTER[1] }
   );
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -60,6 +70,44 @@ export default function LocationPickerModal({ theme, initialCenter, onConfirm, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Lets the user find a reference point by name (e.g. "Aera Mall") instead of only
+  // tapping/dragging blindly on the map — Nominatim (OpenStreetMap's own geocoder) is
+  // free and needs no API key, matching this modal's existing no-key tile setup.
+  // Biased toward Morocco (countrycodes=ma) since that's the only market this app serves.
+  const searchPlace = async () => {
+    const q = searchQuery.trim();
+    if (!q) return;
+    setSearching(true);
+    setSearchError(null);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&countrycodes=ma&limit=5&q=${encodeURIComponent(q)}`
+      );
+      const data = await res.json();
+      const results: PlaceResult[] = (data || []).map((item: any) => ({
+        label: item.display_name,
+        lat: parseFloat(item.lat),
+        lng: parseFloat(item.lon),
+      }));
+      setSearchResults(results);
+      if (results.length === 0) setSearchError('Aucun lieu trouvé.');
+    } catch {
+      setSearchError('Recherche indisponible pour le moment.');
+    }
+    setSearching(false);
+  };
+
+  const selectSearchResult = (place: PlaceResult) => {
+    setPosition({ lat: place.lat, lng: place.lng });
+    setSearchResults([]);
+    setSearchQuery(place.label);
+    if (mapRef.current && markerRef.current) {
+      const latLng = L.latLng(place.lat, place.lng);
+      markerRef.current.setLatLng(latLng);
+      mapRef.current.setView(latLng, 16);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
       <div
@@ -70,9 +118,42 @@ export default function LocationPickerModal({ theme, initialCenter, onConfirm, o
           <span className={`text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Choisir un lieu sur la carte</span>
           <button onClick={onClose} className="text-warm-gray hover:text-gold transition-colors"><X size={18} /></button>
         </div>
-        <div ref={mapContainerRef} className="w-full h-72" />
+        <div className={`p-4 pb-0 relative`}>
+          <div className="relative">
+            <input
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setSearchError(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); searchPlace(); } }}
+              placeholder="Rechercher un lieu (ex: Aera Mall, Casablanca)"
+              className={`w-full pl-3 pr-10 py-2.5 rounded-lg text-xs outline-none border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white placeholder:text-warm-gray/50' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+            />
+            <button
+              onClick={searchPlace}
+              disabled={searching || !searchQuery.trim()}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-warm-gray hover:text-gold transition-colors disabled:opacity-40"
+              aria-label="Rechercher"
+            >
+              <Search size={15} />
+            </button>
+          </div>
+          {searchError && <p className="text-[10px] text-red-400 mt-1.5">{searchError}</p>}
+          {searchResults.length > 0 && (
+            <div className={`absolute left-4 right-4 z-10 mt-1 rounded-lg border max-h-48 overflow-y-auto shadow-lg ${theme === 'dark' ? 'bg-mid-brown border-gold/20' : 'bg-white border-gray-200'}`}>
+              {searchResults.map((place, i) => (
+                <button
+                  key={i}
+                  onClick={() => selectSearchResult(place)}
+                  className={`w-full text-left px-3 py-2 text-[11px] border-b last:border-b-0 transition-colors ${theme === 'dark' ? 'border-white/5 text-warm-gray hover:bg-black/30 hover:text-white' : 'border-gray-100 text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+                >
+                  {place.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div ref={mapContainerRef} className="w-full h-72 mt-3" />
         <div className="p-4">
-          <p className="text-[10px] text-warm-gray mb-3">Touchez la carte ou déplacez le repère pour choisir l'endroit exact.</p>
+          <p className="text-[10px] text-warm-gray mb-3">Touchez la carte ou déplacez le repère pour choisir l'endroit exact, ou recherchez un lieu ci-dessus.</p>
           <button
             onClick={() => onConfirm(position)}
             className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-gold text-black text-[10px] font-bold uppercase tracking-widest rounded-lg hover:bg-gold-light transition-colors"
