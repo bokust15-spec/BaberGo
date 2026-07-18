@@ -41,6 +41,13 @@
   @apply bg-cream text-gray-900;
 }
 
+/* The base --color-gold (#c9a84c) reads fine on the near-black dark theme but
+   is too pale against a white/cream background (poor contrast) — darken gold
+   TEXT specifically in light theme. Gold backgrounds/borders are unaffected. */
+.light .text-gold {
+  color: #8a6b1a;
+}
+
 .gold-gradient-text {
   @apply bg-linear-to-r from-gold via-gold-light to-gold bg-clip-text text-transparent;
 }
