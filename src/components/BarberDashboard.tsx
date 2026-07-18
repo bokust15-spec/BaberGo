@@ -1986,7 +1986,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
                     type="number"
                     min={0}
                     value={newServicePrice}
-                    onChange={(e) => setNewServicePrice(e.target.value)}
+                    onChange={(e) => setNewServicePrice(e.target.value.slice(0, 6))}
                     placeholder="Prix (DH)"
                     className={`p-2.5 rounded-sm border outline-none text-xs ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
                   />
