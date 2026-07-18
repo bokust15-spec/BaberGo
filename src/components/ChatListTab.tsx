@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { MessageCircle, ArrowLeft } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { motion } from 'motion/react';
+import { MessageCircle, ArrowLeft, Trash2 } from 'lucide-react';
 import { Appointment, UserProfile } from '../hooks/useFirebase';
 import { ChatConversation } from '../hooks/useChatInbox';
 import { chatPreviewLabel } from '../data/chatMessages';
 import { formatRelativeTime } from '../utils/relativeTime';
 import AppointmentChat from './AppointmentChat';
+import Avatar from './Avatar';
 
 interface ChatListTabProps {
   currentUid: string;
@@ -16,22 +18,32 @@ interface ChatListTabProps {
   onUpdateAppointment: (id: string, updates: Partial<Appointment>) => Promise<void>;
   onUpdateStatus: (id: string, status: Appointment['status']) => Promise<void>;
   onMarkAsRead: (appointmentId: string) => Promise<void>;
+  onDeleteConversation: (appointmentId: string) => Promise<void>;
   initialSelectedAppointmentId?: string | null;
   onInitialSelectedConsumed?: () => void;
 }
 
+// How far a row slides left to reveal the "Supprimer" button, in px.
+const REVEAL_WIDTH = 84;
+const LONG_PRESS_MS = 550;
+
 // Messenger-style conversation list for the dedicated "Chat" tab — a thin shell around
 // the existing AppointmentChat component (unchanged internally, it already manages its
 // own meta/messages subscriptions once mounted with an appointment). This shell only
-// adds the list, the Tout/Non lu filter, and marking a conversation as read.
+// adds the list, the Tout/Non lu filter, marking a conversation as read, and deleting a
+// conversation (swipe left or long-press to reveal Supprimer — "for me" only, see
+// hideChatForMe/firestore.rules' hidden/{uid}: the other party keeps their copy intact).
 //
 // Role is resolved PER CONVERSATION (clientId === currentUid), not fixed by account type —
 // a pro account can itself be the client on an appointment (booked another pro), and
 // firestore.rules requires the message's senderRole to match the uid's actual relationship
 // to that specific appointment, not the account's usual role.
-export default function ChatListTab({ currentUid, theme, conversations, barbers, services, clientPhone, onUpdateAppointment, onUpdateStatus, onMarkAsRead, initialSelectedAppointmentId, onInitialSelectedConsumed }: ChatListTabProps) {
+export default function ChatListTab({ currentUid, theme, conversations, barbers, services, clientPhone, onUpdateAppointment, onUpdateStatus, onMarkAsRead, onDeleteConversation, initialSelectedAppointmentId, onInitialSelectedConsumed }: ChatListTabProps) {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [revealedId, setRevealedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // A "Voir la conversation" link from the Réservation tab pre-selects a conversation —
   // consumed once so navigating back to the list and returning doesn't re-force it.
@@ -46,7 +58,7 @@ export default function ChatListTab({ currentUid, theme, conversations, barbers,
   const selected = conversations.find(c => c.appointment.id === selectedId) || null;
 
   // Marks read on open, and again whenever a new message arrives while this
-  // conversation stays the open one (selected.lastMessage?.id changes as useChatInbox's
+  // conversation stays the one open (selected.lastMessage?.id changes as useChatInbox's
   // subscription updates).
   useEffect(() => {
     if (selectedId) onMarkAsRead(selectedId);
@@ -64,6 +76,27 @@ export default function ChatListTab({ currentUid, theme, conversations, barbers,
     return { name: appointment.clientName || 'Client' };
   };
 
+  const startLongPress = (appointmentId: string) => {
+    longPressTimer.current = setTimeout(() => setRevealedId(appointmentId), LONG_PRESS_MS);
+  };
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleDeleteConversation = async (appointmentId: string) => {
+    setDeletingId(appointmentId);
+    try {
+      await onDeleteConversation(appointmentId);
+    } catch (e) {
+      console.error('Error deleting conversation:', e);
+    }
+    setDeletingId(null);
+    setRevealedId(null);
+  };
+
   const filtered = conversations.filter(c => filter === 'all' || c.unread);
   const textClass = theme === 'dark' ? 'text-white' : 'text-gray-900';
 
@@ -78,13 +111,7 @@ export default function ChatListTab({ currentUid, theme, conversations, barbers,
           <ArrowLeft size={14} /> Retour aux conversations
         </button>
         <div className="flex items-center gap-2 mb-1">
-          {other.avatarUrl ? (
-            <img src={other.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-gold/30" />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-gold/10 border border-gold/30 flex items-center justify-center text-gold text-xs font-bold shrink-0">
-              {other.name.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <Avatar src={other.avatarUrl} size="w-8 h-8" className="border border-gold/30" />
           <span className={`text-sm font-bold ${textClass}`}>{other.name}</span>
         </div>
         <AppointmentChat
@@ -127,32 +154,47 @@ export default function ChatListTab({ currentUid, theme, conversations, barbers,
         <div className="space-y-2">
           {filtered.map(({ appointment, lastMessage, unread }) => {
             const other = otherPartyInfo(appointment);
+            const isRevealed = revealedId === appointment.id;
             return (
-              <button
-                key={appointment.id}
-                onClick={() => setSelectedId(appointment.id)}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${theme === 'dark' ? 'border-gold/15 bg-mid-brown/20 hover:bg-mid-brown/30' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
-              >
-                {other.avatarUrl ? (
-                  <img src={other.avatarUrl} alt="" className="w-12 h-12 rounded-full object-cover border border-gold/30 shrink-0" />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-gold/10 border border-gold/30 flex items-center justify-center text-gold text-base font-bold shrink-0">
-                    {other.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={`text-sm truncate ${unread ? 'font-bold' : 'font-medium'} ${textClass}`}>{other.name}</span>
-                    {lastMessage && <span className="text-[10px] text-warm-gray shrink-0">{formatRelativeTime(lastMessage.createdAt)}</span>}
-                  </div>
-                  <div className="flex items-center justify-between gap-2 mt-0.5">
-                    <span className={`text-[11px] truncate ${unread ? `${textClass} font-semibold` : 'text-warm-gray'}`}>
-                      {lastMessage ? chatPreviewLabel(lastMessage) : 'Aucun message pour le moment'}
-                    </span>
-                    {unread && <span className="w-2 h-2 rounded-full bg-gold shrink-0" />}
-                  </div>
+              <div key={appointment.id} className="relative overflow-hidden rounded-xl">
+                <div className="absolute inset-y-0 right-0 flex items-stretch" style={{ width: REVEAL_WIDTH }}>
+                  <button
+                    onClick={() => handleDeleteConversation(appointment.id)}
+                    disabled={deletingId === appointment.id}
+                    className="flex-1 flex flex-col items-center justify-center gap-1 bg-red-500 text-white disabled:opacity-60"
+                  >
+                    <Trash2 size={16} />
+                    <span className="text-[8px] font-bold uppercase tracking-widest">{deletingId === appointment.id ? '...' : 'Supprimer'}</span>
+                  </button>
                 </div>
-              </button>
+                <motion.div
+                  drag="x"
+                  dragConstraints={{ left: -REVEAL_WIDTH, right: 0 }}
+                  dragElastic={0.1}
+                  animate={{ x: isRevealed ? -REVEAL_WIDTH : 0 }}
+                  transition={{ type: 'tween', duration: 0.18 }}
+                  onDragEnd={(_e, info) => setRevealedId(info.offset.x < -REVEAL_WIDTH / 2 ? appointment.id : null)}
+                  onPointerDown={() => startLongPress(appointment.id)}
+                  onPointerUp={cancelLongPress}
+                  onPointerLeave={cancelLongPress}
+                  onClick={() => { isRevealed ? setRevealedId(null) : setSelectedId(appointment.id); }}
+                  className={`relative w-full flex items-center gap-3 p-3 rounded-xl border text-left cursor-pointer touch-pan-y ${theme === 'dark' ? 'border-gold/15 bg-mid-brown hover:bg-mid-brown/80' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
+                >
+                  <Avatar src={other.avatarUrl} size="w-12 h-12" className="border border-gold/30" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`text-sm truncate ${unread ? 'font-bold' : 'font-medium'} ${textClass}`}>{other.name}</span>
+                      {lastMessage && <span className="text-[10px] text-warm-gray shrink-0">{formatRelativeTime(lastMessage.createdAt)}</span>}
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-0.5">
+                      <span className={`text-[11px] truncate ${unread ? `${textClass} font-semibold` : 'text-warm-gray'}`}>
+                        {lastMessage ? chatPreviewLabel(lastMessage) : 'Aucun message pour le moment'}
+                      </span>
+                      {unread && <span className="w-2 h-2 rounded-full bg-gold shrink-0" />}
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
             );
           })}
         </div>

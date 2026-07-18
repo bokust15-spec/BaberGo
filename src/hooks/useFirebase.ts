@@ -5,12 +5,16 @@ import {
   onAuthStateChanged,
   signOut,
   sendPasswordResetEmail,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  deleteUser,
   User as FirebaseUser
 } from 'firebase/auth';
 import {
   doc,
   getDoc,
   setDoc,
+  deleteDoc,
   serverTimestamp,
   collection,
   getDocs,
@@ -25,7 +29,7 @@ import {
   onSnapshot,
   increment
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject, listAll } from 'firebase/storage';
 import { auth, db, storage, handleFirestoreError, OperationType } from '../lib/firebase';
 
 export interface PortfolioItem {
@@ -115,6 +119,11 @@ export interface Appointment {
   counterDateTime?: any;
   negotiationStatus?: 'client_proposed' | 'barber_countered' | 'accepted' | 'declined';
   clientLocationShared?: boolean;
+  // Real GPS position of the client at the moment they booked (best-effort — absent if
+  // geolocation was refused/unavailable), used to show a real distance to the pro
+  // instead of a fake one. Same rounding as the pro's own locationLat/locationLng.
+  clientLat?: number;
+  clientLng?: number;
   clientNotes?: string;
   cancelledBy?: 'client' | 'barber';
   cancelReason?: 'late' | 'asked_to_cancel' | 'busy' | 'other';
@@ -748,6 +757,25 @@ export function useFirebase() {
     }
   };
 
+  // "Delete conversation" — for this user only (see firestore.rules' hidden/{uid} for
+  // why the chat itself isn't touched). Once hidden, useChatInbox filters it out of this
+  // user's own conversation list; the other party and admins are unaffected.
+  const subscribeToChatHidden = (appointmentId: string, callback: (hidden: boolean) => void) => {
+    if (!user) return () => {};
+    return onSnapshot(doc(db, 'appointmentChats', appointmentId, 'hidden', user.uid), (snap) => {
+      callback(snap.exists());
+    }, (error) => console.error('Error subscribing to chat hidden state:', error));
+  };
+
+  const hideChatForMe = async (appointmentId: string) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'appointmentChats', appointmentId, 'hidden', user.uid), { hiddenAt: serverTimestamp() });
+    } catch (error) {
+      console.error('Error hiding chat:', error);
+    }
+  };
+
   const sendCannedMessage = async (appointmentId: string, senderRole: 'client' | 'barber', cannedKey: string) => {
     if (!user) return;
     try {
@@ -893,6 +921,36 @@ export function useFirebase() {
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
     }
+  };
+
+  // Self-service account deletion. Firebase requires a recent sign-in to delete a user,
+  // so this re-authenticates with the account's own password first — throws (e.g.
+  // auth/wrong-password) if that fails, which the caller surfaces to the user. Scope is
+  // deliberately limited to this account's own profile doc and Storage files — past
+  // appointments/reviews/messages involving other users are left untouched, same as most
+  // marketplaces (deleting your account doesn't erase the other party's transaction
+  // history). onAuthStateChanged (already wired above) clears user/profile automatically
+  // once deleteUser() succeeds, exactly like a normal sign-out.
+  const deleteAccount = async (password: string) => {
+    if (!user || !user.email) throw new Error('Not signed in');
+    const credential = EmailAuthProvider.credential(user.email, password);
+    await reauthenticateWithCredential(user, credential);
+
+    const uid = user.uid;
+    const folders = [`avatars/${uid}`, `covers/${uid}`, `portfolios/${uid}`, `kyc/${uid}`];
+    await Promise.all(folders.map(async (folder) => {
+      try {
+        const { items } = await listAll(ref(storage, folder));
+        await Promise.all(items.map(item => deleteObject(item).catch(() => {})));
+      } catch {
+        // Folder may not exist for this account — nothing to clean up.
+      }
+    }));
+
+    // Not swallowed — if this fails (e.g. rules not yet republished), stop here rather
+    // than deleting the Auth account and leaving an orphaned Firestore profile behind.
+    await deleteDoc(doc(db, 'users', uid));
+    await deleteUser(user);
   };
 
   // Real per-pro "profile views" counter — a plain +1 on the barber's own doc each time
@@ -1251,9 +1309,12 @@ export function useFirebase() {
     subscribeToLastChatMessage,
     subscribeToChatReadReceipt,
     markChatAsRead,
+    subscribeToChatHidden,
+    hideChatForMe,
     addReview,
     updateBio,
     updatePhone,
+    deleteAccount,
     updateCity,
     updateAgeRange,
     incrementProfileView,

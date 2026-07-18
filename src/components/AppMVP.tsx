@@ -11,6 +11,7 @@ import SkeletonCard from './SkeletonCard';
 import MobilePostCard from './MobilePostCard';
 import DesktopPostCard from './DesktopPostCard';
 import ProfileRow from './ProfileRow';
+import Avatar from './Avatar';
 import ChatListTab from './ChatListTab';
 import MyBookingsSection from './MyBookingsSection';
 import { useChatInbox } from '../hooks/useChatInbox';
@@ -63,9 +64,13 @@ interface AppMVPProps {
   subscribeToLastChatMessage: (appointmentId: string, callback: (message: ChatMessage | null) => void) => () => void;
   subscribeToChatReadReceipt: (appointmentId: string, callback: (lastReadAt: any | null) => void) => () => void;
   markChatAsRead: (appointmentId: string) => Promise<void>;
+  subscribeToChatHidden: (appointmentId: string, callback: (hidden: boolean) => void) => () => void;
+  hideChatForMe: (appointmentId: string) => Promise<void>;
+  onUpdatePhone: (phone: string) => Promise<void>;
+  onDeleteAccount: (password: string) => Promise<void>;
 }
 
-export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews, onIncrementProfileView, onFetchLikeState, onToggleLike, barbersLoading, sharedPostId, sharedBarberId, subscribeToLastChatMessage, subscribeToChatReadReceipt, markChatAsRead }: AppMVPProps) {
+export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFirebase, clientLocation, appointments, onUpdateStatus, onUpdateAppointment, onAddReview, onClientBook, onGuestRegisterAndBook, initialCategory, onGetBarberReviews, onIncrementProfileView, onFetchLikeState, onToggleLike, barbersLoading, sharedPostId, sharedBarberId, subscribeToLastChatMessage, subscribeToChatReadReceipt, markChatAsRead, subscribeToChatHidden, hideChatForMe, onUpdatePhone, onDeleteAccount }: AppMVPProps) {
   const [activeTab, setActiveTab] = useState<'search' | 'bookings' | 'chat'>('search');
   const [chatInitialSelectedId, setChatInitialSelectedId] = useState<string | null>(null);
   const [resultsTab, setResultsTab] = useState<'pourVous' | 'profils'>('pourVous');
@@ -73,7 +78,14 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   const selectedBarber = selectedEntry?.barber ?? null;
   const [showBooking, setShowBooking] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [uidCopied, setUidCopied] = useState(false);
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const [phoneInput, setPhoneInput] = useState('');
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [phoneSaved, setPhoneSaved] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null);
   const openLightbox = (photos: LightboxPhoto[], index: number) => setLightbox({ photos, index });
 
@@ -146,7 +158,8 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
     appointments,
     profile?.uid,
     subscribeToLastChatMessage,
-    subscribeToChatReadReceipt
+    subscribeToChatReadReceipt,
+    subscribeToChatHidden
   );
 
   // Real distance between the client and a barber's own saved GPS location when the pro
@@ -184,8 +197,11 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
       } else if (b.categories && b.categories.length > 0) {
         // No photos published yet, but the pro has picked categories — make them
         // discoverable by category anyway (search shouldn't require a portfolio),
-        // using their profile photo in place of a specific realization.
-        const image = b.avatarUrl || b.coverUrl || avatarFor(b.uid);
+        // using their profile photo in place of a specific realization. This entry
+        // never reaches the Publications feed (hasRealPhoto: false below), so this
+        // placeholder value is never actually rendered as a photo — avatar display
+        // reads from entry.barber.avatarUrl via entryAvatarUrl() instead.
+        const image = b.avatarUrl || b.coverUrl || '';
         const startingPrice = b.services && b.services.length > 0
           ? Math.min(...b.services.map(s => s.price))
           : 0;
@@ -240,6 +256,12 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   // here (their avatar isn't a real "post").
   const postEntries = useMemo(() => filteredEntries.filter(e => e.hasRealPhoto), [filteredEntries]);
 
+  // A stock "face" is only ever appropriate for demo content (isMock) — a real pro with
+  // no uploaded avatar gets no fallback here, so the Avatar component shows its generic
+  // gray placeholder instead of a stranger's stock photo.
+  const entryAvatarUrl = (entry: FeedEntry): string | undefined =>
+    entry.barber.avatarUrl || (entry.isMock ? avatarFor(entry.barber.uid) : undefined);
+
   // The same set of photos shown in the grid below, so opening one from there lets the
   // viewer keep scrolling left/right through every other post instead of being stuck on
   // a single picture.
@@ -250,7 +272,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
     price: entry.item.price,
     createdAt: entry.item.createdAt || entry.barber.createdAt,
     barberName: `${entry.barber.firstName} ${entry.barber.lastName}`,
-    barberAvatarUrl: entry.barber.avatarUrl || avatarFor(entry.barber.uid),
+    barberAvatarUrl: entryAvatarUrl(entry),
     postId: hashPostId(entry.barber.uid, entry.item.url),
     onBarberClick: () => { setLightbox(null); openEntry(entry); },
   })), [postEntries]);
@@ -258,6 +280,41 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   const handleLogoutAll = () => {
     onLogoutFirebase();
     onLogout();
+  };
+
+  const handleOpenAccountSettings = () => {
+    setPhoneInput(profile?.phone || '');
+    setPhoneSaved(false);
+    setShowDeleteConfirm(false);
+    setDeletePassword('');
+    setDeleteError(null);
+    setShowAccountSettings(true);
+  };
+
+  const handleSavePhone = async () => {
+    if (!phoneInput.trim()) return;
+    setSavingPhone(true);
+    try {
+      await onUpdatePhone(phoneInput.trim());
+      setPhoneSaved(true);
+    } catch (e) {
+      console.error('Error updating phone:', e);
+    }
+    setSavingPhone(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDeleteAccount(deletePassword);
+    } catch (e: any) {
+      setDeleteError(e?.code === 'auth/wrong-password' || e?.code === 'auth/invalid-credential'
+        ? 'Mot de passe incorrect.'
+        : 'La suppression a échoué. Réessayez.');
+      setDeleting(false);
+    }
   };
 
   const handleSearch = () => {
@@ -305,7 +362,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
       price: match.item.price,
       createdAt: match.item.createdAt || match.barber.createdAt,
       barberName: `${match.barber.firstName} ${match.barber.lastName}`,
-      barberAvatarUrl: match.barber.avatarUrl || avatarFor(match.barber.uid),
+      barberAvatarUrl: entryAvatarUrl(match),
       postId: sharedPostId,
       onBarberClick: () => { setLightbox(null); openEntry(match); },
     }], 0);
@@ -414,6 +471,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
             onUpdateAppointment={onUpdateAppointment}
             onUpdateStatus={onUpdateStatus}
             onMarkAsRead={markChatAsRead}
+            onDeleteConversation={hideChatForMe}
             initialSelectedAppointmentId={chatInitialSelectedId}
             onInitialSelectedConsumed={() => setChatInitialSelectedId(null)}
           />
@@ -460,13 +518,22 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
 
               <div className="p-6 -mt-12 relative">
                  <div className="flex gap-5 items-end mb-6">
-                    <button onClick={() => openLightbox([{ url: selectedBarber.avatarUrl || avatarFor(selectedBarber.uid) }], 0)} className="shrink-0">
-                      <img
-                        src={selectedBarber.avatarUrl || avatarFor(selectedBarber.uid)}
-                        alt={selectedBarber.firstName}
-                        className={`w-24 h-24 rounded-full object-cover shadow-xl border-4 ${theme === 'dark' ? 'border-black' : 'border-white'}`}
-                      />
-                    </button>
+                    {(() => {
+                      const avatarSrc = entryAvatarUrl(selectedEntry);
+                      const avatarNode = (
+                        <Avatar
+                          src={avatarSrc}
+                          alt={selectedBarber.firstName}
+                          size="w-24 h-24"
+                          className={`shadow-xl border-4 ${theme === 'dark' ? 'border-black' : 'border-white'}`}
+                        />
+                      );
+                      return avatarSrc ? (
+                        <button onClick={() => openLightbox([{ url: avatarSrc }], 0)} className="shrink-0">{avatarNode}</button>
+                      ) : (
+                        <div className="shrink-0">{avatarNode}</div>
+                      );
+                    })()}
                     <div className="flex-1 pb-1">
                        <h2 className={`text-2xl font-bebas tracking-wider mb-1 uppercase flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                          {selectedBarber.firstName} {selectedBarber.lastName}
@@ -596,7 +663,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                       {uniqueProfiles.slice(0, 5).map(({ entry, rating, reviewCount, distance }) => (
                         <ProfileRow
                           key={entry.barber.uid}
-                          avatarUrl={entry.barber.avatarUrl || avatarFor(entry.barber.uid)}
+                          avatarUrl={entryAvatarUrl(entry)}
                           name={`${entry.barber.firstName} ${entry.barber.lastName}`}
                           verified={entry.barber.kycStatus === 'verified'}
                           rating={rating}
@@ -616,7 +683,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                     {uniqueProfiles.map(({ entry, rating, reviewCount, distance }) => (
                       <ProfileRow
                         key={entry.barber.uid}
-                        avatarUrl={entry.barber.avatarUrl || avatarFor(entry.barber.uid)}
+                        avatarUrl={entryAvatarUrl(entry)}
                         name={`${entry.barber.firstName} ${entry.barber.lastName}`}
                         verified={entry.barber.kycStatus === 'verified'}
                         rating={rating}
@@ -648,7 +715,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                           caption={entry.item.name}
                           price={entry.item.price}
                           city={entry.city}
-                          barberAvatarUrl={entry.barber.avatarUrl || avatarFor(entry.barber.uid)}
+                          barberAvatarUrl={entryAvatarUrl(entry)}
                           barberName={`${entry.barber.firstName} ${entry.barber.lastName}`}
                           verified={entry.barber.kycStatus === 'verified'}
                           onOpenPhoto={() => openLightbox(feedLightboxPhotos, i)}
@@ -678,7 +745,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                           price={entry.item.price}
                           city={entry.city}
                           createdAtLabel={(entry.item.createdAt || entry.barber.createdAt) ? formatRelativeTime(entry.item.createdAt || entry.barber.createdAt) : undefined}
-                          barberAvatarUrl={entry.barber.avatarUrl || avatarFor(entry.barber.uid)}
+                          barberAvatarUrl={entryAvatarUrl(entry)}
                           barberName={`${entry.barber.firstName} ${entry.barber.lastName}`}
                           verified={entry.barber.kycStatus === 'verified'}
                           theme={theme}
@@ -774,51 +841,114 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
               className={`w-full max-w-sm border rounded-sm overflow-hidden transition-all duration-300 ${theme === 'dark' ? 'bg-mid-brown border-gold/30' : 'bg-white border-gray-200 shadow-2xl'}`}
             >
                <div className="p-6 border-b border-gold/10 flex justify-between items-center bg-gold/5">
-                  <h3 className="font-bebas text-xl text-gold tracking-widest uppercase">Mon Compte</h3>
+                  <h3 className="font-bebas text-xl text-gold tracking-widest uppercase">{showAccountSettings ? 'Paramètres du compte' : 'Mon Compte'}</h3>
                   <button onClick={() => setShowProfileModal(false)} className="text-warm-gray hover:text-gold transition-colors"><X size={20} /></button>
                </div>
 
-               <div className="p-8 text-center space-y-6">
-                  <div className="w-20 h-20 bg-gold/10 rounded-full border-2 border-gold flex items-center justify-center mx-auto">
-                     <User size={40} className="text-gold" />
-                  </div>
-                  <div>
-                    <h4 className={`text-2xl font-bebas tracking-wider uppercase ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{profile.firstName} {profile.lastName}</h4>
-                    <p className="text-gold text-[10px] font-bold uppercase tracking-widest mt-1">Membre BarberGo</p>
-                  </div>
-                  <div className="space-y-2">
-                     <div className={`p-4 rounded-sm border flex justify-between items-center ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
-                        <span className="text-[10px] text-warm-gray uppercase font-bold">Email</span>
-                        <span className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{profile.email}</span>
-                     </div>
-                     <div className={`p-4 rounded-sm border flex justify-between items-center ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
-                        <span className="text-[10px] text-warm-gray uppercase font-bold">Mobile</span>
-                        <span className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{profile.phone}</span>
-                     </div>
-                     {/* Pour donner/vérifier un accès admin dans Firebase Console, il faut
-                         l'UID exact de ce compte — copier-coller ici évite toute erreur de
-                         recopie manuelle d'un identifiant qui mélange l, I, O, 0... */}
-                     <button
-                       type="button"
-                       onClick={() => {
-                         navigator.clipboard?.writeText(profile.uid).then(() => {
-                           setUidCopied(true);
-                           setTimeout(() => setUidCopied(false), 2000);
-                         });
-                       }}
-                       className={`w-full p-4 rounded-sm border flex justify-between items-center text-left ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}
-                     >
-                       <span className="text-[10px] text-warm-gray uppercase font-bold">Identifiant (UID)</span>
-                       <span className="text-[10px] text-gold font-bold uppercase tracking-widest">{uidCopied ? 'Copié !' : 'Copier'}</span>
-                     </button>
-                  </div>
-                  <button
-                    onClick={handleLogoutAll}
-                    className="w-full py-4 border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-all rounded-sm text-[10px] font-bold uppercase tracking-widest"
-                  >
-                    Déconnexion
-                  </button>
-               </div>
+               {!showAccountSettings ? (
+                 <div className="p-8 text-center space-y-6">
+                    <div className="w-20 h-20 bg-gold/10 rounded-full border-2 border-gold flex items-center justify-center mx-auto">
+                       <User size={40} className="text-gold" />
+                    </div>
+                    <div>
+                      <h4 className={`text-2xl font-bebas tracking-wider uppercase ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{profile.firstName} {profile.lastName}</h4>
+                      <p className="text-gold text-[10px] font-bold uppercase tracking-widest mt-1">Membre BarberGo</p>
+                    </div>
+                    <div className="space-y-2">
+                       <div className={`p-4 rounded-sm border flex justify-between items-center ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                          <span className="text-[10px] text-warm-gray uppercase font-bold">Email</span>
+                          <span className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{profile.email}</span>
+                       </div>
+                       <div className={`p-4 rounded-sm border flex justify-between items-center ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                          <span className="text-[10px] text-warm-gray uppercase font-bold">Mobile</span>
+                          <span className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{profile.phone}</span>
+                       </div>
+                       <button
+                         type="button"
+                         onClick={handleOpenAccountSettings}
+                         className={`w-full p-4 rounded-sm border flex justify-between items-center text-left ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}
+                       >
+                         <span className="text-[10px] text-warm-gray uppercase font-bold">Paramètres du compte</span>
+                         <ChevronRight size={14} className="text-gold" />
+                       </button>
+                    </div>
+                    <button
+                      onClick={handleLogoutAll}
+                      className="w-full py-4 border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-all rounded-sm text-[10px] font-bold uppercase tracking-widest"
+                    >
+                      Déconnexion
+                    </button>
+                 </div>
+               ) : (
+                 <div className="p-6 text-left space-y-5">
+                    <button
+                      onClick={() => setShowAccountSettings(false)}
+                      className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-warm-gray hover:text-gold transition-colors"
+                    >
+                      <ArrowLeft size={14} /> Retour
+                    </button>
+
+                    <div className="space-y-2">
+                      <span className="text-[10px] text-warm-gray uppercase font-bold block">Changer de numéro</span>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="text"
+                          value={phoneInput}
+                          onChange={(e) => { setPhoneInput(e.target.value); setPhoneSaved(false); }}
+                          placeholder="+212 6 XX XX XX XX"
+                          className={`flex-1 px-4 py-2.5 text-xs outline-none rounded-lg border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+                        />
+                        <button
+                          onClick={handleSavePhone}
+                          disabled={savingPhone || !phoneInput.trim()}
+                          className="px-5 py-2.5 bg-gold text-black text-[10px] uppercase font-bold tracking-widest hover:bg-gold-light rounded-lg disabled:opacity-40 shrink-0"
+                        >
+                          {savingPhone ? 'Enregistrement...' : 'Enregistrer'}
+                        </button>
+                      </div>
+                      {phoneSaved && <p className="text-[10px] text-emerald-400 font-bold uppercase">Numéro mis à jour !</p>}
+                    </div>
+
+                    <div className="border border-red-500/30 rounded-sm p-4 space-y-3">
+                      <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Zone dangereuse</p>
+                      <p className="text-xs text-warm-gray leading-relaxed">La suppression de votre compte est définitive et irréversible.</p>
+                      {!showDeleteConfirm ? (
+                        <button
+                          onClick={() => setShowDeleteConfirm(true)}
+                          className="w-full py-3 border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-all rounded-sm text-[10px] font-bold uppercase tracking-widest"
+                        >
+                          Supprimer mon compte
+                        </button>
+                      ) : (
+                        <div className="space-y-2">
+                          <input
+                            type="password"
+                            value={deletePassword}
+                            onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(null); }}
+                            placeholder="Votre mot de passe"
+                            className={`w-full px-4 py-2.5 text-xs outline-none rounded-lg border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+                          />
+                          {deleteError && <p className="text-[10px] text-red-500">{deleteError}</p>}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); setDeleteError(null); }}
+                              className="flex-1 py-2.5 border border-white/10 text-warm-gray text-[10px] font-bold uppercase tracking-widest rounded-sm"
+                            >
+                              Annuler
+                            </button>
+                            <button
+                              onClick={handleDeleteAccount}
+                              disabled={!deletePassword || deleting}
+                              className="flex-1 py-2.5 bg-red-500 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm disabled:opacity-40"
+                            >
+                              {deleting ? 'Suppression...' : 'Confirmer la suppression'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                 </div>
+               )}
             </motion.div>
           </motion.div>
         )}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Heart, Share2, MapPin, BadgeCheck, Layers } from 'lucide-react';
+import Avatar from './Avatar';
 
 interface MobilePostCardProps {
   postId: string;
@@ -10,7 +11,7 @@ interface MobilePostCardProps {
   caption: string;
   price: number;
   city: string;
-  barberAvatarUrl: string;
+  barberAvatarUrl?: string;
   barberName: string;
   verified?: boolean;
   onOpenPhoto: () => void;
@@ -103,7 +104,7 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
         onClick={(e) => { e.stopPropagation(); onOpenProfile(); }}
         className="absolute top-3 left-3 flex items-center gap-2 z-10"
       >
-        <img src={barberAvatarUrl} alt="" className="w-9 h-9 rounded-full object-cover border-2 border-white/80 shrink-0" />
+        <Avatar src={barberAvatarUrl} size="w-9 h-9" className="border-2 border-white/80" />
         <span className="text-white text-xs font-bold drop-shadow flex items-center gap-1 max-w-[42vw] truncate">
           {barberName}
           {verified && <BadgeCheck size={13} className="text-gold shrink-0" />}

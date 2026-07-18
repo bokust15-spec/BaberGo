@@ -1,9 +1,10 @@
 import React from 'react';
 import { Star, BadgeCheck, Navigation } from 'lucide-react';
 import { categoryLabel } from '../data/categories';
+import Avatar from './Avatar';
 
 interface ProfileRowProps {
-  avatarUrl: string;
+  avatarUrl?: string;
   name: string;
   verified?: boolean;
   // null rating = "Nouveau" (real pro with zero reviews yet — never a made-up number).
@@ -31,7 +32,7 @@ const ProfileRow: React.FC<ProfileRowProps> = ({ avatarUrl, name, verified, rati
       onClick={onClick}
       className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${theme === 'dark' ? 'border-gold/15 bg-mid-brown/20 hover:bg-mid-brown/30' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
     >
-      <img src={avatarUrl} alt="" className="w-12 h-12 rounded-full object-cover border border-gold/30 shrink-0" />
+      <Avatar src={avatarUrl} size="w-12 h-12" className="border border-gold/30" />
       <div className="min-w-0 flex-1">
         <div className={`text-sm font-bold flex items-center gap-1 truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
           {name}

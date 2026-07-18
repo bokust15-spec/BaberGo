@@ -34,6 +34,7 @@ import SkeletonCard from './SkeletonCard';
 import MobilePostCard from './MobilePostCard';
 import DesktopPostCard from './DesktopPostCard';
 import ProfileRow from './ProfileRow';
+import Avatar from './Avatar';
 import SearchBar from './SearchBar';
 import BookingModal from './BookingModal';
 import ChatListTab from './ChatListTab';
@@ -60,17 +61,6 @@ function toDate(value: any): Date {
   return value instanceof Date ? value : value.toDate();
 }
 
-// Deterministic mock distance (km) between the barber and a given appointment,
-// consistent with the existing hash-based mock location pattern used elsewhere.
-export function getDistanceKm(id: string) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const raw = Math.abs(hash) % 150;
-  return Math.round((0.5 + (raw / 150) * 14.5) * 10) / 10;
-}
-
 interface BarberDashboardProps {
   profile: UserProfile;
   barbers: UserProfile[];
@@ -84,6 +74,7 @@ interface BarberDashboardProps {
   theme: 'dark' | 'light';
   onUpdateBio: (bio: string) => Promise<void>;
   onUpdatePhone: (phone: string) => Promise<void>;
+  onDeleteAccount: (password: string) => Promise<void>;
   onUpdateCity: (city: string) => Promise<void>;
   onUpdateAgeRange: (ageRange: UserProfile['ageRange']) => Promise<void>;
   onUpdateLocation: (lat: number, lng: number, mode: 'manual' | 'auto') => Promise<void>;
@@ -106,6 +97,8 @@ interface BarberDashboardProps {
   subscribeToLastChatMessage: (appointmentId: string, callback: (message: ChatMessage | null) => void) => () => void;
   subscribeToChatReadReceipt: (appointmentId: string, callback: (lastReadAt: any | null) => void) => () => void;
   markChatAsRead: (appointmentId: string) => Promise<void>;
+  subscribeToChatHidden: (appointmentId: string, callback: (hidden: boolean) => void) => () => void;
+  hideChatForMe: (appointmentId: string) => Promise<void>;
 }
 
 export default function BarberDashboard({
@@ -121,6 +114,7 @@ export default function BarberDashboard({
   theme,
   onUpdateBio,
   onUpdatePhone,
+  onDeleteAccount,
   onUpdateCity,
   onUpdateAgeRange,
   onUpdateLocation,
@@ -142,7 +136,9 @@ export default function BarberDashboard({
   barbersLoading,
   subscribeToLastChatMessage,
   subscribeToChatReadReceipt,
-  markChatAsRead
+  markChatAsRead,
+  subscribeToChatHidden,
+  hideChatForMe
 }: BarberDashboardProps) {
   const [activeTab, setActiveTab] = useState<'home' | 'profile' | 'bookings' | 'chat'>('home');
   const [chatInitialSelectedId, setChatInitialSelectedId] = useState<string | null>(null);
@@ -152,7 +148,8 @@ export default function BarberDashboard({
     appointments,
     profile.uid,
     subscribeToLastChatMessage,
-    subscribeToChatReadReceipt
+    subscribeToChatReadReceipt,
+    subscribeToChatHidden
   );
   // A pro can also book another pro (same booking flow as a client) — those appointments
   // have this account as clientId, not barberId. Split them out so the Réservation tab
@@ -180,9 +177,14 @@ export default function BarberDashboard({
   const moroccanCities = useMemo(() => Object.keys(CITY_COORDS).sort(), []);
   const [phoneInput, setPhoneInput] = useState(profile.phone || '');
   const [savingPhone, setSavingPhone] = useState(false);
+  const [phoneSaved, setPhoneSaved] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [showPayModal, setShowPayModal] = useState(false);
-  const [uidCopied, setUidCopied] = useState(false);
   const [kycError, setKycError] = useState<string | null>(null);
 
   // Notification badge on the "Réservation" tab — real count of new booking requests
@@ -243,10 +245,34 @@ export default function BarberDashboard({
     setSavingPhone(true);
     try {
       await onUpdatePhone(phoneInput.trim());
+      setPhoneSaved(true);
     } catch (e) {
       console.error('Error updating phone:', e);
     }
     setSavingPhone(false);
+  };
+
+  const handleOpenAccountSettings = () => {
+    setPhoneInput(profile.phone || '');
+    setPhoneSaved(false);
+    setShowDeleteConfirm(false);
+    setDeletePassword('');
+    setDeleteError(null);
+    setShowAccountSettings(true);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDeleteAccount(deletePassword);
+    } catch (e: any) {
+      setDeleteError(e?.code === 'auth/wrong-password' || e?.code === 'auth/invalid-credential'
+        ? 'Mot de passe incorrect.'
+        : 'La suppression a échoué. Réessayez.');
+      setDeleting(false);
+    }
   };
 
   const handleKycFileSelected = async (type: 'cin' | 'selfie', file: File) => {
@@ -284,7 +310,9 @@ export default function BarberDashboard({
       if (b.portfolioItems && b.portfolioItems.length > 0) {
         b.portfolioItems.forEach(item => items.push({ barber: b, item, isMock: false, hasRealPhoto: true, rating: 4.9, city: b.city || 'Casablanca', availableDays }));
       } else if (b.categories && b.categories.length > 0) {
-        const image = b.avatarUrl || b.coverUrl || avatarFor(b.uid);
+        // Never rendered as a photo (hasRealPhoto: false below) — avatar display for
+        // this entry reads entry.barber.avatarUrl directly via entryAvatarUrl() instead.
+        const image = b.avatarUrl || b.coverUrl || '';
         const startingPrice = b.services && b.services.length > 0 ? Math.min(...b.services.map(s => s.price)) : 0;
         b.categories.forEach(categoryId => {
           items.push({
@@ -506,6 +534,7 @@ export default function BarberDashboard({
               theme={theme}
               isBlocked={isBlocked}
               barberServices={profile.services || []}
+              barberLocation={profile.locationLat !== undefined && profile.locationLng !== undefined ? { lat: profile.locationLat, lng: profile.locationLng } : undefined}
               onUpdateStatus={onUpdateStatus}
               onUpdateAppointment={onUpdateAppointment}
               onOpenChat={(appointmentId) => { setChatInitialSelectedId(appointmentId); setActiveTab('chat'); }}
@@ -540,6 +569,7 @@ export default function BarberDashboard({
             onUpdateAppointment={async (id, updates) => { if (onUpdateAppointment) await onUpdateAppointment(id, updates); }}
             onUpdateStatus={onUpdateStatus}
             onMarkAsRead={markChatAsRead}
+            onDeleteConversation={hideChatForMe}
             initialSelectedAppointmentId={chatInitialSelectedId}
             onInitialSelectedConsumed={() => setChatInitialSelectedId(null)}
           />
@@ -643,51 +673,114 @@ export default function BarberDashboard({
               className={`w-full max-w-sm border rounded-sm overflow-hidden transition-all duration-300 ${theme === 'dark' ? 'bg-mid-brown border-gold/30' : 'bg-white border-gray-200 shadow-2xl'}`}
             >
               <div className="p-6 border-b border-gold/10 flex justify-between items-center bg-gold/5">
-                <h3 className="font-bebas text-xl text-gold tracking-widest uppercase">Mon Compte</h3>
+                <h3 className="font-bebas text-xl text-gold tracking-widest uppercase">{showAccountSettings ? 'Paramètres du compte' : 'Mon Compte'}</h3>
                 <button onClick={() => setShowAccountModal(false)} className="text-warm-gray hover:text-gold transition-colors"><X size={20} /></button>
               </div>
 
-              <div className="p-8 text-center space-y-6">
-                <div className="w-20 h-20 bg-gold/10 rounded-full border-2 border-gold flex items-center justify-center mx-auto">
-                  <User size={40} className="text-gold" />
-                </div>
-                <div>
-                  <h4 className={`text-2xl font-bebas tracking-wider uppercase ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{profile.firstName} {profile.lastName}</h4>
-                  <p className="text-gold text-[10px] font-bold uppercase tracking-widest mt-1">Membre BarberGo</p>
-                </div>
-                <div className="space-y-2">
-                  <div className={`p-4 rounded-sm border flex justify-between items-center ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
-                    <span className="text-[10px] text-warm-gray uppercase font-bold">Email</span>
-                    <span className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{profile.email}</span>
+              {!showAccountSettings ? (
+                <div className="p-8 text-center space-y-6">
+                  <div className="w-20 h-20 bg-gold/10 rounded-full border-2 border-gold flex items-center justify-center mx-auto">
+                    <User size={40} className="text-gold" />
                   </div>
-                  <div className={`p-4 rounded-sm border flex justify-between items-center ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
-                    <span className="text-[10px] text-warm-gray uppercase font-bold">Mobile</span>
-                    <span className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{profile.phone}</span>
+                  <div>
+                    <h4 className={`text-2xl font-bebas tracking-wider uppercase ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{profile.firstName} {profile.lastName}</h4>
+                    <p className="text-gold text-[10px] font-bold uppercase tracking-widest mt-1">Membre BarberGo</p>
                   </div>
-                  {/* Pour donner/vérifier un accès admin dans Firebase Console, il faut
-                      l'UID exact de ce compte — copier-coller ici évite toute erreur de
-                      recopie manuelle d'un identifiant qui mélange l, I, O, 0... */}
+                  <div className="space-y-2">
+                    <div className={`p-4 rounded-sm border flex justify-between items-center ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                      <span className="text-[10px] text-warm-gray uppercase font-bold">Email</span>
+                      <span className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{profile.email}</span>
+                    </div>
+                    <div className={`p-4 rounded-sm border flex justify-between items-center ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                      <span className="text-[10px] text-warm-gray uppercase font-bold">Mobile</span>
+                      <span className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{profile.phone}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleOpenAccountSettings}
+                      className={`w-full p-4 rounded-sm border flex justify-between items-center text-left ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}
+                    >
+                      <span className="text-[10px] text-warm-gray uppercase font-bold">Paramètres du compte</span>
+                      <ChevronRight size={14} className="text-gold" />
+                    </button>
+                  </div>
                   <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard?.writeText(profile.uid).then(() => {
-                        setUidCopied(true);
-                        setTimeout(() => setUidCopied(false), 2000);
-                      });
-                    }}
-                    className={`w-full p-4 rounded-sm border flex justify-between items-center text-left ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}
+                    onClick={handleLogoutAll}
+                    className="w-full py-4 border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-all rounded-sm text-[10px] font-bold uppercase tracking-widest"
                   >
-                    <span className="text-[10px] text-warm-gray uppercase font-bold">Identifiant (UID)</span>
-                    <span className="text-[10px] text-gold font-bold uppercase tracking-widest">{uidCopied ? 'Copié !' : 'Copier'}</span>
+                    Déconnexion
                   </button>
                 </div>
-                <button
-                  onClick={handleLogoutAll}
-                  className="w-full py-4 border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-all rounded-sm text-[10px] font-bold uppercase tracking-widest"
-                >
-                  Déconnexion
-                </button>
-              </div>
+              ) : (
+                <div className="p-6 text-left space-y-5">
+                  <button
+                    onClick={() => setShowAccountSettings(false)}
+                    className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-warm-gray hover:text-gold transition-colors"
+                  >
+                    <ArrowLeft size={14} /> Retour
+                  </button>
+
+                  <div className="space-y-2">
+                    <span className="text-[10px] text-warm-gray uppercase font-bold block">Changer de numéro</span>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        value={phoneInput}
+                        onChange={(e) => { setPhoneInput(e.target.value); setPhoneSaved(false); }}
+                        placeholder="+212 6 XX XX XX XX"
+                        className={`flex-1 px-4 py-2.5 text-xs outline-none rounded-lg border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+                      />
+                      <button
+                        onClick={handleSavePhone}
+                        disabled={savingPhone || !phoneInput.trim()}
+                        className="px-5 py-2.5 bg-gold text-black text-[10px] uppercase font-bold tracking-widest hover:bg-gold-light rounded-lg disabled:opacity-40 shrink-0"
+                      >
+                        {savingPhone ? 'Enregistrement...' : 'Enregistrer'}
+                      </button>
+                    </div>
+                    {phoneSaved && <p className="text-[10px] text-emerald-400 font-bold uppercase">Numéro mis à jour !</p>}
+                  </div>
+
+                  <div className="border border-red-500/30 rounded-sm p-4 space-y-3">
+                    <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Zone dangereuse</p>
+                    <p className="text-xs text-warm-gray leading-relaxed">La suppression de votre compte est définitive et irréversible.</p>
+                    {!showDeleteConfirm ? (
+                      <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="w-full py-3 border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-all rounded-sm text-[10px] font-bold uppercase tracking-widest"
+                      >
+                        Supprimer mon compte
+                      </button>
+                    ) : (
+                      <div className="space-y-2">
+                        <input
+                          type="password"
+                          value={deletePassword}
+                          onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(null); }}
+                          placeholder="Votre mot de passe"
+                          className={`w-full px-4 py-2.5 text-xs outline-none rounded-lg border ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+                        />
+                        {deleteError && <p className="text-[10px] text-red-500">{deleteError}</p>}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); setDeleteError(null); }}
+                            className="flex-1 py-2.5 border border-white/10 text-warm-gray text-[10px] font-bold uppercase tracking-widest rounded-sm"
+                          >
+                            Annuler
+                          </button>
+                          <button
+                            onClick={handleDeleteAccount}
+                            disabled={!deletePassword || deleting}
+                            className="flex-1 py-2.5 bg-red-500 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm disabled:opacity-40"
+                          >
+                            {deleting ? 'Suppression...' : 'Confirmer la suppression'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}
@@ -730,6 +823,12 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
   // here (their avatar isn't a real "post").
   const postEntries = useMemo(() => feedItems.filter(e => e.hasRealPhoto), [feedItems]);
 
+  // A stock "face" is only ever appropriate for demo content (isMock) — a real pro with
+  // no uploaded avatar gets no fallback here, so the Avatar component shows its generic
+  // gray placeholder instead of a stranger's stock photo.
+  const entryAvatarUrl = (entry: FeedEntry): string | undefined =>
+    entry.barber.avatarUrl || (entry.isMock ? avatarFor(entry.barber.uid) : undefined);
+
   // The same set of photos shown in the grid below, so opening one from there lets the
   // viewer keep scrolling left/right through every other post instead of being stuck on
   // a single picture.
@@ -740,7 +839,7 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
     price: entry.item.price,
     createdAt: entry.item.createdAt || entry.barber.createdAt,
     barberName: `${entry.barber.firstName} ${entry.barber.lastName}`,
-    barberAvatarUrl: entry.barber.avatarUrl || avatarFor(entry.barber.uid),
+    barberAvatarUrl: entryAvatarUrl(entry),
     postId: hashPostId(entry.barber.uid, entry.item.url),
     onBarberClick: () => { setLightbox(null); onSelectEntry(entry); },
   })), [postEntries, onSelectEntry]);
@@ -841,7 +940,7 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
             {uniqueProfiles.slice(0, 5).map(({ entry, rating, reviewCount, distance }) => (
               <ProfileRow
                 key={entry.barber.uid}
-                avatarUrl={entry.barber.avatarUrl || avatarFor(entry.barber.uid)}
+                avatarUrl={entryAvatarUrl(entry)}
                 name={`${entry.barber.firstName} ${entry.barber.lastName}`}
                 verified={entry.barber.kycStatus === 'verified'}
                 rating={rating}
@@ -861,7 +960,7 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
           {uniqueProfiles.map(({ entry, rating, reviewCount, distance }) => (
             <ProfileRow
               key={entry.barber.uid}
-              avatarUrl={entry.barber.avatarUrl || avatarFor(entry.barber.uid)}
+              avatarUrl={entryAvatarUrl(entry)}
               name={`${entry.barber.firstName} ${entry.barber.lastName}`}
               verified={entry.barber.kycStatus === 'verified'}
               rating={rating}
@@ -899,7 +998,7 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
               caption={entry.item.name}
               price={entry.item.price}
               city={entry.city}
-              barberAvatarUrl={entry.barber.avatarUrl || avatarFor(entry.barber.uid)}
+              barberAvatarUrl={entryAvatarUrl(entry)}
               barberName={`${entry.barber.firstName} ${entry.barber.lastName}`}
               verified={entry.barber.kycStatus === 'verified'}
               onOpenPhoto={() => setLightbox({ photos: feedLightboxPhotos, index: i })}
@@ -922,7 +1021,7 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
               price={entry.item.price}
               city={entry.city}
               createdAtLabel={(entry.item.createdAt || entry.barber.createdAt) ? formatRelativeTime(entry.item.createdAt || entry.barber.createdAt) : undefined}
-              barberAvatarUrl={entry.barber.avatarUrl || avatarFor(entry.barber.uid)}
+              barberAvatarUrl={entryAvatarUrl(entry)}
               barberName={`${entry.barber.firstName} ${entry.barber.lastName}`}
               verified={entry.barber.kycStatus === 'verified'}
               theme={theme}
@@ -1060,9 +1159,9 @@ function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook,
           <div className="flex gap-5 items-end mb-6">
             <button
               onClick={() => avatarUrl && setLightbox({ photos: [{ url: avatarUrl }], index: 0 })}
-              className={`w-24 h-24 rounded-full border-4 shrink-0 bg-gold flex items-center justify-center overflow-hidden shadow-xl ${theme === 'dark' ? 'border-mid-brown' : 'border-white'}`}
+              className="shrink-0"
             >
-              {avatarUrl ? <img src={avatarUrl} className="w-full h-full object-cover" alt="" /> : <span className="font-bebas text-3xl text-black">{barber.firstName[0]}{barber.lastName[0]}</span>}
+              <Avatar src={avatarUrl} size="w-24 h-24" className={`border-4 shadow-xl ${theme === 'dark' ? 'border-mid-brown' : 'border-white'}`} />
             </button>
             <div className="flex-1 pb-1 min-w-0">
               <h3 className={`text-2xl font-bebas tracking-wider mb-1 uppercase flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
@@ -2203,12 +2302,13 @@ interface BookingsTabProps {
   theme: 'dark' | 'light';
   isBlocked: boolean;
   barberServices: BarberService[];
+  barberLocation?: { lat: number; lng: number };
   onUpdateStatus: (id: string, status: Appointment['status']) => Promise<void>;
   onUpdateAppointment?: (id: string, updates: Partial<Appointment>) => Promise<void>;
   onOpenChat: (appointmentId: string) => void;
 }
 
-function BookingsTab({ appointments, theme, isBlocked, barberServices, onUpdateStatus, onUpdateAppointment, onOpenChat }: BookingsTabProps) {
+function BookingsTab({ appointments, theme, isBlocked, barberServices, barberLocation, onUpdateStatus, onUpdateAppointment, onOpenChat }: BookingsTabProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [proposingId, setProposingId] = useState<string | null>(null);
   const [proposedDateTime, setProposedDateTime] = useState('');
@@ -2221,6 +2321,15 @@ function BookingsTab({ appointments, theme, isBlocked, barberServices, onUpdateS
   const hasConflict = (app: Appointment) => appointments.some(other =>
     other.id !== app.id && other.status === 'confirmed' && toDate(other.dateTime).getTime() === toDate(app.dateTime).getTime()
   );
+
+  // Real distance to this specific booking — only shown when both the pro's own saved
+  // location and the client's real position captured at booking time are known. Never a
+  // made-up number: previously this used a fake hash of the appointment id, unrelated to
+  // either party's actual location.
+  const appointmentDistanceKm = (app: Appointment): number | null => {
+    if (!barberLocation || app.clientLat === undefined || app.clientLng === undefined) return null;
+    return distanceKm(barberLocation.lat, barberLocation.lng, app.clientLat, app.clientLng);
+  };
 
   const genderLabel = (g?: string) => g === 'homme' ? 'Homme' : g === 'femme' ? 'Femme' : 'Non précisé';
   const genderDot = (g?: string) => g === 'homme' ? 'bg-blue-400' : g === 'femme' ? 'bg-pink-400' : 'bg-gray-400';
@@ -2266,6 +2375,7 @@ function BookingsTab({ appointments, theme, isBlocked, barberServices, onUpdateS
             const date = toDate(app.dateTime);
             const expanded = expandedId === app.id;
             const conflict = app.status === 'pending' && hasConflict(app);
+            const distance = appointmentDistanceKm(app);
             return (
               <div key={app.id} className={`rounded-xl border overflow-hidden ${theme === 'dark' ? 'bg-mid-brown/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}>
                 <button
@@ -2284,7 +2394,9 @@ function BookingsTab({ appointments, theme, isBlocked, barberServices, onUpdateS
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[10px] text-warm-gray uppercase font-semibold">
                       <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${genderDot(app.clientGender)}`} /> {genderLabel(app.clientGender)}</span>
                       <span className="flex items-center gap-1"><Clock size={10} className="text-gold" /> {date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-                      <span className="flex items-center gap-1"><Navigation size={10} className="text-gold" /> {getDistanceKm(app.id)} km</span>
+                      {distance !== null && (
+                        <span className="flex items-center gap-1"><Navigation size={10} className="text-gold" /> {distance} km</span>
+                      )}
                     </div>
                   </div>
                   <div className="text-right shrink-0">

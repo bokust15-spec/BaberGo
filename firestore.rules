@@ -143,13 +143,15 @@ service cloud.firestore {
     // Cloud Function, both bigger changes than a rules tweak.
     function isValidAppointment(data) {
       return data.keys().hasAll(['clientId', 'barberId', 'serviceId', 'dateTime', 'status', 'totalPrice'])
-        && data.keys().size() >= 6 && data.keys().size() <= 14
+        && data.keys().size() >= 6 && data.keys().size() <= 16
         && data.clientId == request.auth.uid
         && data.barberId is string
         && data.serviceId is string
         && data.status in ['pending', 'confirmed', 'cancelled', 'completed']
         && isNum(data.totalPrice) && data.totalPrice > 0 && data.totalPrice <= 20000
-        && (!('proposedPrice' in data) || (isNum(data.proposedPrice) && data.proposedPrice > 0 && data.proposedPrice <= 20000));
+        && (!('proposedPrice' in data) || (isNum(data.proposedPrice) && data.proposedPrice > 0 && data.proposedPrice <= 20000))
+        && (!('clientLat' in data) || (isNum(data.clientLat) && data.clientLat >= -90 && data.clientLat <= 90))
+        && (!('clientLng' in data) || (isNum(data.clientLng) && data.clientLng >= -180 && data.clientLng <= 180));
     }
 
     // A cancellation reason is required from the client (never the pro) so the admin can
@@ -303,6 +305,11 @@ service cloud.firestore {
           && request.resource.data.ratingSum >= (('ratingSum' in resource.data) ? resource.data.ratingSum : 0) + 1
           && request.resource.data.ratingSum <= (('ratingSum' in resource.data) ? resource.data.ratingSum : 0) + 5
         );
+
+      // Self-service account deletion — the owner's own doc only. Their Storage files
+      // (avatar/cover/portfolio/kyc) are deleted client-side beforehand; past
+      // appointments/reviews/messages involving other users are intentionally left as-is.
+      allow delete: if isOwner(userId);
     }
 
     // Admin allowlist — one document per admin UID, created manually in the Firebase
@@ -448,6 +455,18 @@ service cloud.firestore {
         allow create, update: if isOwner(uid) && isChatParty(appointmentId)
           && request.resource.data.keys().hasOnly(['lastReadAt'])
           && request.resource.data.lastReadAt == request.time;
+      }
+
+      // "Supprimer la conversation" — pour moi seulement, comme Messenger/WhatsApp : la
+      // conversation et ses messages restent intacts pour l'autre partie (et pour
+      // l'admin), seule la présence dans la propre liste Chat de celui qui supprime
+      // change. Même schéma isolé que reads/{uid} ci-dessus, jamais l'autre partie.
+      match /hidden/{uid} {
+        allow get: if isOwner(uid) || isAdmin();
+        allow list: if false;
+        allow create: if isOwner(uid) && isChatParty(appointmentId)
+          && request.resource.data.keys().hasOnly(['hiddenAt'])
+          && request.resource.data.hiddenAt == request.time;
       }
     }
 

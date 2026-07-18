@@ -84,6 +84,7 @@ export default function App() {
     updateAppointmentStatus,
     updateBio,
     updatePhone,
+    deleteAccount,
     updateCity,
     updateAgeRange,
     updateLocation,
@@ -96,6 +97,8 @@ export default function App() {
     subscribeToLastChatMessage,
     subscribeToChatReadReceipt,
     markChatAsRead,
+    subscribeToChatHidden,
+    hideChatForMe,
     getKycSubmission,
     approveBarberKyc,
     rejectBarberKyc,
@@ -260,6 +263,23 @@ export default function App() {
     setAppointments(apps);
   };
 
+  // A fresh position captured right when a booking is confirmed — deliberately not
+  // relying on the possibly-stale/absent `clientLocation` state (only set if the client
+  // came in through "Trouver un professionnel autour de moi") so the distance shown to
+  // the pro for THIS booking reflects where the client actually was at the time. Never
+  // invents a number: absent on refusal/timeout/unsupported, same "no fake data"
+  // principle as the rest of the app (see BookingsTab's distance badge).
+  const getFreshClientLocation = (): Promise<{ lat: number; lng: number } | null> => {
+    return new Promise((resolve) => {
+      if (!('geolocation' in navigator)) { resolve(null); return; }
+      navigator.geolocation.getCurrentPosition(
+        (position) => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
+        () => resolve(null),
+        { timeout: 5000 }
+      );
+    });
+  };
+
   const handleClientBook = async (
     barberId: string,
     serviceId: string,
@@ -270,6 +290,7 @@ export default function App() {
     clientNotes?: string
   ) => {
     if (!user) return;
+    const freshLocation = await getFreshClientLocation();
     await createAppointment({
       clientId: user.uid,
       clientName: profile ? `${profile.firstName} ${profile.lastName}` : 'Client Anonyme',
@@ -282,7 +303,9 @@ export default function App() {
       totalPrice,
       proposedPrice,
       negotiationStatus: 'client_proposed',
-      clientNotes
+      clientNotes,
+      clientLat: freshLocation?.lat,
+      clientLng: freshLocation?.lng
     });
     const apps = await getAppointments(profile?.role || 'client');
     setAppointments(apps);
@@ -312,6 +335,7 @@ export default function App() {
       password: registerData.password
     });
     if (!uid) return;
+    const freshLocation = await getFreshClientLocation();
     await createAppointment({
       clientId: uid,
       clientName: registerData.firstName,
@@ -323,12 +347,15 @@ export default function App() {
       dateTime,
       totalPrice,
       negotiationStatus: 'client_proposed',
-      clientNotes
+      clientNotes,
+      clientLat: freshLocation?.lat,
+      clientLng: freshLocation?.lng
     });
   };
 
   const handleBookBarber = async (barberId: string, item: { name: string; price: number }, dateTime: Date, note?: string) => {
     if (!user || barberId === user.uid) return;
+    const freshLocation = await getFreshClientLocation();
     await createAppointment({
       clientId: user.uid,
       clientName: profile ? `${profile.firstName} ${profile.lastName}` : 'Client Anonyme',
@@ -339,7 +366,9 @@ export default function App() {
       serviceName: item.name,
       dateTime,
       totalPrice: item.price,
-      clientNotes: note
+      clientNotes: note,
+      clientLat: freshLocation?.lat,
+      clientLng: freshLocation?.lng
     });
     const apps = await getAppointments(profile?.role || 'client');
     setAppointments(apps);
@@ -450,6 +479,7 @@ export default function App() {
           theme={theme}
           onUpdateBio={updateBio}
           onUpdatePhone={updatePhone}
+          onDeleteAccount={deleteAccount}
           onUpdateCity={updateCity}
           onUpdateAgeRange={updateAgeRange}
           onUpdateLocation={updateLocation}
@@ -472,6 +502,8 @@ export default function App() {
           subscribeToLastChatMessage={subscribeToLastChatMessage}
           subscribeToChatReadReceipt={subscribeToChatReadReceipt}
           markChatAsRead={markChatAsRead}
+          subscribeToChatHidden={subscribeToChatHidden}
+          hideChatForMe={hideChatForMe}
         />
       );
     }
@@ -501,6 +533,10 @@ export default function App() {
         subscribeToLastChatMessage={subscribeToLastChatMessage}
         subscribeToChatReadReceipt={subscribeToChatReadReceipt}
         markChatAsRead={markChatAsRead}
+        subscribeToChatHidden={subscribeToChatHidden}
+        hideChatForMe={hideChatForMe}
+        onUpdatePhone={updatePhone}
+        onDeleteAccount={deleteAccount}
       />
     );
   };

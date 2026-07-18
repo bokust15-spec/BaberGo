@@ -13,21 +13,23 @@ function toMillis(value: any): number {
   return date.getTime();
 }
 
-// Orchestrates the "Chat" inbox tab: one live last-message + read-receipt subscription
-// per eligible appointment, so both the conversation list and the bottom-nav unread
-// badge stay in sync without a page reload. Deliberately takes the Firestore functions
-// as parameters rather than calling useFirebase() itself — there's already exactly one
-// useFirebase() call in App.tsx, and every other piece of the app receives its
-// functions as props from there instead of creating a second, redundant subscription
-// set (auth listener, barbers list, etc.).
+// Orchestrates the "Chat" inbox tab: one live last-message + read-receipt + hidden-state
+// subscription per eligible appointment, so both the conversation list and the
+// bottom-nav unread badge stay in sync without a page reload. Deliberately takes the
+// Firestore functions as parameters rather than calling useFirebase() itself — there's
+// already exactly one useFirebase() call in App.tsx, and every other piece of the app
+// receives its functions as props from there instead of creating a second, redundant
+// subscription set (auth listener, barbers list, etc.).
 export function useChatInbox(
   appointments: Appointment[],
   currentUid: string | undefined,
   subscribeToLastChatMessage: (appointmentId: string, callback: (message: ChatMessage | null) => void) => () => void,
   subscribeToChatReadReceipt: (appointmentId: string, callback: (lastReadAt: any | null) => void) => () => void,
+  subscribeToChatHidden: (appointmentId: string, callback: (hidden: boolean) => void) => () => void,
 ): { conversations: ChatConversation[]; totalUnread: number } {
   const [lastMessages, setLastMessages] = useState<Record<string, ChatMessage | null>>({});
   const [readReceipts, setReadReceipts] = useState<Record<string, any | null>>({});
+  const [hiddenState, setHiddenState] = useState<Record<string, boolean>>({});
 
   // Only appointments that reached 'confirmed' at some point ever get a chat — a
   // 'pending' request never does.
@@ -44,12 +46,16 @@ export function useChatInbox(
       unsubscribes.push(subscribeToChatReadReceipt(app.id, (lastReadAt) => {
         setReadReceipts(prev => ({ ...prev, [app.id]: lastReadAt }));
       }));
+      unsubscribes.push(subscribeToChatHidden(app.id, (hidden) => {
+        setHiddenState(prev => ({ ...prev, [app.id]: hidden }));
+      }));
     });
     return () => unsubscribes.forEach(unsub => unsub());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatAppointmentIds, currentUid]);
 
   const conversations: ChatConversation[] = chatAppointments
+    .filter(app => !hiddenState[app.id])
     .map(appointment => {
       const lastMessage = lastMessages[appointment.id] ?? null;
       const lastReadAt = readReceipts[appointment.id] ?? null;

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Heart, Share2, MapPin, BadgeCheck, Layers } from 'lucide-react';
+import Avatar from './Avatar';
 
 interface DesktopPostCardProps {
   postId: string;
@@ -11,7 +12,7 @@ interface DesktopPostCardProps {
   price: number;
   city: string;
   createdAtLabel?: string;
-  barberAvatarUrl: string;
+  barberAvatarUrl?: string;
   barberName: string;
   verified?: boolean;
   theme: 'dark' | 'light';
@@ -85,7 +86,7 @@ const DesktopPostCard: React.FC<DesktopPostCardProps> = ({
     <div className={`w-full max-w-xl mx-auto rounded-xl overflow-hidden border ${theme === 'dark' ? 'border-gold/15 bg-mid-brown/20' : 'border-gray-200 bg-white'}`}>
       {/* Header: avatar + name, straight to profile */}
       <button onClick={onOpenProfile} className="w-full flex items-center gap-3 p-4 text-left hover:bg-black/5 transition-colors">
-        <img src={barberAvatarUrl} alt="" className="w-10 h-10 rounded-full object-cover border border-gold/30 shrink-0" />
+        <Avatar src={barberAvatarUrl} size="w-10 h-10" className="border border-gold/30" />
         <div className="min-w-0">
           <div className={`text-sm font-bold flex items-center gap-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
             {barberName}
