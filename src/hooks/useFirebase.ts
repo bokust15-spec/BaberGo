@@ -579,6 +579,13 @@ export function useFirebase() {
         const snapOpen = await getDocs(qOpen);
         const listOpen = snapOpen.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
 
+        // A pro can also book another pro (same booking flow as a client) — those
+        // appointments have this account as clientId, not barberId, so they need their
+        // own query or they'd never show up in this pro's own dashboard/chat.
+        const qBooked = query(collection(db, 'appointments'), where('clientId', '==', user.uid));
+        const snapBooked = await getDocs(qBooked);
+        const listBooked = snapBooked.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
+
         // Merge without duplicates
         const mergedMap = new Map<string, Appointment>();
         listSpecific.forEach(app => mergedMap.set(app.id, app));
@@ -586,6 +593,7 @@ export function useFirebase() {
           // If the app is already pending or countering, make it visible on the general dashboard
           mergedMap.set(app.id, app);
         });
+        listBooked.forEach(app => mergedMap.set(app.id, app));
 
         return Array.from(mergedMap.values());
       }

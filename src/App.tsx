@@ -444,6 +444,7 @@ export default function App() {
           services={services}
           onUpdateStatus={handleUpdateAppointmentStatus}
           onUpdateAppointment={handleUpdateAppointment}
+          onAddReview={addReview}
           onLogout={() => setView('landing')}
           onLogoutFirebase={handleLogoutAll}
           theme={theme}

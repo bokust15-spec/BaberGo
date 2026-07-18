@@ -7,12 +7,12 @@ import { formatRelativeTime } from '../utils/relativeTime';
 import AppointmentChat from './AppointmentChat';
 
 interface ChatListTabProps {
-  role: 'client' | 'barber';
+  currentUid: string;
   theme: 'dark' | 'light';
   conversations: ChatConversation[];
-  barbers?: UserProfile[]; // client only — to resolve the other party's name/avatar (a pro's own name is already denormalized on the appointment for the barber role)
+  barbers?: UserProfile[]; // to resolve the other party's name/avatar when this account is the client on a conversation (a pro's own name is already denormalized on the appointment when this account is the barber)
   services?: { id: string; duration?: number }[]; // the caller's own services list (client's global catalog, or the pro's own menu) — to resolve serviceDuration by appointment.serviceId, same lookup MyBookingsSection/BookingsTab already did inline
-  clientPhone?: string; // client only, passed through unchanged to AppointmentChat
+  clientPhone?: string; // this account's own phone — only used when it turns out to be the client on the selected conversation
   onUpdateAppointment: (id: string, updates: Partial<Appointment>) => Promise<void>;
   onUpdateStatus: (id: string, status: Appointment['status']) => Promise<void>;
   onMarkAsRead: (appointmentId: string) => Promise<void>;
@@ -24,7 +24,12 @@ interface ChatListTabProps {
 // the existing AppointmentChat component (unchanged internally, it already manages its
 // own meta/messages subscriptions once mounted with an appointment). This shell only
 // adds the list, the Tout/Non lu filter, and marking a conversation as read.
-export default function ChatListTab({ role, theme, conversations, barbers, services, clientPhone, onUpdateAppointment, onUpdateStatus, onMarkAsRead, initialSelectedAppointmentId, onInitialSelectedConsumed }: ChatListTabProps) {
+//
+// Role is resolved PER CONVERSATION (clientId === currentUid), not fixed by account type —
+// a pro account can itself be the client on an appointment (booked another pro), and
+// firestore.rules requires the message's senderRole to match the uid's actual relationship
+// to that specific appointment, not the account's usual role.
+export default function ChatListTab({ currentUid, theme, conversations, barbers, services, clientPhone, onUpdateAppointment, onUpdateStatus, onMarkAsRead, initialSelectedAppointmentId, onInitialSelectedConsumed }: ChatListTabProps) {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -48,8 +53,11 @@ export default function ChatListTab({ role, theme, conversations, barbers, servi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, selected?.lastMessage?.id]);
 
+  const roleFor = (appointment: Appointment): 'client' | 'barber' =>
+    appointment.clientId === currentUid ? 'client' : 'barber';
+
   const otherPartyInfo = (appointment: Appointment): { name: string; avatarUrl?: string } => {
-    if (role === 'client') {
+    if (roleFor(appointment) === 'client') {
       const barber = barbers?.find(b => b.uid === appointment.barberId);
       return { name: barber ? `${barber.firstName} ${barber.lastName}`.trim() : 'Professionnel', avatarUrl: barber?.avatarUrl };
     }
@@ -81,7 +89,7 @@ export default function ChatListTab({ role, theme, conversations, barbers, servi
         </div>
         <AppointmentChat
           appointment={selected.appointment}
-          role={role}
+          role={roleFor(selected.appointment)}
           theme={theme}
           clientPhone={clientPhone}
           serviceDuration={services?.find(s => s.id === selected.appointment.serviceId)?.duration}

@@ -37,6 +37,7 @@ import ProfileRow from './ProfileRow';
 import SearchBar from './SearchBar';
 import BookingModal from './BookingModal';
 import ChatListTab from './ChatListTab';
+import MyBookingsSection from './MyBookingsSection';
 import { useChatInbox } from '../hooks/useChatInbox';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { containsContactInfo, CONTACT_INFO_ERROR } from '../utils/contactInfoFilter';
@@ -77,6 +78,7 @@ interface BarberDashboardProps {
   services: Service[];
   onUpdateStatus: (id: string, status: Appointment['status']) => Promise<void>;
   onUpdateAppointment?: (id: string, updates: Partial<Appointment>) => Promise<void>;
+  onAddReview: (review: { clientId: string; barberId: string; appointmentId: string; rating: number; comment: string }) => Promise<void>;
   onLogout: () => void;
   onLogoutFirebase: () => void;
   theme: 'dark' | 'light';
@@ -110,8 +112,10 @@ export default function BarberDashboard({
   profile,
   barbers,
   appointments,
+  services,
   onUpdateStatus,
   onUpdateAppointment,
+  onAddReview,
   onLogout,
   onLogoutFirebase,
   theme,
@@ -150,6 +154,18 @@ export default function BarberDashboard({
     subscribeToLastChatMessage,
     subscribeToChatReadReceipt
   );
+  // A pro can also book another pro (same booking flow as a client) — those appointments
+  // have this account as clientId, not barberId. Split them out so the Réservation tab
+  // shows "received" bookings with the usual Accepter/Refuser actions, and "made" bookings
+  // (this pro acting as a client) with the client-side view instead.
+  const receivedAppointments = useMemo(
+    () => appointments.filter(a => a.barberId === profile.uid || a.barberId === 'dummy_barber'),
+    [appointments, profile.uid]
+  );
+  const madeAppointments = useMemo(
+    () => appointments.filter(a => a.clientId === profile.uid && a.barberId !== profile.uid),
+    [appointments, profile.uid]
+  );
   const [kycCinUrl, setKycCinUrl] = useState<string | null>(null);
   const [kycSelfieUrl, setKycSelfieUrl] = useState<string | null>(null);
   const [uploadingCin, setUploadingCin] = useState(false);
@@ -170,10 +186,11 @@ export default function BarberDashboard({
   const [kycError, setKycError] = useState<string | null>(null);
 
   // Notification badge on the "Réservation" tab — real count of new booking requests
-  // awaiting the pro's response, like an unread count.
+  // awaiting the pro's response, like an unread count. Only counts received bookings —
+  // a booking this pro made themselves (madeAppointments) isn't "awaiting their response".
   const pendingBookingsCount = useMemo(
-    () => appointments.filter(a => a.status === 'pending').length,
-    [appointments]
+    () => receivedAppointments.filter(a => a.status === 'pending').length,
+    [receivedAppointments]
   );
 
   const handleLogoutAll = () => {
@@ -483,22 +500,42 @@ export default function BarberDashboard({
         )}
 
         {activeTab === 'bookings' && (
-          <BookingsTab
-            appointments={appointments}
-            theme={theme}
-            isBlocked={isBlocked}
-            barberServices={profile.services || []}
-            onUpdateStatus={onUpdateStatus}
-            onUpdateAppointment={onUpdateAppointment}
-            onOpenChat={(appointmentId) => { setChatInitialSelectedId(appointmentId); setActiveTab('chat'); }}
-          />
+          <>
+            <BookingsTab
+              appointments={receivedAppointments}
+              theme={theme}
+              isBlocked={isBlocked}
+              barberServices={profile.services || []}
+              onUpdateStatus={onUpdateStatus}
+              onUpdateAppointment={onUpdateAppointment}
+              onOpenChat={(appointmentId) => { setChatInitialSelectedId(appointmentId); setActiveTab('chat'); }}
+            />
+            {madeAppointments.length > 0 && (
+              <MyBookingsSection
+                appointments={madeAppointments}
+                barbers={barbers}
+                services={services}
+                theme={theme}
+                clientId={profile.uid}
+                clientPhone={profile.phone}
+                title="Mes réservations chez d'autres professionnels"
+                subtitle="Les séances que vous avez vous-même réservées chez un autre professionnel."
+                onUpdateStatus={onUpdateStatus}
+                onUpdateAppointment={async (id, updates) => { if (onUpdateAppointment) await onUpdateAppointment(id, updates); }}
+                onAddReview={onAddReview}
+                onOpenChat={(appointmentId) => { setChatInitialSelectedId(appointmentId); setActiveTab('chat'); }}
+              />
+            )}
+          </>
         )}
 
         {activeTab === 'chat' && (
           <ChatListTab
-            role="barber"
+            currentUid={profile.uid}
             theme={theme}
             conversations={chatConversations}
+            barbers={barbers}
+            clientPhone={profile.phone}
             services={profile.services || []}
             onUpdateAppointment={async (id, updates) => { if (onUpdateAppointment) await onUpdateAppointment(id, updates); }}
             onUpdateStatus={onUpdateStatus}
