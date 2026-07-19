@@ -422,6 +422,13 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
     });
   }, [filteredEntries, clientLocation]);
 
+  // The "Profils" tab shows 20 at a time ("Afficher plus" reveals 20 more) rather than
+  // the whole list at once — resets back to 20 whenever the underlying search results
+  // change, so a fresh search/filter doesn't stay scrolled deep into the old list.
+  const PROFILES_PAGE_SIZE = 20;
+  const [profilesVisibleCount, setProfilesVisibleCount] = useState(PROFILES_PAGE_SIZE);
+  useEffect(() => { setProfilesVisibleCount(PROFILES_PAGE_SIZE); }, [filteredEntries]);
+
   const quickBook = (entry: FeedEntry) => {
     setSelectedEntry(entry);
     setShowBooking(true);
@@ -699,22 +706,34 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                 )}
 
                 {resultsTab === 'profils' ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {uniqueProfiles.map(({ entry, rating, reviewCount, distance }) => (
-                      <ProfileRow
-                        key={entry.barber.uid}
-                        avatarUrl={entryAvatarUrl(entry)}
-                        name={`${entry.barber.firstName} ${entry.barber.lastName}`}
-                        verified={entry.barber.kycStatus === 'verified'}
-                        rating={rating}
-                        reviewCount={reviewCount}
-                        distanceKm={distance}
-                        theme={theme}
-                        onClick={() => openEntry(entry)}
-                      />
-                    ))}
-                    {uniqueProfiles.length === 0 && (
-                      <div className="col-span-full text-center py-16 text-warm-gray text-xs uppercase tracking-widest">Aucun résultat pour ces critères</div>
+                  <div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {uniqueProfiles.slice(0, profilesVisibleCount).map(({ entry, rating, reviewCount, distance }) => (
+                        <ProfileRow
+                          key={entry.barber.uid}
+                          avatarUrl={entryAvatarUrl(entry)}
+                          name={`${entry.barber.firstName} ${entry.barber.lastName}`}
+                          verified={entry.barber.kycStatus === 'verified'}
+                          rating={rating}
+                          reviewCount={reviewCount}
+                          distanceKm={distance}
+                          theme={theme}
+                          onClick={() => openEntry(entry)}
+                        />
+                      ))}
+                      {uniqueProfiles.length === 0 && (
+                        <div className="col-span-full text-center py-16 text-warm-gray text-xs uppercase tracking-widest">Aucun résultat pour ces critères</div>
+                      )}
+                    </div>
+                    {uniqueProfiles.length > profilesVisibleCount && (
+                      <div className="flex justify-center mt-6">
+                        <button
+                          onClick={() => setProfilesVisibleCount(c => c + PROFILES_PAGE_SIZE)}
+                          className={`px-6 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-colors ${theme === 'dark' ? 'border-white/15 text-warm-gray hover:border-gold/40 hover:text-gold' : 'border-gray-200 text-gray-500 hover:border-gold/40 hover:text-gold'}`}
+                        >
+                          Afficher plus
+                        </button>
+                      </div>
                     )}
                   </div>
                 ) : (
