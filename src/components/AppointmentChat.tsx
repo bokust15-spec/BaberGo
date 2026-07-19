@@ -276,14 +276,16 @@ export default function AppointmentChat({ appointment, role, theme, clientPhone,
 
           {/* ACTIONS ROW */}
           <div className="flex flex-wrap gap-2 pt-1 border-t border-white/5">
-            {role === 'client' && (
-              <button
-                onClick={() => setShowLocationPicker(v => !v)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold uppercase tracking-widest bg-gold/10 text-gold"
-              >
-                <MapPin size={12} /> Localisation
-              </button>
-            )}
+            {/* Voluntary on both sides — a client shares to guide the pro to them, a pro
+                who also receives clients at their own place can share theirs instead.
+                Never automatic, never tied to a profile setting: whoever taps it decides
+                in the moment, same as everything else in this chat. */}
+            <button
+              onClick={() => setShowLocationPicker(v => !v)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold uppercase tracking-widest bg-gold/10 text-gold"
+            >
+              <MapPin size={12} /> Localisation
+            </button>
             <button
               onClick={() => setShowReschedule(v => !v)}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold uppercase tracking-widest bg-gold/10 text-gold"
