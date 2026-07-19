@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Calendar, Clock, Scissors, CreditCard, CheckCircle2, ChevronRight, AlertTriangle, User, Mail, Lock } from 'lucide-react';
 import { Service, UserProfile } from '../hooks/useFirebase';
+import { isPasswordStrongEnough, PASSWORD_REQUIREMENTS_HINT } from '../utils/passwordStrength';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -63,7 +64,7 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
     timeSlots.push(`${String(h).padStart(2, '0')}:00`);
   }
 
-  const isGuestFormValid = regFirstName.trim().length > 0 && /\S+@\S+\.\S+/.test(regEmail.trim()) && regPassword.length >= 6;
+  const isGuestFormValid = regFirstName.trim().length > 0 && /\S+@\S+\.\S+/.test(regEmail.trim()) && isPasswordStrongEnough(regPassword);
 
   const handleBook = async () => {
     if (!selectedService || !selectedDate || !selectedTime) return;
@@ -320,13 +321,14 @@ export default function BookingModal({ isOpen, onClose, barber, services, onBook
                         <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gold" />
                         <input
                           type="password"
+                          minLength={8}
                           value={regPassword}
                           onChange={(e) => setRegPassword(e.target.value)}
-                          placeholder="Mot de passe (6 caractères min.)"
+                          placeholder="Mot de passe (8 caractères min.)"
                           className={`w-full p-3 pl-9 rounded-sm border outline-none text-xs focus:border-gold transition-colors ${theme === 'dark' ? 'bg-black/40 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
                         />
-                        {regPassword.length > 0 && regPassword.length < 6 && (
-                          <p className="text-[10px] text-red-400 mt-1">6 caractères minimum.</p>
+                        {regPassword.length > 0 && !isPasswordStrongEnough(regPassword) && (
+                          <p className="text-[10px] text-red-400 mt-1">{PASSWORD_REQUIREMENTS_HINT}</p>
                         )}
                       </div>
 

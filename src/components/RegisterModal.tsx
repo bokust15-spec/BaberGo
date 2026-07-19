@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, X, Users, Scissors, Phone, Mail, Lock, ChevronRight, AlertTriangle } from 'lucide-react';
+import { isPasswordStrongEnough, PASSWORD_REQUIREMENTS_HINT } from '../utils/passwordStrength';
 
 interface RegisterModalProps {
   isOpen: boolean;
@@ -38,8 +39,8 @@ export default function RegisterModal({ isOpen, onClose, onRegister, onSwitchToL
     e.preventDefault();
     setError(null);
 
-    if (formData.password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères.');
+    if (!isPasswordStrongEnough(formData.password)) {
+      setError(`Mot de passe trop faible. ${PASSWORD_REQUIREMENTS_HINT}`);
       return;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -217,11 +218,11 @@ export default function RegisterModal({ isOpen, onClose, onRegister, onSwitchToL
                     <input
                       required
                       type="password"
-                      minLength={6}
+                      minLength={8}
                       value={formData.password}
                       onChange={e => setFormData({ ...formData, password: e.target.value })}
                       className={inputClass}
-                      placeholder="6 caractères min."
+                      placeholder="8 caractères min."
                     />
                   </div>
                 </div>
@@ -232,7 +233,7 @@ export default function RegisterModal({ isOpen, onClose, onRegister, onSwitchToL
                     <input
                       required
                       type="password"
-                      minLength={6}
+                      minLength={8}
                       value={formData.confirmPassword}
                       onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
                       className={inputClass}
@@ -241,6 +242,7 @@ export default function RegisterModal({ isOpen, onClose, onRegister, onSwitchToL
                   </div>
                 </div>
               </div>
+              <p className="text-[9px] text-warm-gray/60 mt-2">{PASSWORD_REQUIREMENTS_HINT}</p>
             </div>
 
             {error && (
