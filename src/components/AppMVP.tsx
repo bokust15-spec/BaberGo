@@ -345,7 +345,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
   // per-post "?post=" share link.
   const handleShareProfile = async (uid: string, name: string) => {
     const shareUrl = `${window.location.origin}${window.location.pathname}?barber=${encodeURIComponent(uid)}`;
-    const shareData = { title: 'BarberGo', text: `${name} sur BarberGo`, url: shareUrl };
+    const shareData = { title: 'BaberGo', text: `${name} sur BaberGo`, url: shareUrl };
     try {
       if (navigator.share) await navigator.share(shareData);
       else if (navigator.clipboard) await navigator.clipboard.writeText(shareData.url);
@@ -872,7 +872,7 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
                     </div>
                     <div>
                       <h4 className={`text-2xl font-bebas tracking-wider uppercase ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{profile.firstName} {profile.lastName}</h4>
-                      <p className="text-gold text-[10px] font-bold uppercase tracking-widest mt-1">Membre BarberGo</p>
+                      <p className="text-gold text-[10px] font-bold uppercase tracking-widest mt-1">Membre BaberGo</p>
                     </div>
                     <div className="space-y-2">
                        <div className={`p-4 rounded-sm border flex justify-between items-center ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>

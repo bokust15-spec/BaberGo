@@ -257,7 +257,7 @@ service cloud.firestore {
             )
           )
           && (
-            // 15% commission owed to BarberGo on a completed session — isolated write,
+            // 15% commission owed to BaberGo on a completed session — isolated write,
             // same tamper-proof +1 pattern as completedCount. totalCommissionsOwed's
             // delta is bounded to the max possible commission on a single appointment
             // (20000 DH price cap * 15% = 3000 DH), so several sessions' worth can't be

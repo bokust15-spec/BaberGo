@@ -245,7 +245,7 @@ export default function PhotoGalleryLightbox({ photos, initialIndex, onClose, on
     const shareUrl = current.postId
       ? `${window.location.origin}${window.location.pathname}?post=${encodeURIComponent(current.postId)}`
       : window.location.href;
-    const shareData = { title: 'BarberGo', text: current.name ? `${current.name} sur BarberGo` : 'BarberGo', url: shareUrl };
+    const shareData = { title: 'BaberGo', text: current.name ? `${current.name} sur BaberGo` : 'BaberGo', url: shareUrl };
     try {
       if (navigator.share) await navigator.share(shareData);
       else if (navigator.clipboard) await navigator.clipboard.writeText(shareData.url);

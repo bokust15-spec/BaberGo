@@ -151,7 +151,7 @@ export default function AdminPanel({ barbers, allAppointments, onRefreshAppointm
       <nav className={`fixed top-0 left-0 right-0 z-40 border-b px-6 py-4 flex items-center justify-between backdrop-blur-md ${theme === 'dark' ? 'bg-black/80 border-gold/20' : 'bg-white/80 border-gray-200 shadow-sm'}`}>
         <div className="flex items-center gap-2">
           <ShieldCheck size={18} className="text-gold" />
-          <span className="font-bebas text-xl tracking-widest text-gold">Admin BarberGo</span>
+          <span className="font-bebas text-xl tracking-widest text-gold">Admin BaberGo</span>
         </div>
         <button
           onClick={onClose}

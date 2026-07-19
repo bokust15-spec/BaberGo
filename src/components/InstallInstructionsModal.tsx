@@ -26,7 +26,7 @@ export default function InstallInstructionsModal({ onClose, theme }: InstallInst
           className={`w-full max-w-sm border rounded-sm overflow-hidden ${theme === 'dark' ? 'bg-mid-brown border-gold/30' : 'bg-white border-gray-200'}`}
         >
           <div className="p-6 border-b border-gold/10 flex justify-between items-center">
-            <h3 className="font-bebas text-xl text-gold tracking-widest uppercase">Installer BarberGo</h3>
+            <h3 className="font-bebas text-xl text-gold tracking-widest uppercase">Installer BaberGo</h3>
             <button onClick={onClose} className="p-2 -mr-2 text-warm-gray hover:text-gold transition-colors" aria-label="Fermer">
               <X size={20} />
             </button>

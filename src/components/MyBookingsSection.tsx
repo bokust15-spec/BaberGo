@@ -73,7 +73,7 @@ export default function MyBookingsSection({
     if (real) return { name: `${real.firstName} ${real.lastName}`, avatarUrl: real.avatarUrl || null };
     const mockPost = STYLE_POSTS.find(p => p.id === app.barberId);
     if (mockPost) return { name: mockPost.barberName, avatarUrl: avatarFor(mockPost.id) };
-    return { name: 'Professionnel BarberGo', avatarUrl: null };
+    return { name: 'Professionnel BaberGo', avatarUrl: null };
   };
 
   const statusLabel: Record<Appointment['status'], string> = {

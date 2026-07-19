@@ -96,7 +96,7 @@ export default function RegisterModal({ isOpen, onClose, onRegister, onSwitchToL
             </button>
             <div className="flex-1 min-w-0">
               <h3 className="font-bebas text-xl text-gold tracking-widest uppercase leading-none">Créer un compte</h3>
-              <p className="text-[10px] text-warm-gray mt-1">Rejoignez BarberGo en quelques secondes</p>
+              <p className="text-[10px] text-warm-gray mt-1">Rejoignez BaberGo en quelques secondes</p>
             </div>
             <button
               type="button"

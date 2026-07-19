@@ -8,7 +8,7 @@ export async function getBarberAssistantResponse(userMessage: string, history: a
     `${i + 1}. ${b.name} — ${b.specialty} — ${b.experience} ans d'expérience — Note : ${b.rating}/5 — ${b.clients} clients — Prix : ${b.price} DH — Localisation : ${['Maarif', 'Anfa', 'Gauthier', 'Bourgogne'][i]}`
   ).join('\n');
 
-  const systemInstruction = `Tu es l'assistant IA de BarberGo, une plateforme de mise en relation avec des coiffeurs au Maroc (principalement Casablanca).
+  const systemInstruction = `Tu es l'assistant IA de BaberGo, une plateforme de mise en relation avec des coiffeurs au Maroc (principalement Casablanca).
 Réponds en français, de manière élégante, concise et utile (3 phrases maximum).
 Tu dois recommander un ou plusieurs coiffeurs de la liste ci-dessous selon les besoins exprimés par l'utilisateur (type de coupe, budget, genre, expertise).
 

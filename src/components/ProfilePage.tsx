@@ -149,7 +149,7 @@ export default function ProfilePage({
         </div>
         
         <div className={`p-4 border-t text-[9px] uppercase tracking-[0.3em] font-bold transition-colors ${theme === 'dark' ? 'bg-black/40 border-gold/10 text-gold/30' : 'bg-gray-50 border-gray-100 text-gray-300'}`}>
-          BarberGo Corporate System &copy; 2026 - Casablanca Secure InDrive Flow
+          BaberGo Corporate System &copy; 2026 - Casablanca Secure InDrive Flow
         </div>
       </motion.div>
     </div>

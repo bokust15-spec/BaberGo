@@ -8,7 +8,7 @@ export interface ServiceCategory {
   icon: React.ComponentType<{ size?: number | string; className?: string }>;
 }
 
-// The shared list of service categories offered on BarberGo — beyond hair, the
+// The shared list of service categories offered on BaberGo — beyond hair, the
 // platform now covers the beauty/wellness services most common in Morocco.
 export const SERVICE_CATEGORIES: ServiceCategory[] = [
   { id: 'cheveux', label: 'Cheveux', icon: Scissors },

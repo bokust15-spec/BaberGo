@@ -1,6 +1,6 @@
 {
-  "name": "BarberGo",
-  "short_name": "BarberGo",
+  "name": "BaberGo",
+  "short_name": "BaberGo",
   "description": "Réservez votre moment de beauté chez vous.",
   "start_url": "/",
   "scope": "/",

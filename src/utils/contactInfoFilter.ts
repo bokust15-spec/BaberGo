@@ -1,6 +1,6 @@
 // Detects an attempt to share off-platform contact info (phone number, WhatsApp link,
 // email) in a public field like the bio or a publication caption — the classic way a
-// pro circumvents booking (and commission) through BarberGo. Never perfect (someone can
+// pro circumvents booking (and commission) through BaberGo. Never perfect (someone can
 // always spell a number out in words), but it stops the vast majority of naive attempts.
 // Mirrored (in a simpler RE2-compatible form) as a server-side backstop in firestore.rules
 // for fields it can validate directly (bio) — Firestore rules can't loop over array
@@ -22,4 +22,4 @@ export function containsContactInfo(text: string): boolean {
   return WHATSAPP_PATTERN.test(text) || EMAIL_PATTERN.test(text);
 }
 
-export const CONTACT_INFO_ERROR = "Merci de ne pas partager de numéro, WhatsApp ou email ici — toutes les réservations doivent passer par BarberGo.";
+export const CONTACT_INFO_ERROR = "Merci de ne pas partager de numéro, WhatsApp ou email ici — toutes les réservations doivent passer par BaberGo.";

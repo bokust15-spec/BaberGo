@@ -193,7 +193,7 @@ export default function HistoryTab({
                         {service?.name || "Service Inconnu"}
                       </h4>
                       <p className="text-xs text-warm-gray font-bold uppercase tracking-widest">
-                        Coiffeur: {barber?.firstName || 'Partenaire'} {barber?.lastName || 'BarberGo'}
+                        Coiffeur: {barber?.firstName || 'Partenaire'} {barber?.lastName || 'BaberGo'}
                       </p>
                       {app.clientNotes && (
                         <p className={`text-[11px] italic mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>

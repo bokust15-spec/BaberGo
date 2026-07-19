@@ -72,7 +72,7 @@ const MobilePostCard: React.FC<MobilePostCardProps> = ({
     // A "?post=" link lets whoever opens it land straight on this exact post (see the
     // resolver in AppMVP) instead of just the generic homepage.
     const shareUrl = `${window.location.origin}${window.location.pathname}?post=${encodeURIComponent(postId)}`;
-    const shareData = { title: 'BarberGo', text: `${caption} par ${barberName} sur BarberGo`, url: shareUrl };
+    const shareData = { title: 'BaberGo', text: `${caption} par ${barberName} sur BaberGo`, url: shareUrl };
     try {
       if (navigator.share) {
         await navigator.share(shareData);

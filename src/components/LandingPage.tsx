@@ -30,7 +30,7 @@ const WORK_PHOTOS = {
   bwSalon: 'https://images.unsplash.com/photo-1630595271375-5073a6c0638b?q=80&w=1200&auto=format&fit=crop',
 };
 
-// Real BarberGo-provided photos (in SERVICE_CATEGORIES order) — Cheveux, Barbe,
+// Real BaberGo-provided photos (in SERVICE_CATEGORIES order) — Cheveux, Barbe,
 // Main et pied, Make-up, Esthétique, Soin de visage, Massage, Beauté évènementiel.
 const WORK_GALLERY = [
   // Cheveux
@@ -107,7 +107,7 @@ const TESTIMONIALS = [
   {
     name: 'Yassine T.',
     role: 'Professionnel partenaire · Marrakech',
-    quote: "En tant que professionnel indépendant, BarberGo m'a permis de développer ma clientèle rapidement, sans frais fixes.",
+    quote: "En tant que professionnel indépendant, BaberGo m'a permis de développer ma clientèle rapidement, sans frais fixes.",
     avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=200&auto=format&fit=crop',
   },
 ];
@@ -200,7 +200,7 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
     <div className="relative z-10 transition-colors duration-300">
       {/* NAV */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass-nav px-6 md:px-16 py-4 grid grid-cols-3 items-center">
-        <a href="#hero" className="logo text-2xl text-gold shrink-0 justify-self-start">Barber<span className={theme === 'dark' ? 'text-white' : 'text-black'}>Go</span></a>
+        <a href="#hero" className="logo text-2xl text-gold shrink-0 justify-self-start">Baber<span className={theme === 'dark' ? 'text-white' : 'text-black'}>Go</span></a>
         <div className="hidden lg:flex gap-5 lg:gap-8 items-center justify-self-center">
           <a href="#hero" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Accueil</a>
           <a href="#services" className="whitespace-nowrap text-warm-gray text-sm font-medium uppercase tracking-widest hover:text-gold hover:underline underline-offset-8 decoration-gold transition-colors">Services</a>
@@ -307,7 +307,7 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
         <div className="relative flex-1 flex flex-col justify-center overflow-hidden">
           <img
             src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=1600&auto=format&fit=crop"
-            alt="Professionnel BarberGo réalisant une taille de barbe pour un client"
+            alt="Professionnel BaberGo réalisant une taille de barbe pour un client"
             className="absolute inset-0 w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/40" />
@@ -404,7 +404,7 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
                     transition={{ delay: 0.2 }}
                     className="text-white/80 text-sm md:text-lg max-w-lg mb-6 md:mb-10 leading-relaxed font-light"
                   >
-                    <span className="text-gold font-bold">BarberGo</span> met en relation les meilleurs talents <span className="text-gold font-bold">beauté & bien-être</span> avec les clients les plus exigeants.
+                    <span className="text-gold font-bold">BaberGo</span> met en relation les meilleurs talents <span className="text-gold font-bold">beauté & bien-être</span> avec les clients les plus exigeants.
                     À <span className="text-gold font-bold">domicile</span> ou en salon — réservez votre prestation en un clic, partout au Maroc.
                   </motion.p>
 
@@ -514,7 +514,7 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
               On connecte les <span className="italic gold-gradient-text">talents</span> aux clients
             </h2>
             <p className="text-warm-gray leading-relaxed mb-10">
-              BarberGo est la plateforme qui met en relation des professionnels beauté & bien-être indépendants vérifiés avec des
+              BaberGo est la plateforme qui met en relation des professionnels beauté & bien-être indépendants vérifiés avec des
               clients à la recherche d'une prestation de qualité. Le client localise un professionnel proche de lui, consulte son
               profil, ses tarifs et ses avis certifiés, puis réserve un créneau en quelques secondes. Le prestataire reçoit
               la demande, confirme le rendez-vous et se déplace à domicile ou reçoit en salon — le paiement est sécurisé
@@ -546,21 +546,21 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
             <div className="col-span-2 h-56 rounded-lg overflow-hidden border border-gold/15 shadow-md hover:shadow-xl transition-shadow duration-300">
               <img
                 src={WORK_PHOTOS.salonInterior}
-                alt="Soin esthétique réalisé par un professionnel BarberGo"
+                alt="Soin esthétique réalisé par un professionnel BaberGo"
                 className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
               />
             </div>
             <div className="h-48 rounded-lg overflow-hidden border border-gold/15 shadow-md hover:shadow-xl transition-shadow duration-300">
               <img
                 src={WORK_PHOTOS.preciseFade}
-                alt="Maquillage glamour réalisé par un professionnel BarberGo"
+                alt="Maquillage glamour réalisé par un professionnel BaberGo"
                 className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
               />
             </div>
             <div className="h-48 rounded-lg overflow-hidden border border-gold/15 shadow-md hover:shadow-xl transition-shadow duration-300">
               <img
                 src={WORK_PHOTOS.clipperWork}
-                alt="Manucure réalisée par un professionnel BarberGo"
+                alt="Manucure réalisée par un professionnel BaberGo"
                 className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
               />
             </div>
@@ -689,7 +689,7 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
       <footer className={`border-t border-gold/10 pt-20 pb-10 px-6 md:px-16 ${theme === 'dark' ? 'bg-black' : 'bg-gray-900 text-white'}`}>
          <div className="grid md:grid-cols-4 gap-12 mb-16">
             <div className="md:col-span-1">
-               <a href="#hero" className="logo text-2xl text-gold block mb-6 font-bebas">Barber<span className="text-white">Go</span></a>
+               <a href="#hero" className="logo text-2xl text-gold block mb-6 font-bebas">Baber<span className="text-white">Go</span></a>
                <p className="text-warm-gray text-sm leading-relaxed">
                   Connecter les meilleurs talents beauté & bien-être avec les clients exigeants, partout au Maroc.
                </p>
@@ -723,7 +723,7 @@ export default function LandingPage({ onLogin, theme, profile, onEnterApp, onReg
             </div>
          </div>
          <div className="border-t border-gold/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-warm-gray text-[10px] uppercase tracking-widest">© 2025 BarberGo. Tous droits réservés.</p>
+            <p className="text-warm-gray text-[10px] uppercase tracking-widest">© 2025 BaberGo. Tous droits réservés.</p>
             <div className="flex gap-6">
               <a href="#" className="text-gold text-[10px] uppercase tracking-widest">Confidentialité</a>
               <a href="#" className="text-gold text-[10px] uppercase tracking-widest">CGU</a>

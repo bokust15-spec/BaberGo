@@ -441,7 +441,7 @@ export default function BarberDashboard({
                 {kycStatus === 'rejected' && (
                   <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
                     <AlertTriangle size={14} className="text-red-400 shrink-0" />
-                    <p className="text-xs text-red-400">Votre dossier a été refusé par l'équipe BarberGo. Vérifiez que vos documents sont lisibles et à jour, puis téléversez-les à nouveau.</p>
+                    <p className="text-xs text-red-400">Votre dossier a été refusé par l'équipe BaberGo. Vérifiez que vos documents sont lisibles et à jour, puis téléversez-les à nouveau.</p>
                   </div>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -477,7 +477,7 @@ export default function BarberDashboard({
               </div>
             ) : kycStatus === 'pending' ? (
               <div className="flex items-center gap-3 bg-amber-500/5 p-3 rounded-lg border border-amber-500/10">
-                <p className="text-xs text-warm-gray">Dossier en cours d'examen par l'équipe BarberGo (24–48h).</p>
+                <p className="text-xs text-warm-gray">Dossier en cours d'examen par l'équipe BaberGo (24–48h).</p>
               </div>
             ) : null}
 
@@ -644,7 +644,7 @@ export default function BarberDashboard({
             >
               <h3 className="font-bebas text-xl text-gold uppercase tracking-widest mb-2">Règlement de commission</h3>
               <p className="text-xs text-warm-gray leading-relaxed mb-4">
-                Le paiement en ligne n'est pas encore disponible. Contactez l'équipe BarberGo pour régulariser votre solde ; votre compte sera débloqué dès réception du règlement.
+                Le paiement en ligne n'est pas encore disponible. Contactez l'équipe BaberGo pour régulariser votre solde ; votre compte sera débloqué dès réception du règlement.
               </p>
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-xs border-b border-white/5 pb-2">
@@ -708,7 +708,7 @@ export default function BarberDashboard({
                   </div>
                   <div>
                     <h4 className={`text-2xl font-bebas tracking-wider uppercase ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{profile.firstName} {profile.lastName}</h4>
-                    <p className="text-gold text-[10px] font-bold uppercase tracking-widest mt-1">Membre BarberGo</p>
+                    <p className="text-gold text-[10px] font-bold uppercase tracking-widest mt-1">Membre BaberGo</p>
                   </div>
                   <div className="space-y-2">
                     <div className={`p-4 rounded-sm border flex justify-between items-center ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
@@ -914,7 +914,7 @@ function HomeTab({ theme, feedItems, selectedCategory, onSelectCategory, onSelec
             <Users size={14} className="text-gold" /> {profileViews.toLocaleString('fr-FR')} visiteur{profileViews > 1 ? 's' : ''} de mon profil
           </span>
         </div>
-        <p className="text-xs text-warm-gray">Parcourez les réalisations des prestataires BarberGo et réservez une séance.</p>
+        <p className="text-xs text-warm-gray">Parcourez les réalisations des prestataires BaberGo et réservez une séance.</p>
       </div>
 
       <CategoryRail selected={selectedCategory} onSelect={onSelectCategory} theme={theme} />
@@ -1163,7 +1163,7 @@ function BarberProfileModal({ entry, initialShowBooking, theme, onClose, onBook,
             onClick={async (e) => {
               e.stopPropagation();
               const shareUrl = `${window.location.origin}${window.location.pathname}?barber=${encodeURIComponent(barber.uid)}`;
-              const shareData = { title: 'BarberGo', text: `${barber.firstName} ${barber.lastName} sur BarberGo`, url: shareUrl };
+              const shareData = { title: 'BaberGo', text: `${barber.firstName} ${barber.lastName} sur BaberGo`, url: shareUrl };
               try {
                 if (navigator.share) await navigator.share(shareData);
                 else if (navigator.clipboard) await navigator.clipboard.writeText(shareData.url);
@@ -1813,7 +1813,7 @@ function MyProfileTab({ profile, theme, onUpdateBio, onUpdateCity, onUpdateAgeRa
               </>
             ) : (
               <p className="text-[10px] text-warm-gray leading-relaxed">
-                Votre position se met à jour automatiquement pendant que BarberGo reste ouvert dans votre navigateur (elle ne se met pas à jour en arrière-plan une fois l'appli fermée).
+                Votre position se met à jour automatiquement pendant que BaberGo reste ouvert dans votre navigateur (elle ne se met pas à jour en arrière-plan une fois l'appli fermée).
               </p>
             )}
 

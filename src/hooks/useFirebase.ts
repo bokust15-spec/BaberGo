@@ -71,7 +71,7 @@ export interface UserProfile {
   completedCount?: number; // pro only, real count of appointments they've marked completed
   profileViews?: number; // pro only, real count of times their profile was opened by someone else
   unpaidCommissionsCount?: number; // pro only, real count of completed sessions not yet settled (15% commission model)
-  totalCommissionsOwed?: number; // pro only, real sum in DH owed to BarberGo from unpaid completed sessions
+  totalCommissionsOwed?: number; // pro only, real sum in DH owed to BaberGo from unpaid completed sessions
   reviewCount?: number; // pro only, real number of reviews received — avgRating = ratingSum / reviewCount
   ratingSum?: number; // pro only, real sum of every review's rating (1-5), never a made-up average
   locationLat?: number; // pro only, real GPS reference point (rounded to ~100m for privacy) used to compute distance to clients
@@ -205,7 +205,7 @@ export async function geocodeAddress(queryText: string): Promise<{ lat: number; 
 }
 
 // Free, no-API-key reverse geocoding (client-side use is explicitly supported by
-// BigDataCloud) — turns GPS coordinates into a country name so BarberGo can work
+// BigDataCloud) — turns GPS coordinates into a country name so BaberGo can work
 // anywhere in the world, not just Morocco. Best-effort: returns null on any failure,
 // never throws, since a missing country name shouldn't block saving the location itself.
 export async function reverseGeocodeCountry(lat: number, lng: number): Promise<string | null> {
@@ -509,8 +509,8 @@ export function useFirebase() {
         : "Vous pouvez dès maintenant parcourir les professionnels beauté & bien-être près de chez vous et réserver votre prochain rendez-vous.";
       queueEmail(
         profileFields.email,
-        'Bienvenue chez BarberGo !',
-        `<p>Bonjour ${profileFields.firstName},</p><p>Bienvenue chez <strong>BarberGo</strong> ! Votre compte a bien été créé.</p><p>${roleMessage}</p>`
+        'Bienvenue chez BaberGo !',
+        `<p>Bonjour ${profileFields.firstName},</p><p>Bienvenue chez <strong>BaberGo</strong> ! Votre compte a bien été créé.</p><p>${roleMessage}</p>`
       );
 
       return uid;
@@ -560,8 +560,8 @@ export function useFirebase() {
           const dateStr = formatEmailDate(appointment.dateTime);
           await queueEmail(
             barber.email,
-            'Nouvelle demande de réservation — BarberGo',
-            `<p>Bonjour ${barber.firstName},</p><p><strong>${appointment.clientName || 'Un client'}</strong> souhaite réserver <strong>${appointment.serviceName || 'une prestation'}</strong> le <strong>${dateStr}</strong> pour <strong>${appointment.totalPrice} DH</strong>.</p><p>Connectez-vous à votre tableau de bord BarberGo pour répondre.</p>`
+            'Nouvelle demande de réservation — BaberGo',
+            `<p>Bonjour ${barber.firstName},</p><p><strong>${appointment.clientName || 'Un client'}</strong> souhaite réserver <strong>${appointment.serviceName || 'une prestation'}</strong> le <strong>${dateStr}</strong> pour <strong>${appointment.totalPrice} DH</strong>.</p><p>Connectez-vous à votre tableau de bord BaberGo pour répondre.</p>`
           );
         }
       }
@@ -631,7 +631,7 @@ export function useFirebase() {
             updateDoc(doc(db, 'users', appt.barberId), { completedCount: increment(1) })
               .catch((error) => console.error("Error incrementing completed count:", error));
 
-            // 15% commission owed to BarberGo on the real session price — isolated write
+            // 15% commission owed to BaberGo on the real session price — isolated write
             // (never bundled with completedCount) so firestore.rules can bound the delta.
             const commission = Math.round(appt.totalPrice * 0.15);
             updateDoc(doc(db, 'users', appt.barberId), {
@@ -643,27 +643,27 @@ export function useFirebase() {
           if (updates.status === 'confirmed') {
             await queueEmail(
               appt.clientEmail,
-              'Réservation confirmée — BarberGo',
+              'Réservation confirmée — BaberGo',
               `<p>Bonne nouvelle !</p><p><strong>${barber?.firstName || 'Le professionnel'}</strong> a confirmé votre réservation pour <strong>${appt.serviceName || 'votre prestation'}</strong> le <strong>${dateStr}</strong>.</p>`
             );
           }
           if (updates.status === 'cancelled') {
             await queueEmail(
               appt.clientEmail,
-              'Réservation annulée — BarberGo',
+              'Réservation annulée — BaberGo',
               `<p>Votre réservation pour <strong>${appt.serviceName || 'la prestation'}</strong> le <strong>${dateStr}</strong> a été annulée.</p>`
             );
             await queueEmail(
               barber?.email,
-              'Réservation annulée — BarberGo',
+              'Réservation annulée — BaberGo',
               `<p>La réservation de <strong>${appt.clientName || 'votre client'}</strong> pour <strong>${appt.serviceName || 'la prestation'}</strong> le <strong>${dateStr}</strong> a été annulée.</p>`
             );
           }
           if (updates.negotiationStatus === 'barber_countered') {
             await queueEmail(
               appt.clientEmail,
-              'Nouvelle proposition du prestataire — BarberGo',
-              `<p><strong>${barber?.firstName || 'Le professionnel'}</strong> vous propose un nouveau créneau ou tarif pour <strong>${appt.serviceName || 'votre prestation'}</strong>. Connectez-vous à BarberGo pour l'accepter ou le refuser.</p>`
+              'Nouvelle proposition du prestataire — BaberGo',
+              `<p><strong>${barber?.firstName || 'Le professionnel'}</strong> vous propose un nouveau créneau ou tarif pour <strong>${appt.serviceName || 'votre prestation'}</strong>. Connectez-vous à BaberGo pour l'accepter ou le refuser.</p>`
             );
           }
         }
