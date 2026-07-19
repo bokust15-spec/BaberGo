@@ -164,7 +164,7 @@ export default function BarberDashboard({
   // shows "received" bookings with the usual Accepter/Refuser actions, and "made" bookings
   // (this pro acting as a client) with the client-side view instead.
   const receivedAppointments = useMemo(
-    () => appointments.filter(a => a.barberId === profile.uid || a.barberId === 'dummy_barber'),
+    () => appointments.filter(a => a.barberId === profile.uid),
     [appointments, profile.uid]
   );
   const madeAppointments = useMemo(

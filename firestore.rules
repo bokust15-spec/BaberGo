@@ -135,12 +135,28 @@ service cloud.firestore {
         && data.category is string;
     }
 
-    // A full price-catalog cross-check (matching a specific service's real price on the
-    // barber's profile) isn't reliably expressible in rules — services live in a list,
-    // and rules can't search inside one the way they can look up a single document by
-    // ID. This bounds check is a real but partial mitigation; closing the gap fully
-    // needs either a services subcollection (so get() can look up one by ID) or a
-    // Cloud Function, both bigger changes than a rules tweak.
+    // Shape check for a single doc in a barber's users/{uid}/services subcollection —
+    // mirrored from their services array on every save (see updateServices in
+    // useFirebase.ts) purely so matchesRealServicePrice below can look one up by ID.
+    function isValidBarberService(data) {
+      return data.keys().hasAll(['name', 'price', 'duration'])
+        && data.keys().size() == 3
+        && data.name is string && data.name.size() > 0
+        && isNum(data.price) && data.price >= 0
+        && isNum(data.duration) && data.duration > 0;
+    }
+
+    // Verifies totalPrice matches the barber's real listed price for this exact
+    // service, once that service has been mirrored into users/{barberId}/services (see
+    // isValidBarberService above). Falls back to just the bounds check below when no
+    // mirrored doc exists yet for that barberId/serviceId pair (a pro who hasn't
+    // re-saved their menu since this was added) — so this tightens automatically as
+    // services get mirrored, without ever blocking a booking that used to work.
+    function matchesRealServicePrice(data) {
+      return !exists(/databases/$(database)/documents/users/$(data.barberId)/services/$(data.serviceId))
+        || get(/databases/$(database)/documents/users/$(data.barberId)/services/$(data.serviceId)).data.price == data.totalPrice;
+    }
+
     function isValidAppointment(data) {
       return data.keys().hasAll(['clientId', 'barberId', 'serviceId', 'dateTime', 'status', 'totalPrice'])
         && data.keys().size() >= 6 && data.keys().size() <= 16
@@ -149,6 +165,7 @@ service cloud.firestore {
         && data.serviceId is string
         && data.status in ['pending', 'confirmed', 'cancelled', 'completed']
         && isNum(data.totalPrice) && data.totalPrice > 0 && data.totalPrice <= 20000
+        && matchesRealServicePrice(data)
         && (!('proposedPrice' in data) || (isNum(data.proposedPrice) && data.proposedPrice > 0 && data.proposedPrice <= 20000))
         && (!('clientLat' in data) || (isNum(data.clientLat) && data.clientLat >= -90 && data.clientLat <= 90))
         && (!('clientLng' in data) || (isNum(data.clientLng) && data.clientLng >= -180 && data.clientLng <= 180));
@@ -310,6 +327,15 @@ service cloud.firestore {
       // (avatar/cover/portfolio/kyc) are deleted client-side beforehand; past
       // appointments/reviews/messages involving other users are intentionally left as-is.
       allow delete: if isOwner(userId);
+
+      // Real per-barber service menu, mirrored from the services array field on every
+      // save (see updateServices in useFirebase.ts) purely so appointment creation can
+      // verify totalPrice against one exact service's real price via get() — see
+      // matchesRealServicePrice above. Public read, same as the legacy /services catalog.
+      match /services/{serviceId} {
+        allow read: if true;
+        allow write: if isOwner(userId) && isValidBarberService(request.resource.data);
+      }
     }
 
     // Admin allowlist — one document per admin UID, created manually in the Firebase
@@ -329,9 +355,8 @@ service cloud.firestore {
     }
 
     // Services (Menu) — public so guests can browse prestations before signing in. This
-    // is the legacy shared catalog (seed data + the client "Annonce" flow); real booking
-    // now runs on each barber's own services list on their profile. Writes are limited
-    // to barber accounts, not just any signed-in user.
+    // is a legacy shared seed catalog; real booking runs on each barber's own services
+    // list on their profile. Writes are limited to barber accounts, not just any signed-in user.
     match /services/{serviceId} {
       allow read: if true;
       allow write: if isSignedIn()
@@ -368,19 +393,15 @@ service cloud.firestore {
     // only; the update rule below deliberately does NOT grant admins write access, so
     // this doesn't let an admin silently alter a reservation).
     match /appointments/{appointmentId} {
-      allow read: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber' || isAdmin());
-      allow list: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber' || isAdmin());
+      allow read: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || isAdmin());
       allow create: if isSignedIn() && isValidAppointment(request.resource.data);
-      allow update: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid || resource.data.barberId == 'dummy_barber')
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'totalPrice', 'proposedPrice', 'counterPriceByBarber', 'counterDateTime', 'dateTime', 'negotiationStatus', 'clientLocationShared', 'clientNotes', 'barberId', 'cancelledBy', 'cancelReason', 'cancelReasonDetail'])
+      allow update: if isSignedIn() && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'totalPrice', 'proposedPrice', 'counterPriceByBarber', 'counterDateTime', 'dateTime', 'negotiationStatus', 'clientLocationShared', 'clientNotes', 'cancelledBy', 'cancelReason', 'cancelReasonDetail'])
         && (!('totalPrice' in request.resource.data) || (isNum(request.resource.data.totalPrice) && request.resource.data.totalPrice > 0 && request.resource.data.totalPrice <= 20000))
         && (!('proposedPrice' in request.resource.data) || (isNum(request.resource.data.proposedPrice) && request.resource.data.proposedPrice > 0 && request.resource.data.proposedPrice <= 20000))
         && (!('counterPriceByBarber' in request.resource.data) || (isNum(request.resource.data.counterPriceByBarber) && request.resource.data.counterPriceByBarber > 0 && request.resource.data.counterPriceByBarber <= 20000))
         && isValidCancelReason(request.resource.data)
-        && (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['barberId'])
-          || (resource.data.barberId == 'dummy_barber' && request.resource.data.barberId == request.auth.uid)
-        )
         && (
           // Pro-initiated cancellation is refused once the client has already shared
           // their phone number for this session (see barberCanCancelAppointment above).

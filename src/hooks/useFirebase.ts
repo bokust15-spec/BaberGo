@@ -27,7 +27,8 @@ import {
   arrayUnion,
   arrayRemove,
   onSnapshot,
-  increment
+  increment,
+  writeBatch
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject, listAll } from 'firebase/storage';
 import { auth, db, storage, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -583,11 +584,6 @@ export function useFirebase() {
         const snapSpecific = await getDocs(qSpecific);
         const listSpecific = snapSpecific.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
 
-        // Fetch open/public announcements
-        const qOpen = query(collection(db, 'appointments'), where('barberId', '==', 'dummy_barber'));
-        const snapOpen = await getDocs(qOpen);
-        const listOpen = snapOpen.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
-
         // A pro can also book another pro (same booking flow as a client) — those
         // appointments have this account as clientId, not barberId, so they need their
         // own query or they'd never show up in this pro's own dashboard/chat.
@@ -598,10 +594,6 @@ export function useFirebase() {
         // Merge without duplicates
         const mergedMap = new Map<string, Appointment>();
         listSpecific.forEach(app => mergedMap.set(app.id, app));
-        listOpen.forEach(app => {
-          // If the app is already pending or countering, make it visible on the general dashboard
-          mergedMap.set(app.id, app);
-        });
         listBooked.forEach(app => mergedMap.set(app.id, app));
 
         return Array.from(mergedMap.values());
@@ -1302,6 +1294,23 @@ export function useFirebase() {
     const docRef = doc(db, 'users', user.uid);
     try {
       await updateDoc(docRef, { services });
+
+      // Mirror into a users/{uid}/services/{serviceId} subcollection (name/price/duration
+      // only — the doc ID IS the service id) so firestore.rules can look up one service's
+      // real price by ID at booking time, which isn't possible against the array field
+      // alone (see matchesRealServicePrice in firestore.rules).
+      const servicesCol = collection(db, 'users', user.uid, 'services');
+      const existingSnap = await getDocs(servicesCol);
+      const newIds = new Set(services.map(s => s.id));
+      const batch = writeBatch(db);
+      existingSnap.docs.forEach(d => {
+        if (!newIds.has(d.id)) batch.delete(d.ref);
+      });
+      services.forEach(s => {
+        batch.set(doc(servicesCol, s.id), { name: s.name, price: s.price, duration: s.duration });
+      });
+      await batch.commit();
+
       setProfile(prev => prev ? { ...prev, services } : prev);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);

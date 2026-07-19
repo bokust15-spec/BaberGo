@@ -68,7 +68,6 @@ export default function MyBookingsSection({
   const getServiceLabel = (app: Appointment) => app.serviceName || services.find(s => s.id === app.serviceId)?.name || 'Prestation';
 
   const getBarberInfo = (app: Appointment): { name: string; avatarUrl: string | null } => {
-    if (app.barberId === 'dummy_barber') return { name: 'Recherche d\'un professionnel en cours...', avatarUrl: null };
     const real = barbers.find(b => b.uid === app.barberId);
     if (real) return { name: `${real.firstName} ${real.lastName}`, avatarUrl: real.avatarUrl || null };
     const mockPost = STYLE_POSTS.find(p => p.id === app.barberId);

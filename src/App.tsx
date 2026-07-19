@@ -4,12 +4,11 @@ import LandingPage from './components/LandingPage';
 import AppMVP from './components/AppMVP';
 import RegisterModal from './components/RegisterModal';
 import LoginModal from './components/LoginModal';
-import ProfilePage from './components/ProfilePage';
 import BarberDashboard from './components/BarberDashboard';
 import AdminPanel from './components/AdminPanel';
 import { useFirebase, Appointment } from './hooks/useFirebase';
 
-type View = 'landing' | 'app' | 'profile' | 'admin';
+type View = 'landing' | 'app' | 'admin';
 
 export default function App() {
   // Previously plain useState, meaning every screen change was invisible to the
@@ -233,37 +232,12 @@ export default function App() {
     await registerProfile(data);
     setIsRegisterOpen(false);
     setHasDismissedRegister(false);
-    setView('profile'); // Redirige vers la page de profil après l'inscription
+    setView('app');
   };
 
   const handleLogoutAll = async () => {
     await logout();
     setView('landing');
-  };
-
-  const handleCreateAnnonce = async (
-    serviceId: string, 
-    dateTime: Date, 
-    totalPrice: number, 
-    proposedPrice?: number, 
-    clientNotes?: string,
-    targetBarberId?: string
-  ) => {
-    if (!user) return;
-    await createAppointment({
-      clientId: user.uid,
-      clientName: profile ? `${profile.firstName} ${profile.lastName}` : 'Client Anonyme',
-      clientEmail: profile?.email,
-      barberId: targetBarberId || 'dummy_barber',
-      serviceId,
-      dateTime,
-      totalPrice,
-      proposedPrice,
-      negotiationStatus: 'client_proposed',
-      clientNotes
-    });
-    const apps = await getAppointments(profile?.role || 'client');
-    setAppointments(apps);
   };
 
   // A fresh position captured right when a booking is confirmed — deliberately not
@@ -378,14 +352,7 @@ export default function App() {
   };
 
   const handleUpdateAppointment = async (id: string, updates: Partial<Appointment>) => {
-    const updatedPayload = { ...updates };
-    if (profile?.role === 'barber') {
-      const appToUpdate = appointments.find(a => a.id === id);
-      if (appToUpdate && appToUpdate.barberId === 'dummy_barber') {
-        updatedPayload.barberId = profile.uid;
-      }
-    }
-    await updateAppointment(id, updatedPayload);
+    await updateAppointment(id, updates);
     if (profile) {
       const apps = await getAppointments(profile.role);
       setAppointments(apps);
@@ -393,14 +360,7 @@ export default function App() {
   };
 
   const handleUpdateAppointmentStatus = async (id: string, status: Appointment['status']) => {
-    const updates: Partial<Appointment> = { status };
-    if (profile?.role === 'barber') {
-      const appToUpdate = appointments.find(a => a.id === id);
-      if (appToUpdate && appToUpdate.barberId === 'dummy_barber') {
-        updates.barberId = profile.uid;
-      }
-    }
-    await updateAppointment(id, updates);
+    await updateAppointment(id, { status });
     // Refresh local state
     if (profile) {
       const apps = await getAppointments(profile.role);
@@ -457,20 +417,6 @@ export default function App() {
           monthVisitors={monthVisitors}
           totalPros={barbers.length}
           totalUsers={totalUsers}
-        />
-      );
-    }
-
-    if (view === 'profile' && profile) {
-      return (
-        <ProfilePage 
-          profile={profile}
-          onContinue={() => setView('app')}
-          onLogout={handleLogoutAll}
-          theme={theme}
-          services={services}
-          barbers={barbers}
-          onCreateAnnonce={handleCreateAnnonce}
         />
       );
     }

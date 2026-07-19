@@ -72,7 +72,6 @@ export default function AdminPanel({ barbers, allAppointments, onRefreshAppointm
   const owingCommission = barbers.filter(b => (b.unpaidCommissionsCount || 0) > 0);
 
   const barberName = (barberId: string) => {
-    if (barberId === 'dummy_barber') return 'Annonce ouverte (non assignée)';
     const b = barbers.find(x => x.uid === barberId);
     return b ? `${b.firstName} ${b.lastName}` : 'Pro introuvable';
   };
