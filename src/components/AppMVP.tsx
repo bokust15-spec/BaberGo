@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, Search, Scissors, User, ChevronRight, X, ArrowLeft, BadgeCheck, CalendarDays, CalendarCheck, MessageCircle, Navigation, Layers, Share2 } from 'lucide-react';
 import { UserProfile, useFirebase, Appointment, ChatMessage, Review, hashPostId, getItemPhotos } from '../hooks/useFirebase';
 import { STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, SALON_COVER_PHOTO, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
+import { entryMatchesSearchTerm } from '../data/searchSynonyms';
 import BookingModal from './BookingModal';
 import SearchBar from './SearchBar';
 import CategoryRail from './CategoryRail';
@@ -249,13 +250,18 @@ export default function AppMVP({ onLogout, onLogin, theme, profile, onLogoutFire
       if (selectedDay !== null && !e.availableDays.includes(selectedDay)) return false;
       return true;
     });
-    // The style text doesn't exclude anyone — it just brings barbers who have already
-    // done that look to the top, as a recommendation.
-    const style = searchStyle.trim().toLowerCase();
+    // The style text links the request to every profile it's relevant to (synonym/
+    // category aware, e.g. "tatouage" finds pros tagged esthetique) — but if nothing
+    // matches (an exotic term our synonym list doesn't know), fall back to showing
+    // everyone rather than an empty page, still sorted by whatever loose match exists.
+    const style = searchStyle.trim();
     if (!style) return results;
-    return [...results].sort((a, b) => {
-      const aMatch = a.item.name.toLowerCase().includes(style) ? 0 : 1;
-      const bMatch = b.item.name.toLowerCase().includes(style) ? 0 : 1;
+    const matched = results.filter(e => entryMatchesSearchTerm(e, style));
+    const base = matched.length > 0 ? matched : results;
+    const lowerStyle = style.toLowerCase();
+    return [...base].sort((a, b) => {
+      const aMatch = a.item.name.toLowerCase().includes(lowerStyle) ? 0 : 1;
+      const bMatch = b.item.name.toLowerCase().includes(lowerStyle) ? 0 : 1;
       return aMatch - bMatch;
     });
   }, [feedEntries, searchGender, selectedCategory, searchCity, searchDateTime, searchStyle]);

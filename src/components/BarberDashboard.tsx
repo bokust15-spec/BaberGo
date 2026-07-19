@@ -30,6 +30,7 @@ import { Appointment, UserProfile, Service, PortfolioItem, BarberService, ChatMe
 import { StylePost, STYLE_POSTS, avatarFor, PORTFOLIO_PHOTOS, mockBarberFromPost, CITY_COORDS, distanceKm } from '../data/mockBarberFeed';
 import CategoryRail from './CategoryRail';
 import { SERVICE_CATEGORIES } from '../data/categories';
+import { entryMatchesSearchTerm } from '../data/searchSynonyms';
 import PhotoGalleryLightbox, { LightboxPhoto } from './PhotoGalleryLightbox';
 import SkeletonCard from './SkeletonCard';
 import MobilePostCard from './MobilePostCard';
@@ -364,11 +365,14 @@ export default function BarberDashboard({
       if (selectedDay !== null && !e.availableDays.includes(selectedDay)) return false;
       return true;
     });
-    const style = searchStyle.trim().toLowerCase();
+    const style = searchStyle.trim();
     if (!style) return results;
-    return [...results].sort((a, b) => {
-      const aMatch = a.item.name.toLowerCase().includes(style) ? 0 : 1;
-      const bMatch = b.item.name.toLowerCase().includes(style) ? 0 : 1;
+    const matched = results.filter(e => entryMatchesSearchTerm(e, style));
+    const base = matched.length > 0 ? matched : results;
+    const lowerStyle = style.toLowerCase();
+    return [...base].sort((a, b) => {
+      const aMatch = a.item.name.toLowerCase().includes(lowerStyle) ? 0 : 1;
+      const bMatch = b.item.name.toLowerCase().includes(lowerStyle) ? 0 : 1;
       return aMatch - bMatch;
     });
   }, [feedItems, selectedCategory, searchGender, searchCity, searchDateTime, searchStyle]);
