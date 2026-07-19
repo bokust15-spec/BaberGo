@@ -36,4 +36,22 @@ describe('entryMatchesSearchTerm', () => {
   it('falls back to matching the service/style name directly', () => {
     expect(entryMatchesSearchTerm(cheveuxPro, 'balayage')).toBe(true);
   });
+
+  it('matches a word left in the bio, even outside the category system', () => {
+    const bioPro = { item: { name: 'Coupe classique' }, barber: { categories: ['cheveux'], bio: 'Spécialiste tatouage henné pour mariages traditionnels.' } };
+    expect(entryMatchesSearchTerm(bioPro, 'henne')).toBe(true);
+  });
+
+  it('matches a real service name from the barber menu', () => {
+    const menuPro = { item: { name: 'Portrait' }, barber: { categories: ['esthetique'], services: [{ name: 'Piercing oreille' }, { name: 'Retouche sourcils' }] } };
+    expect(entryMatchesSearchTerm(menuPro, 'piercing')).toBe(true);
+  });
+
+  it('matches a réalisation the barber posted, even if it is not this specific entry', () => {
+    const galleryPro = {
+      item: { name: 'Coupe homme' },
+      barber: { categories: ['cheveux'], portfolioItems: [{ name: 'Coupe homme' }, { name: 'Tresses africaines' }] },
+    };
+    expect(entryMatchesSearchTerm(galleryPro, 'tresses')).toBe(true);
+  });
 });

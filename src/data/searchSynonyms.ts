@@ -5,7 +5,12 @@ import { SERVICE_CATEGORIES } from './categories';
 // depend on a component file.
 interface SearchableEntry {
   item: { name: string; category?: string };
-  barber: { categories?: string[] };
+  barber: {
+    categories?: string[];
+    bio?: string;
+    services?: { name: string }[];
+    portfolioItems?: { name: string }[];
+  };
 }
 
 // Free-text search terms the way a client would actually type them (French, sometimes
@@ -82,14 +87,18 @@ function categoryMatchesTerm(categoryIdOrLabel: string, normalizedTerm: string):
 }
 
 // Whether a searched term ("tatouage", "manucure"...) is relevant to this feed entry —
-// checked against the post's own category, the barber's full category list, and the
-// service/style name, so a search links the request to every matching profile rather
-// than just the one post that happens to contain the exact word.
+// checked against the post's own category/name, the barber's full category list, bio,
+// real service menu, and every one of their posted réalisations (not just the one this
+// particular entry happens to represent), so a search links the request to every
+// matching profile rather than just the one post that happens to contain the exact word.
 export function entryMatchesSearchTerm(entry: SearchableEntry, term: string): boolean {
   const normalizedTerm = normalize(term);
   if (!normalizedTerm) return true;
   if (textIncludesTerm(entry.item.name, normalizedTerm)) return true;
   if (entry.item.category && categoryMatchesTerm(entry.item.category, normalizedTerm)) return true;
   if (entry.barber.categories?.some(c => categoryMatchesTerm(c, normalizedTerm))) return true;
+  if (entry.barber.bio && textIncludesTerm(entry.barber.bio, normalizedTerm)) return true;
+  if (entry.barber.services?.some(s => textIncludesTerm(s.name, normalizedTerm))) return true;
+  if (entry.barber.portfolioItems?.some(p => textIncludesTerm(p.name, normalizedTerm))) return true;
   return false;
 }
