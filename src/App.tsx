@@ -592,9 +592,9 @@ export default function App() {
         onClose={() => setIsLoginOpen(false)}
         onLogin={handleLoginSubmit}
         onResetPassword={resetPassword}
-        onSwitchToRegister={() => {
+        onBrowseAsGuest={() => {
           setIsLoginOpen(false);
-          handleRegisterClick();
+          setView('app');
         }}
         theme={theme}
       />

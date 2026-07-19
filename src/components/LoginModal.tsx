@@ -7,11 +7,15 @@ interface LoginModalProps {
   onClose: () => void;
   onLogin: (email: string, password: string) => Promise<boolean>;
   onResetPassword: (email: string) => Promise<boolean>;
-  onSwitchToRegister: () => void;
+  // Clients have no standalone signup form — their account is created transparently
+  // when they confirm their first booking (see onGuestRegisterAndBook), so this just
+  // sends them to search rather than opening the professional-only RegisterModal
+  // (reserved for the landing page's "Je suis un professionnel de beauté" button).
+  onBrowseAsGuest: () => void;
   theme: 'dark' | 'light';
 }
 
-export default function LoginModal({ isOpen, onClose, onLogin, onResetPassword, onSwitchToRegister, theme }: LoginModalProps) {
+export default function LoginModal({ isOpen, onClose, onLogin, onResetPassword, onBrowseAsGuest, theme }: LoginModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -156,10 +160,10 @@ export default function LoginModal({ isOpen, onClose, onLogin, onResetPassword, 
               {mode === 'login' && (
                 <button
                   type="button"
-                  onClick={onSwitchToRegister}
+                  onClick={onBrowseAsGuest}
                   className="w-full text-[10px] text-warm-gray hover:text-gold uppercase font-bold tracking-wide pt-1"
                 >
-                  Pas encore de compte ? S'inscrire
+                  Pas encore de compte ? Réservez votre 1ère séance pour en créer un
                 </button>
               )}
             </form>
